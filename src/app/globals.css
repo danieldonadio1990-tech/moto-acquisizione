@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Token di design.
+ * Riferimenti visivi: la strada (asfalto, segnaletica gialla), la targa (blu banda UE),
+ * il contachilometri. Nessun riferimento a identità di concorrenti.
+ */
+@theme {
+  --color-asphalt: #1e2328;
+  --color-asphalt-soft: #3a4048;
+  --color-chalk: #f5f6f3;
+  --color-paper: #ffffff;
+  --color-plate: #1a3fa8;
+  --color-plate-deep: #12307f;
+  --color-signal: #ffd23f;
+  --color-concrete: #6b7178;
+  --color-line: #d9dcd7;
+  --color-ok: #1f7a52;
+  --color-danger: #b3261e;
+
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-chalk);
+  color: var(--color-asphalt);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 0;
+}
+
+/* Titoli in larghezza condensata: la personalità tipografica del prodotto */
+.display {
+  font-stretch: 72%;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 0.92;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-signal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Linea di mezzeria tratteggiata (percorso "come funziona") */
+.lane {
+  background-image: linear-gradient(to bottom, var(--color-signal) 0 60%, transparent 60% 100%);
+  background-size: 4px 22px;
+  background-repeat: repeat-y;
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.step-in {
+  animation: step-in 320ms var(--ease-out-soft) both;
+}
+
+@keyframes digit-roll {
+  from {
+    transform: translateY(-40%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.digit-roll {
+  animation: digit-roll 180ms var(--ease-out-soft) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

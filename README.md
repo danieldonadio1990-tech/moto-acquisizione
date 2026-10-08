@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# [BRAND] — Acquisizione moto da privati (Phase 1)
 
-## Getting Started
+Funnel "Hai una moto da vendere? Noi possiamo comprartela." + backoffice minimo.
+Area: Milano e provincia. North Star: **moto acquistate da privati / mese**.
 
-First, run the development server:
+## Avvio in locale
+
+Requisiti: Node.js 20+.
 
 ```bash
+npm install
+cp .env.example .env.local      # poi compila SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Sito: http://localhost:3000
+- Funnel: http://localhost:3000/valuta
+- Backoffice: http://localhost:3000/admin (credenziali di ADMIN_EMAIL / ADMIN_PASSWORD)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Senza `DATABASE_URL` il progetto usa un PostgreSQL embedded (PGlite) in `./data/pglite`
+e salva le foto in `./data/uploads`. Nessun account esterno necessario per provarlo.
+Il primo admin viene creato automaticamente al primo avvio, se non ne esiste nessuno.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Test: `npm test` (regole Buy Box, validazione richieste, telefoni). Controlli: `npm run typecheck`, `npm run lint`.
 
-## Learn More
+## Cosa fa (Phase 1)
 
-To learn more about Next.js, take a look at the following resources:
+1. Landing → "Valuta la tua moto"
+2. Funnel progressivo: Moto → Km → Condizioni → Contatti → Foto → Conferma
+3. **Il lead viene salvato quando il cliente invia i contatti**; le foto arrivano dopo con un
+   token monouso (48 h). Chi abbandona allo step foto non è un contatto perso.
+4. Backoffice: elenco richieste con filtri per stato, dettaglio con foto, contatti (WhatsApp/telefono/email
+   in un tocco), cambio stato, offerte (accettata/rifiutata), registrazione acquisto con prezzo reale,
+   note interne, storico stati con autore e data.
+5. Badge **Buy Box** su ogni lead (regole nel DB, iniziali: Honda SH, Piaggio Liberty, Kymco Agility a Milano).
+6. Eventi di funnel registrati da subito (vedi Analytics).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Struttura
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+src/
+  config/brand.ts          ← NOME BRAND, WhatsApp, dati legali (unico punto da cambiare)
+  db/                      schema Drizzle, connessione, dati iniziali
+  modules/
+    catalog/               database moto statico (marche, modelli, cilindrate)
+    funnel/                form progressivo (stato, step, UI)
+    leads/                 validazione, stati, servizio (creazione, offerte, acquisto)
+    buybox/                regole e matching (funzione pura)
+    photos/                elaborazione (EXIF/GPS rimossi) e storage sostituibile
+    analytics/             eventi first-party
+    admin/                 sessione, login, componenti backoffice
+  app/                     pagine e API (Next.js App Router)
+drizzle/                   migrazioni SQL (applicate all'avvio)
+```
 
-## Deploy on Vercel
+La logica di **acquisizione** è isolata: la futura vendita/inventario dovrà vivere in tabelle proprie
+collegate a `leads.id` quando lo stato è "Acquistata".
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Analytics (dati già raccolti, dashboard in Phase 4)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Metrica | Fonte |
+|---|---|
+| Visite landing, click CTA, inizio funnel, step completati, foto caricate/saltate, click WhatsApp | tabella `events` |
+| Lead generato | `events` (`lead_created`) + `leads` |
+| Contattato / appuntamento / offerta / acquisto | `lead_status_history`, `offers`, `leads.purchase_price` |
+| Canale di provenienza | `leads.utm_source/medium/campaign` (dai link delle campagne) |
+
+Niente cookie di terze parti: non serve il banner finché non si aggiungono pixel pubblicitari.
+
+## Messa online
+
+1. Database PostgreSQL in UE (es. Supabase o Neon, regione Francoforte) → `DATABASE_URL`.
+2. Storage foto: su hosting serverless (es. Vercel) il disco non è persistente. Prima del lancio
+   va collegato uno storage privato (Supabase Storage / S3 / R2) implementando
+   `PhotoStorage` in `src/modules/photos/storage.ts`. Su un server/VPS tradizionale il disco locale va bene.
+3. Variabili: `SESSION_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `NEXT_PUBLIC_WHATSAPP_NUMBER`.
+4. Compilare `LEGAL` in `src/config/brand.ts` e far verificare l'informativa in `/privacy`.
+
+## Da fare prima del lancio
+
+- [ ] Nome brand definitivo (dopo naming e verifica disponibilità) → `src/config/brand.ts`, `BrandMark`
+- [ ] Numero WhatsApp aziendale
+- [ ] Dati legali e revisione informativa privacy
+- [ ] Storage foto in cloud (se hosting serverless)
+- [ ] Cambiare la password admin di sviluppo
