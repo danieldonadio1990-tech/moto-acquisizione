@@ -2,6 +2,12 @@ import "server-only";
 import sharp, { type Metadata } from "sharp";
 
 export const MAX_PHOTOS_PER_LEAD = 12;
+/** Foto per singola richiesta (il browser invia a gruppi di 3) */
+export const MAX_FILES_PER_REQUEST = 4;
+/** Dimensione massima del corpo di una richiesta di upload */
+export const MAX_UPLOAD_REQUEST_BYTES = 25 * 1024 * 1024;
+/** Tempo massimo per ricevere il corpo di una richiesta di upload */
+export const UPLOAD_BODY_TIMEOUT_MS = 60_000;
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp", "heif", "avif"]);
 
@@ -21,8 +27,12 @@ export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
   } catch {
     throw new PhotoError("File non riconosciuto come immagine");
   }
+  if (meta.format === "heif" && meta.compression === "hevc") {
+    // HEIC degli iPhone: di norma il browser lo converte in JPEG prima dell'invio
+    throw new PhotoError("Formato HEIC non supportato: scegli la foto come JPEG o mandala su WhatsApp");
+  }
   if (!meta.format || !ALLOWED_FORMATS.has(meta.format)) {
-    throw new PhotoError("Formato non supportato");
+    throw new PhotoError("Formato non supportato (usa JPG, PNG o WebP)");
   }
 
   const { data, info } = await sharp(input, { limitInputPixels: 60_000_000 })

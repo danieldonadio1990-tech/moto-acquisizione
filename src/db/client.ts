@@ -5,39 +5,41 @@ import { drizzle as drizzlePglite, type PgliteDatabase } from "drizzle-orm/pglit
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
+import { serverConfig } from "@/config/env";
 import * as schema from "./schema";
 import { bootstrap } from "./bootstrap";
 
 /**
- * Connessione al database.
- * - DATABASE_URL=postgres://...  → PostgreSQL vero (produzione: Supabase, Neon, ecc.)
- * - DATABASE_URL assente           → PGlite embedded in ./data/pglite (sviluppo locale)
+ * Connessione al database, scelta da src/config/env.ts:
+ * - postgres → PostgreSQL vero (obbligatorio in produzione)
+ * - pglite   → database integrato in ./data/pglite (solo sviluppo e test)
  *
- * Le migrazioni (cartella ./drizzle) vengono applicate all'avvio.
+ * Le migrazioni (cartella ./drizzle) vengono applicate all'avvio del server.
  */
 export type Db = PgliteDatabase<typeof schema>;
 
 const MIGRATIONS = path.join(process.cwd(), "drizzle");
 
-const globalForDb = globalThis as unknown as { __dbPromise?: Promise<Db> };
+const globalForDb = globalThis as unknown as { __dbPromise?: Promise<Db>; __dbClose?: () => Promise<void> };
 
 async function init(): Promise<Db> {
-  const url = process.env.DATABASE_URL;
+  const cfg = serverConfig().database;
   let db: Db;
-  if (url && url.startsWith("postgres")) {
+  if (cfg.kind === "postgres") {
     const { default: postgres } = await import("postgres");
-    const client = postgres(url, { max: 5, prepare: false });
+    const client = postgres(cfg.url, { max: 5, prepare: false, onnotice: () => {} });
     const pg = drizzlePostgres(client, { schema });
     await migratePostgres(pg, { migrationsFolder: MIGRATIONS });
     db = pg as unknown as Db;
+    globalForDb.__dbClose = () => client.end();
   } else {
     const { PGlite } = await import("@electric-sql/pglite");
-    const dir = path.join(process.cwd(), "data", "pglite");
-    mkdirSync(dir, { recursive: true });
-    const client = new PGlite(dir);
+    mkdirSync(cfg.dir, { recursive: true });
+    const client = new PGlite(cfg.dir);
     const lite = drizzlePglite(client, { schema });
     await migratePglite(lite, { migrationsFolder: MIGRATIONS });
     db = lite;
+    globalForDb.__dbClose = () => client.close();
   }
   await bootstrap(db);
   return db;
@@ -51,4 +53,14 @@ export function getDb(): Promise<Db> {
     });
   }
   return globalForDb.__dbPromise;
+}
+
+/** Chiude la connessione (script e test). */
+export async function closeDb() {
+  if (globalForDb.__dbPromise) {
+    await globalForDb.__dbPromise.catch(() => {});
+    await globalForDb.__dbClose?.();
+    globalForDb.__dbPromise = undefined;
+    globalForDb.__dbClose = undefined;
+  }
 }

@@ -17,15 +17,21 @@ export async function bootstrap(db: Db) {
 
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
-  if (email && password) {
-    const [{ count: admins }] = await db.select({ count: sql<number>`count(*)::int` }).from(adminUsers);
-    if (admins === 0) {
-      if (password.length < 10) {
-        console.warn("[bootstrap] ADMIN_PASSWORD troppo corta (min 10 caratteri): admin non creato.");
-      } else {
-        await db.insert(adminUsers).values({ email, passwordHash: await bcrypt.hash(password, 12) });
-        console.info(`[bootstrap] Creato utente admin ${email}`);
-      }
+  const [{ count: admins }] = await db.select({ count: sql<number>`count(*)::int` }).from(adminUsers);
+
+  if (admins === 0 && email && password) {
+    if (password.length < 12) {
+      console.warn("[bootstrap] ADMIN_PASSWORD troppo corta (minimo 12 caratteri): admin non creato.");
+    } else {
+      await db.insert(adminUsers).values({ email, passwordHash: await bcrypt.hash(password, 12) });
+      console.info("[bootstrap] Creato il primo utente admin. Ora RIMUOVI ADMIN_PASSWORD dalle variabili d'ambiente.");
     }
+  } else if (admins > 0 && password) {
+    // la password serve solo alla prima creazione: lasciarla nelle variabili è un rischio inutile
+    console.warn(
+      "[sicurezza] ADMIN_PASSWORD è ancora impostata ma l'admin esiste già: rimuovila dalle variabili d'ambiente (non viene più usata).",
+    );
+  } else if (admins === 0) {
+    console.warn("[bootstrap] Nessun admin: imposta ADMIN_EMAIL e ADMIN_PASSWORD per crearne uno al prossimo avvio.");
   }
 }

@@ -31,6 +31,8 @@ export type FunnelState = {
     preferredContact: "whatsapp" | "phone" | "email";
     privacyConsent: boolean;
   };
+  /** chiave di idempotenza dell'invio: generata al primo tentativo, riusata nei retry */
+  submissionId?: string;
   /** valorizzato dopo l'invio dei contatti */
   lead?: { id: string; code: string; uploadToken: string };
   photosSent: number;

@@ -139,7 +139,7 @@ export function OfferOutcomeButtons({ offerId }: { offerId: string }) {
 
 export function PurchaseForm({ leadId, suggestedPrice }: { leadId: string; suggestedPrice?: number }) {
   const [state, action, pending] = useActionState(recordPurchaseAction, null);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Rome" }); // AAAA-MM-GG, ora italiana
   return (
     <form action={action} className="space-y-3">
       <input type="hidden" name="leadId" value={leadId} />

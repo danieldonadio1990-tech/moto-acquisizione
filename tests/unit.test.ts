@@ -40,6 +40,7 @@ test("Telefono: normalizzazione numeri italiani", () => {
 });
 
 const valid = {
+  submissionId: "3f1c2b8e-5d4a-4c7b-9e2f-1a2b3c4d5e6f",
   motorcycle: { brand: "Honda", modelId: "honda-sh", year: 2019, displacement: 125 },
   mileage: 18000,
   condition: { isRunning: true, accident: "no", mechanicalIssues: "no", maintenance: "yes" },

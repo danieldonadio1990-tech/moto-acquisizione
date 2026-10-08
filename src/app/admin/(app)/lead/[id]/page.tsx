@@ -32,6 +32,13 @@ export default function LeadPage({ params }: PageProps<"/admin/lead/[id]">) {
   );
 }
 
+const OFFER_STATUS = {
+  proposed: { label: "Proposta", className: "text-concrete" },
+  accepted: { label: "Accettata", className: "text-ok" },
+  rejected: { label: "Rifiutata", className: "text-danger" },
+  superseded: { label: "Superata", className: "text-concrete line-through" },
+} as const;
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-2xl bg-paper p-5 ring-1 ring-line">
@@ -193,8 +200,8 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
                     {o.status === "proposed" && !purchased ? (
                       <OfferOutcomeButtons offerId={o.id} />
                     ) : (
-                      <span className={`text-sm font-bold ${o.status === "accepted" ? "text-ok" : o.status === "rejected" ? "text-danger" : "text-concrete"}`}>
-                        {o.status === "accepted" ? "Accettata" : o.status === "rejected" ? "Rifiutata" : "Proposta"}
+                      <span className={`text-sm font-bold ${OFFER_STATUS[o.status].className}`}>
+                        {OFFER_STATUS[o.status].label}
                       </span>
                     )}
                   </li>

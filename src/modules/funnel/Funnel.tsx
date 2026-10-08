@@ -4,7 +4,8 @@ import Link from "next/link";
 import type { ZodError } from "zod";
 import { BrandMark } from "@/components/BrandMark";
 import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
-import { captureAttribution, getAttribution, getSessionId, track } from "@/modules/analytics/client";
+import { captureAttribution, getAttribution, track } from "@/modules/analytics/client";
+import { postWithRetry } from "./net";
 import {
   conditionStepSchema,
   contactStepSchema,
@@ -78,6 +79,7 @@ export function Funnel() {
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [photoError, setPhotoError] = useState<string>();
   const honeypot = useRef<HTMLInputElement>(null);
+  const inFlight = useRef(false);
   const topRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
@@ -115,73 +117,116 @@ export function Funnel() {
   }
 
   async function submitLead() {
+    if (inFlight.current) return; // blocca il doppio click prima ancora del re-render
+    inFlight.current = true;
     setSubmitting(true);
     setSubmitError(undefined);
+    // stessa chiave per tutti i tentativi di QUESTO invio (anche dopo refresh): il server crea un solo lead
+    const submissionId = state.submissionId ?? crypto.randomUUID();
+    if (!state.submissionId) update({ submissionId });
     try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
+      const res = await postWithRetry<{ id: string; code: string; uploadToken: string }>("/api/leads", {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          submissionId,
           motorcycle: motoPayload(state.moto),
           mileage: state.mileage,
           condition: state.condition,
           contact: state.contact,
           attribution: getAttribution(),
-          sessionId: getSessionId(),
           website: honeypot.current?.value || undefined,
         }),
       });
-      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setSubmitError(
-          res.status === 422
-            ? "Alcuni dati non sono validi. Controlla i campi e riprova."
-            : (data.error ?? "Invio non riuscito. Controlla la connessione e riprova."),
+          res.network
+            ? "Invio non riuscito: controlla la connessione e riprova. I dati inseriti restano qui."
+            : res.status === 422
+              ? "Alcuni dati non sono validi. Controlla i campi e riprova."
+              : (res.data?.error ?? "Invio non riuscito. Riprova tra poco."),
         );
         return;
       }
       track("funnel_step_completed", { step: STEPS[3] });
-      update({ lead: { id: data.id, code: data.code, uploadToken: data.uploadToken }, step: 4 });
-    } catch {
-      setSubmitError("Invio non riuscito. Controlla la connessione e riprova.");
+      update({ lead: { id: res.data.id, code: res.data.code, uploadToken: res.data.uploadToken }, step: 4 });
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   }
 
   async function uploadPhotos() {
-    if (!state.lead) return;
+    if (!state.lead || inFlight.current) return;
     if (photos.length === 0) {
       setPhotoError("Aggiungi almeno una foto, oppure mandale dopo su WhatsApp.");
       return;
     }
+    const toSend = photos.filter((p) => p.state === "pending");
+    if (toSend.length === 0 && photos.some((p) => p.state === "invalid")) {
+      setPhotoError("Rimuovi le foto segnate in rosso, oppure mandale su WhatsApp.");
+      return;
+    }
+    inFlight.current = true;
     setSubmitting(true);
     setPhotoError(undefined);
-    let saved = 0;
+    const lead = state.lead;
+    const outcome = new Map<string, Pick<PickedPhoto, "state" | "message">>();
+    let fatal: string | undefined;
+    let retryable = false;
     try {
-      // a gruppi di 3 per non superare i limiti di upload su reti lente
-      for (let i = 0; i < photos.length; i += 3) {
-        const fd = new FormData();
-        photos.slice(i, i + 3).forEach((p, j) => fd.append("photos", p.file, `foto-${i + j + 1}.jpg`));
-        const res = await fetch(`/api/leads/${state.lead.id}/photos`, {
-          method: "POST",
-          headers: { "x-upload-token": state.lead.uploadToken },
-          body: fd,
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 403) throw new Error(data.error);
-        saved += data.saved ?? 0;
+      // a gruppi di 3; ogni foto ha un id: un retry non crea copie sul server
+      for (let i = 0; i < toSend.length && !fatal; i += 3) {
+        const batch = toSend.slice(i, i + 3);
+        const res = await postWithRetry<{ results: { clientPhotoId: string; status: string; message?: string }[] }>(
+          `/api/leads/${lead.id}/photos`,
+          {
+            headers: { "x-upload-token": lead.uploadToken },
+            body: () => {
+              const fd = new FormData();
+              batch.forEach((p, j) => {
+                fd.append("photos", p.file, `foto-${i + j + 1}.jpg`);
+                fd.append("photoIds", p.id);
+              });
+              return fd;
+            },
+          },
+        );
+        if (!res.ok) {
+          if (res.status === 403 || res.status === 429) fatal = res.data?.error ?? "Caricamento non consentito";
+          else retryable = true;
+          continue;
+        }
+        for (const r of res.data.results) {
+          if (r.status === "saved" || r.status === "duplicate") outcome.set(r.clientPhotoId, { state: "saved" });
+          else if (r.status === "error") {
+            retryable = true;
+            outcome.set(r.clientPhotoId, { state: "pending", message: r.message });
+          } else outcome.set(r.clientPhotoId, { state: "invalid", message: r.message });
+        }
       }
-      if (saved === 0) {
-        setPhotoError("Non siamo riusciti a caricare le foto. Riprova o mandale su WhatsApp.");
-        return;
-      }
+    } finally {
+      inFlight.current = false;
+      setSubmitting(false);
+    }
+
+    const next = photos.map((p) => (outcome.has(p.id) ? { ...p, ...outcome.get(p.id)! } : p));
+    setPhotos(() => next);
+    const saved = next.filter((p) => p.state === "saved").length;
+    const invalid = next.filter((p) => p.state === "invalid").length;
+    const pendingLeft = next.filter((p) => p.state === "pending").length;
+
+    if (fatal) setPhotoError(fatal);
+    else if (retryable || pendingLeft > 0) {
+      setPhotoError('Alcune foto non sono state caricate. Premi di nuovo "Invia le foto": quelle già inviate non vengono ripetute.');
+    } else if (invalid > 0) {
+      setPhotoError(
+        invalid === 1
+          ? "1 foto non accettata (segnata in rosso): rimuovila o mandala su WhatsApp."
+          : `${invalid} foto non accettate (segnate in rosso): rimuovile o mandale su WhatsApp.`,
+      );
+    } else if (saved > 0) {
       track("photos_uploaded", { count: saved });
       update({ photosSent: saved, step: DONE_STEP });
-    } catch (e) {
-      setPhotoError(e instanceof Error && e.message ? e.message : "Caricamento non riuscito. Riprova.");
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -223,7 +268,11 @@ export function Funnel() {
             <BrandMark />
           )}
           {!isDone && (
-            <Link href="/" className="text-sm font-semibold text-concrete underline-offset-4 hover:underline">
+            <Link
+              href="/"
+              onClick={() => leadCreated && reset()}
+              className="text-sm font-semibold text-concrete underline-offset-4 hover:underline"
+            >
               Esci
             </Link>
           )}

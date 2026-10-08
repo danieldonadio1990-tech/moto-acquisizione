@@ -75,6 +75,8 @@ export const contactStepSchema = z.object({
 });
 
 export const leadSubmissionSchema = z.object({
+  /** Chiave di idempotenza generata dal browser (un tentativo di invio = un lead) */
+  submissionId: z.string().uuid("Richiesta non valida"),
   motorcycle: motorcycleStepSchema,
   mileage: mileageStepSchema.shape.mileage,
   condition: conditionStepSchema,
@@ -86,7 +88,6 @@ export const leadSubmissionSchema = z.object({
       utmCampaign: z.string().max(150).optional(),
     })
     .optional(),
-  sessionId: z.string().max(64).optional(),
   /** honeypot anti-bot: deve restare vuoto */
   website: z.string().max(0).optional(),
 });

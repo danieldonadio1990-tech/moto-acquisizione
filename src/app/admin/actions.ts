@@ -1,10 +1,12 @@
 "use server";
 import { refresh } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { login, logout, requireAdmin } from "@/modules/admin/auth";
 import {
   addOffer,
+  BusinessRuleError,
   changeStatus,
   recordPurchase,
   setOfferStatus,
@@ -12,30 +14,40 @@ import {
   updateNotes,
 } from "@/modules/leads/service";
 import { LEAD_STATUSES } from "@/modules/leads/statuses";
+import { clientIp } from "@/lib/rate-limit";
+import { logError } from "@/lib/log";
 
 export type ActionState = { ok?: boolean; error?: string; email?: string } | null;
 
-const uuid = z.string().uuid();
-const euros = z.coerce
-  .number({ error: "Importo non valido" })
-  .int("Usa un importo intero in euro")
-  .min(1, "Importo non valido")
-  .max(100000, "Importo troppo alto");
+const uuid = z.string().uuid("Richiesta non valida");
+const euros = z
+  .string()
+  .trim()
+  .regex(/^\d{1,6}$/, "Usa un importo intero in euro, senza decimali")
+  .transform(Number)
+  .pipe(z.number().int().min(1, "Importo non valido").max(100000, "Importo troppo alto"));
 
+/** Messaggi chiari per errori previsti; per gli imprevisti un messaggio generico (dettagli solo nei log, senza dati personali). */
 function fail(err: unknown): ActionState {
+  if (err && typeof err === "object" && "digest" in err) throw err; // redirect()/notFound(): controllo di flusso
   if (err instanceof z.ZodError) return { error: err.issues[0]?.message ?? "Dati non validi" };
-  // redirect() lancia un'eccezione di controllo: va rilanciata
-  if (err && typeof err === "object" && "digest" in err) throw err;
-  console.error("[admin action]", err);
-  return { error: err instanceof Error ? err.message : "Operazione non riuscita" };
+  if (err instanceof BusinessRuleError) return { error: err.message };
+  logError("admin action", err);
+  return { error: "Operazione non riuscita. Riprova; se il problema continua, avvisa chi gestisce il sito." };
 }
 
 export async function loginAction(_: ActionState, form: FormData): Promise<ActionState> {
-  const email = String(form.get("email") ?? "");
-  const password = String(form.get("password") ?? "");
-  if (!email || !password) return { error: "Inserisci email e password" };
-  const ok = await login(email, password);
-  if (!ok) return { error: "Email o password non corrette", email };
+  const email = String(form.get("email") ?? "").slice(0, 200);
+  const password = String(form.get("password") ?? "").slice(0, 200);
+  if (!email || !password) return { error: "Inserisci email e password", email };
+  const res = await login(email, password, clientIp(await headers()));
+  if (!res.ok) {
+    if (res.reason === "locked") {
+      const min = Math.ceil(res.retryAfterSec / 60);
+      return { error: `Troppi tentativi di accesso. Riprova tra ${min} minut${min === 1 ? "o" : "i"}.`, email };
+    }
+    return { error: "Email o password non corrette", email };
+  }
   redirect("/admin");
 }
 
@@ -74,7 +86,7 @@ export async function addOfferAction(_: ActionState, form: FormData): Promise<Ac
   try {
     const admin = await requireAdmin();
     const leadId = uuid.parse(form.get("leadId"));
-    const amount = euros.parse(form.get("amount"));
+    const amount = euros.parse(String(form.get("amount") ?? ""));
     await addOffer(leadId, amount, admin.email);
     refresh();
     return { ok: true };
@@ -100,11 +112,9 @@ export async function recordPurchaseAction(_: ActionState, form: FormData): Prom
   try {
     const admin = await requireAdmin();
     const leadId = uuid.parse(form.get("leadId"));
-    const price = euros.parse(form.get("price"));
-    const dateRaw = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida").parse(form.get("date"));
-    const date = new Date(`${dateRaw}T12:00:00`);
-    if (date.getTime() > Date.now() + 86400000) return { error: "La data non può essere nel futuro" };
-    await recordPurchase(leadId, price, date, admin.email);
+    const price = euros.parse(String(form.get("price") ?? ""));
+    const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida").parse(form.get("date"));
+    await recordPurchase(leadId, price, day, admin.email);
     refresh();
     return { ok: true };
   } catch (err) {

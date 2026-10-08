@@ -5,7 +5,8 @@ import { StepTitle } from "../ui";
 const SUGGESTED = ["Davanti", "Dietro", "Lato destro", "Lato sinistro", "Cruscotto con i km", "Eventuali danni"];
 export const MAX_PHOTOS = 12;
 
-export type PickedPhoto = { id: string; file: Blob; url: string };
+/** id = identificativo stabile della foto, usato dal server per evitare duplicati nei retry */
+export type PickedPhoto = { id: string; file: Blob; url: string; state: "pending" | "saved" | "invalid"; message?: string };
 
 /** Ridimensiona nel browser (max 1800px, JPEG): upload più veloce anche in 4G. */
 async function compress(file: File): Promise<Blob> {
@@ -48,7 +49,7 @@ export function PhotoStep({
     const out: PickedPhoto[] = [];
     for (const f of picked) {
       const blob = await compress(f);
-      out.push({ id: crypto.randomUUID(), file: blob, url: URL.createObjectURL(blob) });
+      out.push({ id: crypto.randomUUID(), file: blob, url: URL.createObjectURL(blob), state: "pending" });
     }
     setPhotos((p) => [...p, ...out]);
     setBusy(false);
@@ -72,9 +73,21 @@ export function PhotoStep({
 
       <div className="grid grid-cols-3 gap-2">
         {photos.map((p) => (
-          <div key={p.id} className="step-in relative aspect-square overflow-hidden rounded-xl bg-line">
+          <div
+            key={p.id}
+            className={`step-in relative aspect-square overflow-hidden rounded-xl bg-line ${p.state === "invalid" ? "ring-4 ring-danger" : ""}`}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- anteprima locale (blob:) */}
             <img src={p.url} alt="" className="h-full w-full object-cover" />
+            {p.state === "saved" && (
+              <span className="absolute bottom-1.5 left-1.5 rounded-full bg-ok px-2 py-0.5 text-xs font-bold text-paper">Inviata</span>
+            )}
+            {p.state === "invalid" && (
+              <span className="absolute inset-x-1 bottom-1 rounded bg-danger px-1.5 py-0.5 text-[11px] font-bold leading-tight text-paper">
+                {p.message ?? "Non accettata"}
+              </span>
+            )}
+            {p.state !== "saved" && (
             <button
               type="button"
               onClick={() => {
@@ -86,6 +99,7 @@ export function PhotoStep({
             >
               ×
             </button>
+            )}
           </div>
         ))}
         {photos.length < MAX_PHOTOS && (

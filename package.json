@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --conditions=react-server --test tests/*.test.ts",
     "db:generate": "drizzle-kit generate",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "privacy:erase": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/privacy-erase.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1147.0",
     "@electric-sql/pglite": "^0.5.8",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.4",
@@ -25,6 +27,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@tailwindcss/turbopack": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
