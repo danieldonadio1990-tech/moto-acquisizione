@@ -8,6 +8,8 @@ type Safe = { name: string; message: string; code?: string };
 
 const REDACTIONS: [RegExp, string][] = [
   [/params:[\s\S]*/i, "params: [rimossi]"],
+  // stringhe di connessione (postgres://utente:password@host/db): mai nei log
+  [/\b[a-z][a-z0-9+.-]*:\/\/[^\s/@:]+:[^\s/@]+@\S+/gi, "[url-con-credenziali]"],
   [/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[email]"],
   [/\+?\d[\d\s-]{7,}\d/g, "[numero]"],
 ];

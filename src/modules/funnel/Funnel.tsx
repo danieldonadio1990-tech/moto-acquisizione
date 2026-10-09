@@ -193,7 +193,7 @@ export function Funnel() {
     let fatal: string | undefined;
     let retryable = false;
     try {
-      // a gruppi (max 3 foto e 4 MB per invio); ogni foto ha un id: un retry non crea copie sul server
+      // a gruppi (max 3 foto e 3 MB per invio); ogni foto ha un id: un retry non crea copie sul server
       for (const [bi, batch] of batchPhotos(toSend).entries()) {
         if (fatal) break;
         const i = bi * MAX_FILES_PER_REQUEST;

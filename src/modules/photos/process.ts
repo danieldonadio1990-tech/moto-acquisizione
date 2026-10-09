@@ -13,7 +13,7 @@ export type ProcessedPhoto = { data: Buffer; width: number; height: number; cont
  * La ricodifica elimina TUTTI i metadati EXIF, inclusa la posizione GPS.
  */
 export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
-  if (input.byteLength > MAX_PHOTO_BYTES) throw new PhotoError("Foto troppo pesante (max 4 MB)");
+  if (input.byteLength > MAX_PHOTO_BYTES) throw new PhotoError("Foto troppo pesante (max 3 MB)");
 
   let meta: Metadata;
   try {
