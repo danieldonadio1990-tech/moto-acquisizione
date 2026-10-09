@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { whatsappLink } from "@/config/brand";
+import { whatsappLink } from "@/config/business";
 import { track } from "@/modules/analytics/client";
 
 export function DoneStep({

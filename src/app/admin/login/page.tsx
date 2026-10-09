@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { BrandMark } from "@/components/BrandMark";
 import { LoginForm } from "@/modules/admin/ui/LoginForm";
 
-export const metadata: Metadata = { title: "Accesso backoffice", robots: { index: false } };
+export const metadata: Metadata = { title: "Accesso backoffice", robots: { index: false, follow: false } };
 
 export default function LoginPage() {
   return (
@@ -10,7 +11,9 @@ export default function LoginPage() {
       <BrandMark />
       <h1 className="display mt-8 text-5xl">Backoffice</h1>
       <p className="mt-2 text-asphalt-soft">Accesso riservato al team.</p>
-      <LoginForm />
+      <Suspense>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

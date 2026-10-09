@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ConfigError, loadServerConfig } from "@/config/env";
 import { redact, safeError } from "@/lib/log";
-import { rateLimit, type Rule } from "@/lib/rate-limit";
+import { clientIp, rateLimit, type Rule } from "@/lib/rate-limit";
 
 const SECRET = "x".repeat(40);
 const prodS3 = {
@@ -14,6 +14,7 @@ const prodS3 = {
   S3_BUCKET: "foto",
   S3_ACCESS_KEY_ID: "k",
   S3_SECRET_ACCESS_KEY: "s",
+  VERCEL: "1",
 } as NodeJS.ProcessEnv;
 
 const problems = (env: NodeJS.ProcessEnv) => {
@@ -77,4 +78,26 @@ test("rate limit: oltre il limite → bloccato", async () => {
   for (let i = 0; i < 5; i++) r.push((await rateLimit(rule, "1.2.3.4")).ok);
   assert.deepEqual(r, [true, true, true, false, false]);
   assert.equal((await rateLimit(rule, "5.6.7.8")).ok, true, "altri IP non coinvolti");
+});
+
+test("IP client: su Vercel si usa x-vercel-forwarded-for, non l'header falsificabile", () => {
+  const cfg = loadServerConfig(prodS3);
+  assert.equal(cfg.clientIp.source, "vercel");
+  const h = new Headers({ "x-forwarded-for": "6.6.6.6", "x-vercel-forwarded-for": "93.40.1.2" });
+  assert.equal(clientIp(h, cfg.clientIp), "93.40.1.2");
+});
+
+test("IP client: fuori da Vercel in produzione serve una fonte esplicita e affidabile", () => {
+  const noVercel = { ...prodS3, VERCEL: "" };
+  assert.match(String(problems(noVercel)), /CLIENT_IP_SOURCE mancante/);
+  assert.match(String(problems({ ...noVercel, CLIENT_IP_SOURCE: "forwarded" })), /non è ammesso in produzione/);
+  assert.match(String(problems({ ...noVercel, CLIENT_IP_SOURCE: "header", CLIENT_IP_HEADER: "x-forwarded-for" })), /non è affidabile/);
+  const cfg = loadServerConfig({ ...noVercel, CLIENT_IP_SOURCE: "header", CLIENT_IP_HEADER: "x-real-ip" });
+  assert.equal(clientIp(new Headers({ "x-real-ip": "1.2.3.4", "x-forwarded-for": "6.6.6.6" }), cfg.clientIp), "1.2.3.4");
+  const cf = loadServerConfig({ ...noVercel, CLIENT_IP_SOURCE: "cloudflare" });
+  assert.equal(clientIp(new Headers({ "cf-connecting-ip": "5.5.5.5", "x-forwarded-for": "6.6.6.6" }), cf.clientIp), "5.5.5.5");
+});
+
+test("IP client: header atteso assente → contatore comune 'unknown' (più restrittivo)", () => {
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "6.6.6.6" }), { source: "vercel" }), "unknown");
 });

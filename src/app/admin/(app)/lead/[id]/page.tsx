@@ -5,7 +5,7 @@ import { requireAdmin } from "@/modules/admin/auth";
 import { getLeadDetail } from "@/modules/leads/service";
 import { STATUS_LABELS } from "@/modules/leads/statuses";
 import { PRIORITY_LABELS } from "@/modules/buybox/match";
-import { whatsappLink } from "@/config/brand";
+import { whatsappLink } from "@/config/business";
 import {
   CONTACT_LABELS,
   formatDate,
@@ -182,7 +182,7 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
         {/* Colonna azioni */}
         <div className="space-y-5">
           <Section title="Stato">
-            <StatusForm key={lead.status} leadId={lead.id} status={lead.status} />
+            <StatusForm leadId={lead.id} status={lead.status} />
           </Section>
 
           <Section title="Offerte">

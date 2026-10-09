@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireAdmin } from "@/modules/admin/auth";
 import { countLeadsByStatus, listLeads } from "@/modules/leads/service";
+import { buildDataset, kpis } from "@/modules/leads/dataset";
 import { CLOSED_STATUSES, isLeadStatus, LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 import { PRIORITY_LABELS } from "@/modules/buybox/match";
 import { formatDateTime, formatEur, formatKm, StatusBadge } from "@/modules/admin/ui/format";
@@ -20,7 +21,9 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
   const raw = typeof sp.stato === "string" ? sp.stato : "open";
   const filter: LeadStatus | "open" | "all" = raw === "all" || isLeadStatus(raw) ? raw : "open";
 
-  const [rows, counts] = await Promise.all([listLeads({ status: filter }), countLeadsByStatus()]);
+  const [rows, counts, dataset] = await Promise.all([listLeads({ status: filter }), countLeadsByStatus(), buildDataset()]);
+  const k = kpis(dataset);
+  const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
   const countOf = (s: LeadStatus) => counts.find((c) => c.status === s)?.count ?? 0;
   const total = counts.reduce((a, c) => a + c.count, 0);
   const open = total - CLOSED_STATUSES.reduce((a, s) => a + countOf(s), 0);
@@ -35,21 +38,31 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="display text-5xl">Richieste</h1>
-        <dl className="flex gap-6 text-sm">
-          <div>
-            <dt className="text-concrete">Ricevute</dt>
-            <dd className="display tabular text-3xl">{total}</dd>
-          </div>
-          <div>
-            <dt className="text-concrete">Aperte</dt>
-            <dd className="display tabular text-3xl">{open}</dd>
-          </div>
-          <div>
-            <dt className="text-concrete">Acquistate</dt>
-            <dd className="display tabular text-3xl text-ok">{countOf("purchased")}</dd>
-          </div>
-        </dl>
+        <a
+          href="/api/admin/export/leads"
+          className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-bold ring-1 ring-line hover:ring-asphalt-soft"
+        >
+          Esporta dati (CSV)
+        </a>
       </div>
+
+      {/* Indicatori del soft launch: dalla richiesta all'acquisto */}
+      <dl className="mt-6 grid grid-cols-3 gap-x-4 gap-y-4 rounded-2xl bg-paper p-4 text-sm ring-1 ring-line sm:grid-cols-4 lg:grid-cols-7">
+        {[
+          ["Richieste", String(k.leads)],
+          ["Interessanti", String(k.qualified)],
+          ["Appuntamenti", String(k.appointments)],
+          ["Con offerta", String(k.withOffer)],
+          ["Acquistate", String(k.purchased)],
+          ["Richiesta → acquisto", pct(k.leadToPurchase)],
+          ["Prezzo medio pagato", formatEur(k.avgPurchasePrice)],
+        ].map(([label, value], i) => (
+          <div key={label}>
+            <dt className="text-concrete">{label}</dt>
+            <dd className={`display tabular text-3xl ${i === 4 ? "text-ok" : ""}`}>{value}</dd>
+          </div>
+        ))}
+      </dl>
 
       <nav aria-label="Filtra per stato" className="-mx-4 mt-6 overflow-x-auto px-4">
         <ul className="flex gap-2 pb-2">

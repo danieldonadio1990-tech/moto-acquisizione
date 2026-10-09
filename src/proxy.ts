@@ -9,13 +9,18 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname === "/admin/login") return NextResponse.next();
 
-  const session = await readSession(request.cookies.get(SESSION_COOKIE)?.value);
+  const cookie = request.cookies.get(SESSION_COOKIE)?.value;
+  const session = await readSession(cookie);
   if (session) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {
-    return NextResponse.json({ error: "Non autorizzato" }, { status: 401 });
+    return NextResponse.json({ error: "Sessione scaduta: accedi di nuovo" }, { status: 401 });
   }
-  return NextResponse.redirect(new URL("/admin/login", request.url));
+  const url = new URL("/admin/login", request.url);
+  if (cookie) url.searchParams.set("scaduta", "1");
+  const res = NextResponse.redirect(url);
+  if (cookie) res.cookies.delete(SESSION_COOKIE);
+  return res;
 }
 
 export const config = {

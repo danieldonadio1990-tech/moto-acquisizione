@@ -43,3 +43,7 @@ next-env.d.ts
 
 # dati locali (database di sviluppo e foto)
 /data
+
+# Playwright
+/test-results
+/playwright-report

@@ -19,7 +19,7 @@ import path from "node:path";
 
 export type AppEnv = "development" | "production" | "test";
 
-export type DatabaseConfig = { kind: "postgres"; url: string } | { kind: "pglite"; dir: string };
+export type DatabaseConfig = { kind: "postgres"; url: string; migrationUrl?: string } | { kind: "pglite"; dir: string };
 
 export type StorageConfig =
   | { driver: "local"; dir: string }
@@ -34,11 +34,26 @@ export type StorageConfig =
       prefix: string;
     };
 
+/**
+ * Da dove leggere l'IP del client (serve al rate limit). Mai fidarsi di un header che il client può scrivere.
+ *  - vercel     → x-vercel-forwarded-for: impostato da Vercel, che sovrascrive i valori inviati dal client
+ *  - cloudflare → cf-connecting-ip: impostato da Cloudflare (solo se il server è raggiungibile SOLO via Cloudflare)
+ *  - header     → header indicato in CLIENT_IP_HEADER, impostato da un proxy fidato (es. nginx: X-Real-IP)
+ *  - forwarded  → primo valore di x-forwarded-for: FALSIFICABILE, ammesso solo in sviluppo/test
+ */
+export type ClientIpConfig =
+  | { source: "vercel" }
+  | { source: "cloudflare" }
+  | { source: "header"; header: string }
+  | { source: "forwarded" };
+
 export type ServerConfig = {
   env: AppEnv;
   database: DatabaseConfig;
   storage: StorageConfig;
   sessionSecret: string;
+  clientIp: ClientIpConfig;
+  migrateOnStart: boolean;
   warnings: string[];
 };
 
@@ -70,7 +85,9 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
   const url = e.DATABASE_URL?.trim();
   if (url) {
     if (!/^postgres(ql)?:\/\//.test(url)) problems.push("DATABASE_URL deve iniziare con postgres:// o postgresql://");
-    database = { kind: "postgres", url };
+    const direct = e.DATABASE_URL_DIRECT?.trim() || undefined;
+    if (direct && !/^postgres(ql)?:\/\//.test(direct)) problems.push("DATABASE_URL_DIRECT deve iniziare con postgres:// o postgresql://");
+    database = { kind: "postgres", url, migrationUrl: direct };
   } else if (prod) {
     problems.push(
       "DATABASE_URL mancante. In produzione serve un database PostgreSQL persistente: il database locale non viene mai usato in produzione.",
@@ -122,13 +139,33 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
   const sessionSecret = e.SESSION_SECRET ?? "";
   if (sessionSecret.length < 32) problems.push("SESSION_SECRET mancante o troppo corta (almeno 32 caratteri casuali)");
 
-  // --- Avvisi non bloccanti ---
-  if (prod && (blank(e.NEXT_PUBLIC_WHATSAPP_NUMBER) || e.NEXT_PUBLIC_WHATSAPP_NUMBER === "390000000000")) {
-    warnings.push("NEXT_PUBLIC_WHATSAPP_NUMBER non impostato: il pulsante WhatsApp punta a un numero segnaposto");
+  // --- IP del client ---
+  let clientIp: ClientIpConfig;
+  const ipSource = e.CLIENT_IP_SOURCE?.trim().toLowerCase();
+  if (ipSource === "vercel" || (!ipSource && e.VERCEL === "1")) clientIp = { source: "vercel" };
+  else if (ipSource === "cloudflare") clientIp = { source: "cloudflare" };
+  else if (ipSource === "header") {
+    const header = e.CLIENT_IP_HEADER?.trim().toLowerCase();
+    if (!header || !/^[a-z0-9-]+$/.test(header)) problems.push("CLIENT_IP_HEADER mancante o non valido (richiesto da CLIENT_IP_SOURCE=header)");
+    else if (header === "x-forwarded-for") problems.push("CLIENT_IP_HEADER=x-forwarded-for non è affidabile: usa l'header impostato dal tuo proxy (es. x-real-ip)");
+    clientIp = { source: "header", header: header ?? "" };
+  } else if (ipSource === "forwarded" || (!ipSource && !prod)) {
+    if (prod) problems.push("CLIENT_IP_SOURCE=forwarded non è ammesso in produzione: l'header x-forwarded-for può essere falsificato");
+    clientIp = { source: "forwarded" };
+  } else if (!ipSource && prod) {
+    problems.push(
+      "CLIENT_IP_SOURCE mancante. Su Vercel è automatico; altrove indica come leggere l'IP reale del client (cloudflare, oppure header + CLIENT_IP_HEADER) per un rate limit non aggirabile.",
+    );
+    clientIp = { source: "forwarded" };
+  } else {
+    problems.push(`CLIENT_IP_SOURCE non valido: "${ipSource}" (valori ammessi: vercel, cloudflare, header)`);
+    clientIp = { source: "forwarded" };
   }
 
+  // --- Avvisi non bloccanti ---
+
   if (problems.length) throw new ConfigError(problems);
-  return { env, database, storage, sessionSecret, warnings };
+  return { env, database, storage, sessionSecret, clientIp, migrateOnStart: e.MIGRATE_ON_START !== "false", warnings };
 }
 
 let cached: ServerConfig | undefined;

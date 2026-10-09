@@ -23,13 +23,20 @@ const MIGRATIONS = path.join(process.cwd(), "drizzle");
 const globalForDb = globalThis as unknown as { __dbPromise?: Promise<Db>; __dbClose?: () => Promise<void> };
 
 async function init(): Promise<Db> {
-  const cfg = serverConfig().database;
+  const { database: cfg, migrateOnStart } = serverConfig();
   let db: Db;
   if (cfg.kind === "postgres") {
     const { default: postgres } = await import("postgres");
-    const client = postgres(cfg.url, { max: 5, prepare: false, onnotice: () => {} });
+    // prepare:false → compatibile con i pooler in modalità transaction (Supabase :6543, Neon -pooler)
+    const client = postgres(cfg.url, {
+      max: Number(process.env.DB_POOL_MAX || 3),
+      prepare: false,
+      connect_timeout: 10,
+      idle_timeout: 20,
+      onnotice: () => {},
+    });
     const pg = drizzlePostgres(client, { schema });
-    await migratePostgres(pg, { migrationsFolder: MIGRATIONS });
+    if (migrateOnStart) await runPostgresMigrations(cfg.migrationUrl ?? cfg.url);
     db = pg as unknown as Db;
     globalForDb.__dbClose = () => client.end();
   } else {
@@ -43,6 +50,26 @@ async function init(): Promise<Db> {
   }
   await bootstrap(db);
   return db;
+}
+
+/**
+ * Migrazioni sotto advisory lock di PostgreSQL: se più istanze partono insieme
+ * (tipico su hosting serverless) una sola applica le migrazioni, le altre aspettano.
+ * Usa una connessione dedicata (max 1) così lock e migrazioni stanno sulla stessa sessione:
+ * per questo, se DATABASE_URL passa da un pooler in modalità "transaction", va indicata
+ * anche DATABASE_URL_DIRECT (connessione diretta o pooler in modalità "session").
+ */
+export async function runPostgresMigrations(url: string) {
+  const { default: postgres } = await import("postgres");
+  const LOCK_ID = 72_019_441; // costante arbitraria del progetto
+  const client = postgres(url, { max: 1, prepare: false, connect_timeout: 10, onnotice: () => {} });
+  try {
+    await client`select pg_advisory_lock(${LOCK_ID})`;
+    await migratePostgres(drizzlePostgres(client), { migrationsFolder: MIGRATIONS });
+  } finally {
+    await client`select pg_advisory_unlock(${LOCK_ID})`.catch(() => {});
+    await client.end();
+  }
 }
 
 export function getDb(): Promise<Db> {

@@ -293,6 +293,39 @@ describe("4. Cancellazione dati", () => {
   });
 });
 
+describe("17–18. Dataset soft launch", () => {
+  test("una riga per richiesta, senza dati personali, con qualificazione/appuntamento/offerta/acquisto", async () => {
+    const ds = await import("@/modules/leads/dataset");
+    const s = submission({
+      attribution: { utmSource: "instagram", utmMedium: "social", utmCampaign: "lancio" },
+      contact: { ...submission().contact, firstName: "Ottavio", lastName: "Quaglia", email: "ottavio.q@example.org", city: "=HYPERLINK(\"x\")" },
+    });
+    const lead = await svc.createLead(s);
+    await svc.changeStatus(lead.id, "interesting", "a");
+    await svc.changeStatus(lead.id, "appointment", "a");
+    await svc.addOffer(lead.id, 1700, "a");
+    const [o] = (await svc.getLeadDetail(lead.id))!.offers;
+    await svc.setOfferStatus(o.id, "accepted", "a");
+    await svc.recordPurchase(lead.id, 1650, todayRome(), "a");
+
+    const rows = await ds.buildDataset();
+    const r = rows.find((x) => x.codice === lead.code)!;
+    assert.equal(r.source, "instagram");
+    assert.equal(r.campaign, "lancio");
+    assert.equal(r.qualificazione, "Interessante");
+    assert.equal(r.appuntamento, "Sì");
+    assert.equal(r.offerta_accettata, 1700);
+    assert.equal(r.prezzo_pagato, 1650);
+    assert.equal(r.esito, "Acquistata");
+
+    const csv = ds.toCsv(rows);
+    assert.ok(!csv.includes("Ottavio") && !csv.includes("Quaglia") && !csv.includes("ottavio.q@"), "niente dati personali");
+    assert.ok(csv.includes(`'=HYPERLINK`), "formula neutralizzata");
+    const k = ds.kpis(rows);
+    assert.ok(k.purchased >= 1 && k.leads >= k.purchased);
+  });
+});
+
 function todayRome() {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Rome" });
 }

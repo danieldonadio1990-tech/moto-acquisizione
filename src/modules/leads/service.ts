@@ -16,7 +16,7 @@ import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { matchBuyBox } from "@/modules/buybox/match";
 import { recordEvent } from "@/modules/analytics/server";
 import { getPhotoStorage } from "@/modules/photos/storage";
-import { PRIVACY_POLICY_VERSION } from "@/config/brand";
+import { PRIVACY_POLICY_VERSION } from "@/config/business";
 import { serverConfig } from "@/config/env";
 import type { LeadSubmission } from "./validation";
 import { CLOSED_STATUSES, type LeadStatus } from "./statuses";

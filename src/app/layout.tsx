@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { BRAND } from "@/config/brand";
+import { BRAND, siteUrl } from "@/config/business";
+import { indexingEnabled } from "@/config/seo";
 import "./globals.css";
 
 // Archivo (SIL Open Font License), self-hosted: nessuna richiesta a server esterni
@@ -14,9 +15,22 @@ const archivo = localFont({
 });
 
 export const metadata: Metadata = {
-  title: `Vendi la tua moto a Milano | ${BRAND.name}`,
-  description:
-    "Hai una moto o uno scooter da vendere a Milano? Raccontaci che moto hai: la valutiamo e, se ci interessa, ti facciamo un'offerta.",
+  metadataBase: siteUrl(),
+  title: { default: `${BRAND.tagline} | ${BRAND.name}`, template: `%s | ${BRAND.name}` },
+  description: BRAND.description,
+  applicationName: BRAND.name,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "it_IT",
+    siteName: BRAND.name,
+    title: `${BRAND.tagline} | ${BRAND.name}`,
+    description: BRAND.description,
+    url: "/",
+  },
+  twitter: { card: "summary_large_image" },
+  robots: indexingEnabled() ? { index: true, follow: true } : { index: false, follow: false },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

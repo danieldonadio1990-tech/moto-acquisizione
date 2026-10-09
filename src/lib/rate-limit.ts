@@ -1,3 +1,5 @@
+import { serverConfig, type ClientIpConfig } from "@/config/env";
+
 /**
  * Rate limit di prima linea (finestra fissa, in memoria).
  *
@@ -73,13 +75,39 @@ export async function resetRateLimit(rule: Rule, key: string) {
 }
 
 /**
- * IP del client. Dietro un proxy affidabile (Vercel, Cloudflare, nginx configurato) il primo valore
- * di x-forwarded-for è l'IP reale; senza proxy l'header è falsificabile, ma il limite resta un freno.
+ * IP del client, letto SOLO dalla fonte configurata (src/config/env.ts → CLIENT_IP_SOURCE).
+ * Su Vercel: x-vercel-forwarded-for, che Vercel imposta e che il client non può falsificare.
+ * Se l'header atteso manca, tutte queste richieste condividono il contatore "unknown" (più restrittivo, non più permissivo).
  */
-export function clientIp(headers: Headers): string {
-  const xff = headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim().slice(0, 64) || "unknown";
-  return headers.get("x-real-ip")?.trim().slice(0, 64) || "unknown";
+export function clientIp(headers: Headers, cfg: ClientIpConfig = serverConfig().clientIp): string {
+  let raw: string | null = null;
+  switch (cfg.source) {
+    case "vercel":
+      raw = headers.get("x-vercel-forwarded-for");
+      break;
+    case "cloudflare":
+      raw = headers.get("cf-connecting-ip");
+      break;
+    case "header":
+      raw = headers.get(cfg.header);
+      break;
+    case "forwarded":
+      raw = headers.get("x-forwarded-for");
+      break;
+  }
+  const ip = raw?.split(",")[0].trim().slice(0, 64);
+  if (!ip) {
+    warnMissingIpOnce(cfg.source);
+    return "unknown";
+  }
+  return ip;
+}
+
+let warned = false;
+function warnMissingIpOnce(source: string) {
+  if (warned) return;
+  warned = true;
+  console.warn(`[rate-limit] IP del client non trovato (fonte: ${source}): controllare CLIENT_IP_SOURCE`);
 }
 
 export function tooManyRequests(retryAfterSec: number, message = "Troppe richieste. Riprova tra qualche minuto.") {

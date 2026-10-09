@@ -6,10 +6,13 @@ import {
   MAX_PHOTO_BYTES,
   MAX_UPLOAD_REQUEST_BYTES,
   UPLOAD_BODY_TIMEOUT_MS,
-} from "@/modules/photos/process";
+} from "@/modules/photos/limits";
 import { BodyTimeout, BodyTooLarge, readLimitedBody } from "@/lib/body";
 import { clientIp, rateLimit, RULES, tooManyRequests } from "@/lib/rate-limit";
 import { logError } from "@/lib/log";
+
+/** Tempo massimo della funzione (secondi) sugli hosting serverless */
+export const maxDuration = 60;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const err = (status: number, error: string) => NextResponse.json({ error }, { status });
@@ -65,7 +68,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/leads/[id]/
     if (!(f instanceof File) || f.size === 0) {
       early.push({ clientPhotoId: ids[i], status: "invalid", message: "File vuoto o non valido" });
     } else if (f.size > MAX_PHOTO_BYTES) {
-      early.push({ clientPhotoId: ids[i], status: "invalid", message: "Foto troppo grande (max 10 MB)" });
+      early.push({ clientPhotoId: ids[i], status: "invalid", message: "Foto troppo pesante (max 4 MB)" });
     } else {
       items.push({ clientPhotoId: ids[i], data: Buffer.from(await f.arrayBuffer()) });
     }

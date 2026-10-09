@@ -1,14 +1,8 @@
 import "server-only";
 import sharp, { type Metadata } from "sharp";
 
-export const MAX_PHOTOS_PER_LEAD = 12;
-/** Foto per singola richiesta (il browser invia a gruppi di 3) */
-export const MAX_FILES_PER_REQUEST = 4;
-/** Dimensione massima del corpo di una richiesta di upload */
-export const MAX_UPLOAD_REQUEST_BYTES = 25 * 1024 * 1024;
-/** Tempo massimo per ricevere il corpo di una richiesta di upload */
-export const UPLOAD_BODY_TIMEOUT_MS = 60_000;
-export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+import { MAX_PHOTO_BYTES } from "./limits";
+export { MAX_PHOTOS_PER_LEAD, MAX_PHOTO_BYTES, MAX_FILES_PER_REQUEST, MAX_UPLOAD_REQUEST_BYTES, UPLOAD_BODY_TIMEOUT_MS } from "./limits";
 const ALLOWED_FORMATS = new Set(["jpeg", "png", "webp", "heif", "avif"]);
 
 export type ProcessedPhoto = { data: Buffer; width: number; height: number; contentType: "image/jpeg" };
@@ -19,7 +13,7 @@ export type ProcessedPhoto = { data: Buffer; width: number; height: number; cont
  * La ricodifica elimina TUTTI i metadati EXIF, inclusa la posizione GPS.
  */
 export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
-  if (input.byteLength > MAX_PHOTO_BYTES) throw new PhotoError("Foto troppo grande (max 10 MB)");
+  if (input.byteLength > MAX_PHOTO_BYTES) throw new PhotoError("Foto troppo pesante (max 4 MB)");
 
   let meta: Metadata;
   try {

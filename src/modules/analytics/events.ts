@@ -1,13 +1,23 @@
 /**
- * Eventi di funnel tracciati in modo first-party (tabella `events`).
- * Gli eventi del ciclo di vita del lead (contattato, appuntamento, offerta, acquisto)
- * si ricavano da lead_status_history e offers: non vanno duplicati qui.
+ * Eventi statistici first-party (tabella `events`), senza cookie e senza terze parti.
+ *
+ * Funnel:
+ *   landing_view → valuation_start → step_completed (Moto, Km, Condizioni) → contact_submitted
+ *   → photos_uploaded | photos_skipped        (+ lead_created, registrato dal server)
+ * Altro: cta_click, whatsapp_click.
+ *
+ * Ogni evento del browser porta con sé source/medium/campaign (UTM della visita), così si
+ * misura il funnel per campagna. Privacy: gli eventi del browser hanno solo un id di sessione
+ * anonimo e NON sono mai collegati al lead; "lead_created" ha il lead ma nessuna sessione.
+ * Lo stato successivo del lead (contattato, appuntamento, offerta, acquisto) si legge da
+ * lead_status_history, offers e leads: non va duplicato qui.
  */
 export const CLIENT_EVENTS = [
   "landing_view",
   "cta_click",
-  "funnel_start",
-  "funnel_step_completed",
+  "valuation_start",
+  "step_completed",
+  "contact_submitted",
   "photos_uploaded",
   "photos_skipped",
   "whatsapp_click",

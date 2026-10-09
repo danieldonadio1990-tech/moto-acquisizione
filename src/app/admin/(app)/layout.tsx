@@ -5,7 +5,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { getAdminSession } from "@/modules/admin/auth";
 import { logoutAction } from "../actions";
 
-export const metadata: Metadata = { title: "Backoffice", robots: { index: false } };
+export const metadata: Metadata = { title: "Backoffice", robots: { index: false, follow: false } };
 
 async function UserBox() {
   const session = await getAdminSession();

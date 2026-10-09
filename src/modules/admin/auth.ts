@@ -14,7 +14,11 @@ import { readSession, signSession, SESSION_COOKIE, SESSION_TTL_SECONDS, type Adm
  */
 export async function requireAdmin(): Promise<AdminSession> {
   const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
+  if (!session) {
+    // c'era un cookie ma non è più valido (scaduto o revocato): la pagina di login lo spiega
+    const hadCookie = (await cookies()).has(SESSION_COOKIE);
+    redirect(hadCookie ? "/admin/login?scaduta=1" : "/admin/login");
+  }
   return session;
 }
 

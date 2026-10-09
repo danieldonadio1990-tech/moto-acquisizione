@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { StickyCta } from "@/components/StickyCta";
 import { TrackedLink, TrackOnMount } from "@/components/Track";
-import { BRAND, LEGAL } from "@/config/brand";
+import { BRAND, LEGAL } from "@/config/business";
 
 const STEPS = [
   {
@@ -34,7 +34,7 @@ const FAQ = [
   },
   {
     q: "Dove operate?",
-    a: "Per ora solo a Milano e provincia.",
+    a: `Per ora solo a ${BRAND.area}.`,
   },
 ];
 

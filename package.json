@@ -10,7 +10,12 @@
     "test": "tsx --conditions=react-server --test tests/*.test.ts",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "privacy:erase": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/privacy-erase.ts"
+    "privacy:erase": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/privacy-erase.ts",
+    "check:env": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/check-env.ts",
+    "build:production": "npm run check:env && next build",
+    "db:migrate": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/db-migrate.ts",
+    "admin:user": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/admin-user.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",
@@ -28,6 +33,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite-socket": "^0.2.11",
+    "@playwright/test": "^1.56.0",
     "@tailwindcss/turbopack": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

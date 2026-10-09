@@ -5,6 +5,12 @@ import { recordEvent } from "@/modules/analytics/server";
 import { readLimitedBody } from "@/lib/body";
 import { clientIp, rateLimit, RULES } from "@/lib/rate-limit";
 
+const utm = z
+  .string()
+  .max(100)
+  .transform((v) => v.toLowerCase().replace(/[^a-z0-9_.-]/g, "_"))
+  .optional();
+
 /** Solo proprietà note e brevi: niente testo libero, quindi niente dati personali negli eventi. */
 const eventSchema = z.object({
   name: z.enum(CLIENT_EVENTS),
@@ -12,9 +18,13 @@ const eventSchema = z.object({
   props: z
     .object({
       label: z.enum(["hero", "sticky", "footer"]).optional(),
-      step: z.enum(["Moto", "Km", "Condizioni", "Contatti", "Foto"]).optional(),
+      step: z.enum(["Moto", "Km", "Condizioni"]).optional(),
       count: z.number().int().min(0).max(12).optional(),
       from: z.enum(["done"]).optional(),
+      // provenienza della visita (UTM): solo testo breve e "pulito", mai dati personali
+      source: utm,
+      medium: utm,
+      campaign: utm,
     })
     .strict()
     .optional(),

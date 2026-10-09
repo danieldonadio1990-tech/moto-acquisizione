@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { BrandMark } from "@/components/BrandMark";
-import { BRAND, LEGAL, PRIVACY_POLICY_IS_DRAFT, PRIVACY_POLICY_VERSION, PROVIDERS } from "@/config/brand";
+import { LEGAL, PRIVACY_POLICY_IS_DRAFT, PRIVACY_POLICY_VERSION, PROVIDERS } from "@/config/business";
 
-export const metadata: Metadata = { title: `Informativa privacy | ${BRAND.name}` };
+export const metadata: Metadata = { title: "Informativa privacy", alternates: { canonical: "/privacy" } };
 
 /**
  * BOZZA tecnica, da far verificare a chi segue la privacy dell'azienda prima della pubblicazione.
  * Non costituisce una dichiarazione di conformità legale.
- * Se il testo cambia, aggiornare PRIVACY_POLICY_VERSION in src/config/brand.ts.
+ * Se il testo cambia, aggiornare PRIVACY_POLICY_VERSION in src/config/business.ts.
  */
 
 /** Evidenzia i segnaposto "[DA COMPLETARE…]" / "[DA CONFERMARE…]" ancora presenti nel testo. */

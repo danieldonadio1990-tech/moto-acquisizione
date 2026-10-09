@@ -6,6 +6,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { captureAttribution, getAttribution, track } from "@/modules/analytics/client";
 import { postWithRetry } from "./net";
+import { MAX_FILES_PER_REQUEST, UPLOAD_BATCH_BYTES } from "@/modules/photos/limits";
 import {
   conditionStepSchema,
   contactStepSchema,
@@ -71,6 +72,24 @@ function validate(step: number, s: FunnelState): Errors {
   }
 }
 
+/** Raggruppa le foto in invii che rispettano i limiti dell'hosting. */
+function batchPhotos(list: PickedPhoto[]): PickedPhoto[][] {
+  const out: PickedPhoto[][] = [];
+  let cur: PickedPhoto[] = [];
+  let bytes = 0;
+  for (const p of list) {
+    if (cur.length && (cur.length >= MAX_FILES_PER_REQUEST || bytes + p.file.size > UPLOAD_BATCH_BYTES)) {
+      out.push(cur);
+      cur = [];
+      bytes = 0;
+    }
+    cur.push(p);
+    bytes += p.file.size;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
 export function Funnel() {
   const { state, update, reset, ready } = useFunnelState();
   const [errors, setErrors] = useState<Errors>({});
@@ -90,7 +109,7 @@ export function Funnel() {
     if (!ready || started.current) return;
     started.current = true;
     captureAttribution();
-    if (state.step === 0 && !state.lead) track("funnel_start");
+    if (state.step === 0 && !state.lead) track("valuation_start");
   }, [ready, state.step, state.lead]);
 
   useEffect(() => {
@@ -112,7 +131,7 @@ export function Funnel() {
     }
     if (step === 3) return submitLead();
     if (step === 4) return uploadPhotos();
-    track("funnel_step_completed", { step: STEPS[step] });
+    track("step_completed", { step: STEPS[step] });
     goTo(step + 1);
   }
 
@@ -147,7 +166,7 @@ export function Funnel() {
         );
         return;
       }
-      track("funnel_step_completed", { step: STEPS[3] });
+      track("contact_submitted");
       update({ lead: { id: res.data.id, code: res.data.code, uploadToken: res.data.uploadToken }, step: 4 });
     } finally {
       inFlight.current = false;
@@ -174,9 +193,10 @@ export function Funnel() {
     let fatal: string | undefined;
     let retryable = false;
     try {
-      // a gruppi di 3; ogni foto ha un id: un retry non crea copie sul server
-      for (let i = 0; i < toSend.length && !fatal; i += 3) {
-        const batch = toSend.slice(i, i + 3);
+      // a gruppi (max 3 foto e 4 MB per invio); ogni foto ha un id: un retry non crea copie sul server
+      for (const [bi, batch] of batchPhotos(toSend).entries()) {
+        if (fatal) break;
+        const i = bi * MAX_FILES_PER_REQUEST;
         const res = await postWithRetry<{ results: { clientPhotoId: string; status: string; message?: string }[] }>(
           `/api/leads/${lead.id}/photos`,
           {

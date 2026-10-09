@@ -33,6 +33,12 @@ function Feedback({ state, okText = "Salvato" }: { state: ActionState; okText?: 
 export function StatusForm({ leadId, status }: { leadId: string; status: LeadStatus }) {
   const [state, action, pending] = useActionState(changeStatusAction, null);
   const [value, setValue] = useState<LeadStatus>(status);
+  // se lo stato cambia da fuori (es. offerta accettata), la tendina si riallinea senza perdere il messaggio
+  const [prev, setPrev] = useState<LeadStatus>(status);
+  if (status !== prev) {
+    setPrev(status);
+    setValue(status);
+  }
   return (
     <form action={action}>
       <input type="hidden" name="leadId" value={leadId} />

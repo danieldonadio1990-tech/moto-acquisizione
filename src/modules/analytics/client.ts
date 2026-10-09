@@ -43,7 +43,9 @@ export function getAttribution(): { utmSource?: string; utmMedium?: string; utmC
 
 export function track(name: ClientEventName, props?: Record<string, string | number | boolean>) {
   try {
-    const body = JSON.stringify({ name, sessionId: getSessionId(), props });
+    const a = getAttribution();
+    const utm = { source: a.utmSource, medium: a.utmMedium, campaign: a.utmCampaign };
+    const body = JSON.stringify({ name, sessionId: getSessionId(), props: { ...props, ...utm } });
     if (navigator.sendBeacon) {
       navigator.sendBeacon("/api/events", new Blob([body], { type: "application/json" }));
     } else {

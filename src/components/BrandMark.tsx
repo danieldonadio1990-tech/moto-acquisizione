@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BRAND } from "@/config/brand";
+import { BRAND } from "@/config/business";
 
 /**
  * Segnaposto del logo: il nome del brand dentro una "targa".
