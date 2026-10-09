@@ -253,7 +253,14 @@ Deploy Preview e Branch deploy (usano la configurazione di produzione).
    arriva da `netlify.toml`: non cambiarlo.
 4. **Netlify** → *Site configuration → Build & deploy → Branches and deploy contexts*: **Deploy Previews = None**,
    **Branch deploys = None** (produzione = solo `main`).
-5. **Netlify** → *Site configuration → Environment variables*: crea ogni variabile con scope **Production soltanto**
+5. **Prova dello storage foto, dal tuo computer, prima del deploy** (`npm install` una volta). Imposta le variabili
+   `S3_*` nella tua shell o in `.env.local` (file ignorato da git, mai in chat) e lancia:
+   ```bash
+   npm run check:storage
+   ```
+   Scrive, legge, elenca e cancella un oggetto di prova, carica un file da 3 MB e controlla che il bucket non
+   sia pubblico. Esce con errore se qualcosa non va. Poi rimuovi le chiavi da `.env.local`.
+6. **Netlify** → *Site configuration → Environment variables*: crea ogni variabile con scope **Production soltanto**
    (deseleziona Deploy Previews, Branch deploys, Local development):
 
 | Variabile | Valore | Perché |
@@ -272,14 +279,14 @@ Deploy Preview e Branch deploy (usano la configurazione di produzione).
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | solo al primo avvio | crea il primo admin; poi **rimuovi `ADMIN_PASSWORD`** |
 
    I valori si incollano **solo nel pannello Netlify**, mai in chat né nel repository.
-6. Deploy. Se manca una variabile il build si ferma con un messaggio chiaro.
-7. Crea l'admin ed esegui lo smoke test (`npm run test:e2e` con `E2E_BASE_URL`), poi cancella i dati di prova
+7. Deploy. Se manca una variabile il build si ferma con un messaggio chiaro.
+8. Crea l'admin ed esegui lo smoke test (`npm run test:e2e` con `E2E_BASE_URL`), poi cancella i dati di prova
    (`npm run privacy:erase`, vedi [Privacy](#privacy)).
-8. Dominio: solo dopo autorizzazione. Poi imposta `SITE.domain` in `src/config/business.ts`.
+9. Dominio: solo dopo autorizzazione. Poi imposta `SITE.domain` in `src/config/business.ts`.
    **Non acquistare un dominio senza autorizzazione.**
 
 ### Guardie contro l'uso della produzione da parte di build non di produzione
-1. Le variabili esistono solo nello scope Production (punto 5).
+1. Le variabili esistono solo nello scope Production (punto 6).
 2. Deploy Preview e Branch deploys sono disattivati (punto 4) e, se riattivati, `netlify.toml` li fa fallire.
 3. `src/config/env.ts` rifiuta qualsiasi avvio/build con `NETLIFY=true` e `CONTEXT` diverso da `production`.
 
