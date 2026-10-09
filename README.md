@@ -305,6 +305,10 @@ Flusso: `pg_dump -Fc` (client ≥ versione del server) → controllo che il dump
 della dimensione → rotazione (ultime **14** copie) → copia come artifact GitHub (cifrato, **30 giorni**).
 Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repository.
 
+> **Stato:** il workflow è stato provato solo in locale (stessi script, PostgreSQL 16 e S3 simulato). **Non è garantito
+> finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) e non ne è stato
+> ripristinato un file su Neon.
+
 ### Configurazione (una tantum)
 1. **Chiavi `age`, sul tuo computer** (`age` si installa con `brew install age` / `apt install age`):
    ```bash
