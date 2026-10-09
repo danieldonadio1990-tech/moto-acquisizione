@@ -316,15 +316,21 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
    ```
    Conserva `chiave-backup.txt` **offline** (gestore di password + copia su chiavetta). Senza di essa i backup
    non si possono aprire; se qualcuno la ottiene può leggerli. **Non va mai nel repository né su GitHub.**
-2. **Neon**: ruolo di sola lettura per il dump (SQL Editor, con un nome a scelta e una password forte):
+2. **Neon**: permessi del ruolo di sola lettura `backup_reader` (SQL Editor, branch `production`, connesso come
+   proprietario del database). Crea il ruolo con una password forte; i **permessi** vanno dati **dopo il primo deploy**,
+   perché le tabelle e lo schema `drizzle` esistono solo dopo la prima migrazione (all'avvio del sito). Sostituisci
+   `neondb` e `neondb_owner` con il nome reale del database e del suo proprietario:
    ```sql
-   create role backup_reader login password '…';
    grant connect on database neondb to backup_reader;
    grant usage on schema public, drizzle to backup_reader;
    grant select on all tables in schema public, drizzle to backup_reader;
    grant select on all sequences in schema public to backup_reader;
+   -- per le tabelle create da migrazioni future
+   alter default privileges for role neondb_owner in schema public, drizzle grant select on tables to backup_reader;
+   alter default privileges for role neondb_owner in schema public grant select on sequences to backup_reader;
    ```
-   (sostituisci `neondb` col nome reale del database). Usa la stringa **diretta** con questo ruolo.
+   Usa la stringa **diretta** (senza `-pooler`) con questo ruolo. Dopo ogni nuova migrazione il backup
+   fallisce con "permission denied" se mancano i permessi: lo script lo segnala nel log.
 3. **GitHub** → repo → *Settings → Secrets and variables → Actions → New repository secret*:
 
 | Secret | Valore |
