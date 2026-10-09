@@ -316,45 +316,49 @@ della dimensione → rotazione (ultime **14** copie) → copia come artifact Git
 Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repository.
 
 > **Stato:** gli script `backup.sh` e `restore.sh` sono stati provati solo in locale, su un PostgreSQL 16 di prova con
-> ruoli non-superuser (vedi [Prova di ripristino eseguita](#prova-di-ripristino-eseguita)); `upload.sh` e il flusso S3 non
-> sono mai stati eseguiti. **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima
-> esecuzione notturna) contro Neon (PostgreSQL 18) e Supabase, e non ne è stato ripristinato un file su Neon.
+> ruoli non-superuser (vedi [Prova di ripristino eseguita](#prova-di-ripristino-eseguita)). `upload.sh` (caricamento,
+> verifica della dimensione, rotazione) è stato provato con la CLI AWS v1 su S3 simulato e su Supabase Storage reale, ma solo
+> con un prefisso di prova e con le chiavi dell'app, mai con chiavi dedicate né sul runner GitHub (CLI AWS v2).
+> **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) contro Neon
+> (PostgreSQL 18), e non ne è stato ripristinato un file su Neon.
 
-### Configurazione (una tantum)
-1. **Chiavi `age`, sul tuo computer** (`age` si installa con `brew install age` / `apt install age`):
-   ```bash
-   age-keygen -o chiave-backup.txt     # stampa "Public key: age1…"
-   ```
-   Conserva `chiave-backup.txt` **offline** (gestore di password + copia su chiavetta). Senza di essa i backup
-   non si possono aprire; se qualcuno la ottiene può leggerli. **Non va mai nel repository né su GitHub.**
-2. **Neon**: permessi del ruolo di sola lettura `backup_reader` (SQL Editor, branch `production`, connesso come
-   proprietario del database). Crea il ruolo con una password forte; i **permessi** vanno dati **dopo il primo deploy**,
-   perché le tabelle e lo schema `drizzle` esistono solo dopo la prima migrazione (all'avvio del sito). Sostituisci
-   `neondb` e `neondb_owner` con il nome reale del database e del suo proprietario:
-   ```sql
-   grant connect on database neondb to backup_reader;
-   grant usage on schema public, drizzle to backup_reader;
-   grant select on all tables in schema public, drizzle to backup_reader;
-   grant select on all sequences in schema public, drizzle to backup_reader;
-   -- per le tabelle create da migrazioni future
-   alter default privileges for role neondb_owner in schema public, drizzle grant select on tables to backup_reader;
-   alter default privileges for role neondb_owner in schema public, drizzle grant select on sequences to backup_reader;
-   ```
-   Usa la stringa **diretta** (senza `-pooler`) con questo ruolo. Dopo ogni nuova migrazione il backup
-   fallisce con "permission denied" se mancano i permessi: lo script lo segnala nel log.
-3. **GitHub** → repo → *Settings → Secrets and variables → Actions → New repository secret*:
+### Checklist operativa (in ordine)
+
+I comandi sono script del repository; **non stampano mai segreti**. Quelli con la chiave privata o con le credenziali vanno
+lanciati **sul tuo computer**, mai in chat né in sessioni cloud.
+
+- [ ] **1. Chiavi `age`** (computer tuo): `scripts/backup/setup-age-key.sh` (aggiungi `--set-secret` per impostare anche
+      `BACKUP_AGE_PUBLIC_KEY` con `gh`). Crea la privata in `~/.config/moto-acquisizione/backup-age-key.txt` (permessi 600,
+      mai stampata), prova cifratura+decifratura, stampa **solo la pubblica** `age1…`. Copia la privata **offline**: senza di
+      essa i backup non si aprono; se qualcuno la ottiene li legge. Non va mai nel repository né su GitHub.
+- [ ] **2. Neon, dopo la prima migrazione** (il sito è partito o hai lanciato `npm run db:migrate`): crea il ruolo
+      `backup_reader` da Neon Console → *Roles* (password forte, solo lì), poi con la stringa **diretta** (senza `-pooler`)
+      del proprietario del database: `psql "<URL diretta proprietario>" -v ON_ERROR_STOP=1 -f scripts/backup/setup-backup-reader.sql`.
+      Concede solo `CONNECT`, `USAGE`, `SELECT` (tabelle e sequenze di `public` **e** `drizzle`, più i privilegi di default
+      per le migrazioni future). Lo script si ferma con un messaggio chiaro se il ruolo o lo schema `drizzle` mancano.
+- [ ] **3. Verifica dei permessi**: `psql "$BACKUP_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/backup/check-permissions.sql`
+      (connesso come `backup_reader`). Esce con errore se manca un `SELECT` o se il ruolo può scrivere.
+- [ ] **4. Supabase**: crea una coppia di chiavi S3 **dedicata ai backup** (*Storage → S3 Connection*), senza toccare né
+      revocare quelle dell'app. Attenzione: le chiavi S3 di Supabase **non sono limitate a un bucket** (accesso completo a
+      tutti i bucket del progetto, secondo la documentazione pubblica): chi ruba la chiave del backup può leggere e
+      cancellare anche `photos`. Una coppia separata serve a poterla revocare da sola; per un vero isolamento servirebbe un
+      progetto/storage diverso (non fatto). Prova: `BACKUP_S3_ENDPOINT=… BACKUP_S3_ACCESS_KEY_ID=… BACKUP_S3_SECRET_ACCESS_KEY=… scripts/backup/check-bucket.sh`
+      (rifiuta di partire se la chiave coincide con quella dell'app).
+- [ ] **5. Secret GitHub** (*Settings → Secrets and variables → Actions*), poi `scripts/backup/check-config.sh` per controllare i nomi:
 
 | Secret | Valore |
 |---|---|
 | `BACKUP_DATABASE_URL` | stringa Neon **diretta** con il ruolo `backup_reader` |
 | `BACKUP_AGE_PUBLIC_KEY` | `age1…` (la chiave **pubblica**) |
 | `BACKUP_S3_ENDPOINT` | endpoint S3 di Supabase |
-| `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | chiavi S3 con accesso al bucket `backups` |
+| `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | chiavi S3 **dedicate ai backup**, accesso al bucket `backups` |
 
-4. Nel workflow `PG_MAJOR` (ora `18`: il progetto Neon è su **PostgreSQL 18.6**) deve essere **≥ alla versione PostgreSQL del progetto Neon**; lo script si
-   ferma con un messaggio chiaro se il client è più vecchio del server.
-5. Lancia il workflow a mano e controlla che sia verde; controlla poi che la prima esecuzione programmata parta
-   davvero (sui repository privati con account Free non è garantito che i cron partano: non verificato).
+- [ ] **6. Primo backup**: dopo il merge, *Actions → Backup database → Run workflow* (`PG_MAJOR` = 18 deve essere ≥ alla
+      versione di Neon, ora 18.6). Controlla che sia verde e che il file compaia in `backups/db/`.
+- [ ] **7. Ripristino di prova** su un branch Neon vuoto (sezione [Ripristino](#ripristino)) e `verify.sql`. Solo dopo il
+      backup è da considerarsi funzionante.
+- [ ] **8. Cron**: finché i punti 1–5 non sono fatti, il workflow schedulato (ogni notte) fallisce e GitHub manda email di errore.
+      Controlla che la prima esecuzione programmata parta (sui repository privati con account Free non è garantito: non verificato).
 
 Costi: nessun servizio a pagamento. Per GitHub Actions su repository privato con account Free la quota di minuti
 inclusi e il comportamento al suo superamento (stop dei workflow o addebito) **non sono stati verificati**:
@@ -390,7 +394,7 @@ rifiutato, `backup_reader` non può scrivere, il file `.age` non contiene testo 
 resta dopo un errore. La prova ha rivelato che mancavano i permessi sulle sequenze dello schema `drizzle` (il backup
 falliva con "permission denied for sequence"): il SQL qui sopra è stato corretto.
 **Non ancora provato:** Neon e PostgreSQL 18 (compresi eventuali errori di ripristino legati a estensioni o ruoli di
-Neon), `upload.sh`/rotazione su Supabase Storage, il runner GitHub e l'installazione di `postgresql-client-18` da PGDG.
+Neon), upload con chiavi dedicate e con la CLI AWS v2 del runner, il runner GitHub e l'installazione di `postgresql-client-18` da PGDG.
 Ripetere la prova di ripristino su un branch Neon subito dopo il primo backup.
 
 ## Rischi e limiti del setup gratuito
