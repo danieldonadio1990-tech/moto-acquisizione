@@ -1,0 +1,21 @@
+# Netlify (piano Free) — nessun plugin, nessun servizio a pagamento.
+# Il supporto a Next.js (adapter OpenNext) è automatico: non serve @netlify/plugin-nextjs.
+#
+# Le variabili d'ambiente (DATABASE_URL, S3_*, SESSION_SECRET…) si impostano SOLO nel pannello Netlify
+# con scope "Production": vedi README → "Deploy su Netlify". Qui non va scritto nessun segreto.
+
+[build]
+  # check:env ferma il build se manca una variabile obbligatoria o se il contesto non è di produzione
+  command = "npm run build:production"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Deploy Preview e Branch deploy NON devono mai usare database/storage di produzione:
+# in questi contesti il build si ferma di proposito (e andrebbero comunque disattivati nel pannello).
+[context.deploy-preview]
+  command = "echo 'Deploy Preview disattivati: usano la configurazione di produzione. Vedi README.' && exit 1"
+
+[context.branch-deploy]
+  command = "echo 'Branch deploy disattivati: usano la configurazione di produzione. Vedi README.' && exit 1"

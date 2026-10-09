@@ -4,7 +4,7 @@ Funnel *"Hai una moto da vendere? Noi possiamo comprartela."* e backoffice per g
 fino all'acquisto. Area: Milano e provincia.
 North Star: **moto acquistate da privati / mese**. Metrica guida del soft launch: **costo per moto acquistata**.
 
-Stack: Next.js 16 (App Router, TypeScript), PostgreSQL (Drizzle ORM), storage foto S3-compatibile, deploy su Vercel.
+Stack: Next.js 16 (App Router, TypeScript), PostgreSQL (Drizzle ORM), storage foto S3-compatibile, deploy su Netlify (piano Free).
 
 | Stato | |
 |---|---|
@@ -17,7 +17,7 @@ Stack: Next.js 16 (App Router, TypeScript), PostgreSQL (Drizzle ORM), storage fo
 ## Indice
 [Development](#development) · [Test](#test) · [Build](#build) · [Production](#production) ·
 [Database](#database) · [Storage](#storage) · [Admin](#admin) · [Privacy](#privacy) ·
-[Deploy su Vercel](#deploy-su-vercel) · [Backup](#backup) · [Sicurezza](#sicurezza) · [SEO](#seo) ·
+[Deploy su Netlify](#deploy-su-netlify) · [Backup](#backup) · [Sicurezza](#sicurezza) · [SEO](#seo) ·
 [Analytics](#analytics) · [Soft launch](#soft-launch) · [Dati aziendali](#dati-aziendali) · [Struttura](#struttura)
 
 ---
@@ -75,8 +75,8 @@ npm start                  # avvia la build (porta 3000)
 ```
 
 `npm run check:env` da solo verifica la configurazione e segnala i dati aziendali ancora da completare.
-Su Vercel il controllo parte da solo (`vercel.json` → `buildCommand`): **se manca una variabile
-obbligatoria il deploy si ferma** e non va online.
+Su Netlify il controllo parte da solo (`netlify.toml` → `build.command` = `npm run build:production`):
+**se manca una variabile obbligatoria il deploy si ferma** e non va online.
 
 ## Production
 
@@ -94,7 +94,7 @@ Il server **non parte** (fail fast) se manca qualcosa di obbligatorio, e il log 
 | `DATABASE_URL_DIRECT` | se `DATABASE_URL` è un pooler "transaction" | usata per le migrazioni |
 | `STORAGE_DRIVER` | sì | `s3` (consigliato). `local` solo con disco persistente dichiarato |
 | `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | con `s3` | + `S3_ENDPOINT`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `S3_PREFIX` |
-| `CLIENT_IP_SOURCE` | fuori da Vercel | su Vercel automatico. Vedi [Sicurezza](#sicurezza) |
+| `CLIENT_IP_SOURCE`, `CLIENT_IP_HEADER` | sì (su Netlify: `header` + `x-nf-client-connection-ip`) | Vedi [Sicurezza](#sicurezza) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | solo primo avvio | poi rimuovere `ADMIN_PASSWORD` (il log lo ricorda) |
 | `SITE_INDEXING` | no | `false` spegne sempre l'indicizzazione |
 
@@ -157,8 +157,9 @@ solo agli admin autenticati, passando dal server (`/api/admin/photos/[id]`).
    S3_ACCESS_KEY_ID=…  S3_SECRET_ACCESS_KEY=…
    ```
 
-Limiti foto: 12 per richiesta, 4 MB ciascuna dopo la compressione nel browser (max 1800 px, JPEG).
-Gli invii restano sotto i 4,5 MB per richiesta accettati da Vercel. Il server verifica il contenuto reale,
+Limiti foto: 12 per richiesta di valutazione, 3 MB ciascuna dopo la compressione nel browser (max 1800 px, JPEG),
+inviate a gruppi di max 3 foto / 3 MB (tetto server 3,4 MB per richiesta). Le Netlify Functions accettano 6 MB di
+payload e codificano i binari in Base64 (+~33%): 3,4 MB diventano ~4,5 MB, con margine. Il server verifica il contenuto reale,
 ricodifica l'immagine ed elimina i metadati EXIF/GPS.
 
 ## Admin
@@ -201,56 +202,196 @@ L'informativa (`/privacy`) è una **bozza tecnica**, non una dichiarazione di co
 (segnaposto evidenziati in giallo) e verificata da chi segue la privacy dell'azienda.
 Una volta approvata, impostare `PRIVACY_POLICY_VERSION = "1.0"` in `src/config/business.ts`.
 
+### Dove vengono trattati i dati (assetto del soft launch)
+
+| Dato | Servizio | Dove |
+|---|---|---|
+| Database (lead, clienti, moto, offerte, acquisti) | Neon Free | **UE**, Francoforte (`aws-eu-central-1`) |
+| Foto | Supabase Storage Free | **UE**, Francoforte (`eu-central-1`) |
+| Backup cifrato del database | Supabase Storage (bucket `backups`) + artifact GitHub Actions | UE (Supabase); GitHub: **non verificato** dove siano conservati gli artifact |
+| **Esecuzione del codice del sito (funzioni)** | Netlify Free | **Stati Uniti** (region di default `cmh`, Ohio). Il cambio di region è solo per i piani a pagamento |
+
+**Non si può dichiarare che i dati restano esclusivamente nell'UE:** ogni richiesta, compresi nome, telefono,
+email e foto, passa dalle funzioni Netlify negli USA prima di arrivare a database e storage in UE.
+Questo è un compromesso accettato **solo per il soft launch** con 10–20 persone scelte; **non è l'assetto definitivo**.
+
+Prima del lancio pubblico definitivo (checklist privacy):
+- [ ] verificare e allegare il DPA di Netlify e le Clausole Contrattuali Standard (SCC) / adesione al Data Privacy Framework;
+- [ ] verificare DPA e sede del trattamento di Neon, Supabase e GitHub;
+- [ ] indicare nell'informativa (`/privacy`, `PROVIDERS` in `business.ts`) i fornitori, i trasferimenti verso gli USA e le garanzie;
+- [ ] valutare di portare l'esecuzione del codice in UE (hosting con region UE) e rivedere questa sezione.
+
 ---
 
-## Deploy su Vercel
+## Deploy su Netlify
 
-1. Vercel → *Add New Project* → importa `danieldonadio1990-tech/moto-acquisizione`.
-2. *Settings → Functions → Region*: già fissata a **Francoforte (`fra1`)** da `vercel.json`, vicino al database.
-3. *Settings → Environment Variables* (ambiente **Production**): le variabili della tabella [Production](#production).
-   I deploy di **Preview** sono anch'essi in modalità produzione: o hanno un loro database e bucket
-   (mai quelli di produzione), oppure vanno disattivati.
-4. Deploy. Il build si ferma con un messaggio chiaro se manca una variabile.
-5. Crea l'admin (`npm run admin:user`) ed esegui lo smoke test (`npm run test:e2e` con `E2E_BASE_URL`).
-6. Dominio: *Settings → Domains*. Poi imposta `SITE.domain` in `src/config/business.ts` (URL canonici,
-   sitemap, anteprime social). **Non acquistare un dominio senza autorizzazione.**
+Architettura del soft launch, **costo €0/mese**, nessun metodo di pagamento da inserire:
+
+| Funzione | Servizio (piano Free) | Note |
+|---|---|---|
+| Hosting | Netlify Free | 300 crediti/mese, **limite rigido**: finiti, il sito va in pausa fino al ciclo successivo (nessun addebito). Alert al 50/75/100% |
+| Database | Neon Free, `aws-eu-central-1` | 0,5 GB, scale-to-zero (il primo accesso dopo una pausa è più lento) |
+| Foto | Supabase Storage Free, `eu-central-1` | 1 GB; il progetto Free va in **pausa dopo 1 settimana senza attività** |
+| Backup | GitHub Actions + `age` | vedi [Backup](#backup) |
+
+Il codice è identico a prima: cambiano solo configurazione e servizi. `netlify.toml` imposta il comando di
+build (`npm run build:production`, che esegue `check:env`), Node 22, e **fa fallire di proposito** i build di
+Deploy Preview e Branch deploy (usano la configurazione di produzione).
+
+### Account da creare (nessun pagamento)
+1. **Netlify**: registrazione con GitHub, piano Free. Non inserire carta.
+2. **Neon**: progetto Free in `AWS Europe (Frankfurt) — aws-eu-central-1`.
+3. **Supabase**: progetto Free in `Central EU (Frankfurt) — eu-central-1`.
+
+### Configurazione manuale
+1. **Neon**: *Connect* → copia la stringa **pooled** (`…-pooler…`) e quella **diretta**. In *Settings* annota la
+   versione PostgreSQL (serve per il backup). Crea un ruolo **di sola lettura** per il backup (vedi [Backup](#backup)).
+2. **Supabase** → *Storage*: crea due bucket **privati** (`Public bucket` disattivato): `photos` e `backups`.
+   *Storage → S3 Connection*: copia l'endpoint (`https://<PROJECT_REF>.storage.supabase.co/storage/v1/s3`) e genera
+   le chiavi di accesso S3 (meglio due coppie: una per l'app, una per il backup).
+3. **Netlify** → *Add new site → Import from Git* → `danieldonadio1990-tech/moto-acquisizione`. Il comando di build
+   arriva da `netlify.toml`: non cambiarlo.
+4. **Netlify** → *Site configuration → Build & deploy → Branches and deploy contexts*: **Deploy Previews = None**,
+   **Branch deploys = None** (produzione = solo `main`).
+5. **Netlify** → *Site configuration → Environment variables*: crea ogni variabile con scope **Production soltanto**
+   (deseleziona Deploy Previews, Branch deploys, Local development):
+
+| Variabile | Valore | Perché |
+|---|---|---|
+| `SESSION_SECRET` | `openssl rand -base64 48` | firma le sessioni admin |
+| `DATABASE_URL` | stringa Neon **pooled** | connessione dell'app |
+| `DATABASE_URL_DIRECT` | stringa Neon **diretta** | migrazioni (advisory lock) |
+| `STORAGE_DRIVER` | `s3` | foto su storage persistente |
+| `S3_BUCKET` | `photos` | bucket privato foto |
+| `S3_ENDPOINT` | endpoint S3 Supabase | |
+| `S3_REGION` | `eu-central-1` | |
+| `S3_FORCE_PATH_STYLE` | `true` | richiesto da Supabase |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | chiavi S3 | accesso al bucket |
+| `CLIENT_IP_SOURCE` | `header` | rate limit su IP affidabile |
+| `CLIENT_IP_HEADER` | `x-nf-client-connection-ip` | header impostato da Netlify |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | solo al primo avvio | crea il primo admin; poi **rimuovi `ADMIN_PASSWORD`** |
+
+   I valori si incollano **solo nel pannello Netlify**, mai in chat né nel repository.
+6. Deploy. Se manca una variabile il build si ferma con un messaggio chiaro.
+7. Crea l'admin ed esegui lo smoke test (`npm run test:e2e` con `E2E_BASE_URL`), poi cancella i dati di prova
+   (`npm run privacy:erase`, vedi [Privacy](#privacy)).
+8. Dominio: solo dopo autorizzazione. Poi imposta `SITE.domain` in `src/config/business.ts`.
+   **Non acquistare un dominio senza autorizzazione.**
+
+### Guardie contro l'uso della produzione da parte di build non di produzione
+1. Le variabili esistono solo nello scope Production (punto 5).
+2. Deploy Preview e Branch deploys sono disattivati (punto 4) e, se riattivati, `netlify.toml` li fa fallire.
+3. `src/config/env.ts` rifiuta qualsiasi avvio/build con `NETLIFY=true` e `CONTEXT` diverso da `production`.
+
+### IP del client su Netlify
+`x-nf-client-connection-ip` è l'header che Netlify indica come affidabile per le Functions. **Da verificare dopo il
+primo deploy:** nei log deve comparire `ip=header` e *non* il messaggio `IP del client non trovato`; dal vostro
+telefono, ripetendo l'invio oltre il limite (8/ora), il blocco deve scattare per IP. Se l'header manca, tutte le
+richieste condividono un solo contatore (più restrittivo, non più permissivo).
 
 ## Backup
 
-Il backup è quello del provider PostgreSQL: niente sistemi fatti in casa. I piani gratuiti **non** bastano:
+Backup notturno del **database PostgreSQL** con GitHub Actions (`.github/workflows/backup.yml`, ore 02:17 UTC,
+avviabile a mano da *Actions → Backup database → Run workflow*).
 
-| Provider | Piano | Copia | Conservazione | Ripristino |
-|---|---|---|---|---|
-| Neon | Free | storia continua | **6 ore** (insufficiente) | — |
-| Neon | Launch (a consumo) | storia continua (point-in-time) | fino a **7 giorni** (impostare 7) | Console → *Restore* → data e ora |
-| Supabase | Free | nessun backup automatico | — | — |
-| Supabase | Pro | giornaliero | **7 giorni** | Dashboard → *Database → Backups* → scegliere il giorno |
+> **Cosa è coperto e cosa no**
+> - Il backup copre **solo il database PostgreSQL** (lead, clienti, moto, offerte, acquisti, storico, eventi, admin).
+> - Le **foto NON sono incluse nel dump**: stanno nel bucket separato `photos` di Supabase Storage.
+> - Esiste quindi un **rischio separato di perdita dello storage foto** (cancellazione, progetto Supabase perso o
+>   sospeso) **non coperto da nessun backup**. Da risolvere in una fase infrastrutturale successiva.
 
-**Configurazione minima per il soft launch:** Neon Launch con finestra di ripristino a 7 giorni,
-oppure Supabase Pro.
+Flusso: `pg_dump -Fc` (client ≥ versione del server) → controllo che il dump sia leggibile e contenga `leads`
+→ cifratura con `age` (**chiave pubblica**) → upload nel bucket privato `backups` di Supabase (`db/…`) con verifica
+della dimensione → rotazione (ultime **14** copie) → copia come artifact GitHub (cifrato, **30 giorni**).
+Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repository.
 
-**Procedura di ripristino:**
-1. Mettere il sito in pausa (Vercel → *Deployments* → rimuovere il dominio, o portarlo su una pagina di
-   manutenzione) per non perdere richieste durante il ripristino.
-2. Ripristinare dal pannello del provider al momento precedente al problema. Con Neon conviene ripristinare
-   su un nuovo *branch* e verificare i dati prima di promuoverlo.
-3. Verificare con `npm run check:env` e lo smoke test, poi riattivare il sito.
-4. Le foto stanno nello storage, che non è coperto dal backup del database. Le cancellazioni avvengono
-   solo con `privacy:erase`. Su R2 si può abilitare in più la *Object versioning/lifecycle*.
+### Configurazione (una tantum)
+1. **Chiavi `age`, sul tuo computer** (`age` si installa con `brew install age` / `apt install age`):
+   ```bash
+   age-keygen -o chiave-backup.txt     # stampa "Public key: age1…"
+   ```
+   Conserva `chiave-backup.txt` **offline** (gestore di password + copia su chiavetta). Senza di essa i backup
+   non si possono aprire; se qualcuno la ottiene può leggerli. **Non va mai nel repository né su GitHub.**
+2. **Neon**: ruolo di sola lettura per il dump (SQL Editor, con un nome a scelta e una password forte):
+   ```sql
+   create role backup_reader login password '…';
+   grant connect on database neondb to backup_reader;
+   grant usage on schema public, drizzle to backup_reader;
+   grant select on all tables in schema public, drizzle to backup_reader;
+   grant select on all sequences in schema public to backup_reader;
+   ```
+   (sostituisci `neondb` col nome reale del database). Usa la stringa **diretta** con questo ruolo.
+3. **GitHub** → repo → *Settings → Secrets and variables → Actions → New repository secret*:
 
-Prova di ripristino consigliata subito dopo il primo deploy (5 minuti su un branch di test).
+| Secret | Valore |
+|---|---|
+| `BACKUP_DATABASE_URL` | stringa Neon **diretta** con il ruolo `backup_reader` |
+| `BACKUP_AGE_PUBLIC_KEY` | `age1…` (la chiave **pubblica**) |
+| `BACKUP_S3_ENDPOINT` | endpoint S3 di Supabase |
+| `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | chiavi S3 con accesso al bucket `backups` |
+
+4. Nel workflow `PG_MAJOR` (default `17`) deve essere **≥ alla versione PostgreSQL del progetto Neon**; lo script si
+   ferma con un messaggio chiaro se il client è più vecchio del server.
+5. Lancia il workflow a mano e controlla che sia verde; controlla poi che la prima esecuzione programmata parta
+   davvero (sui repository privati con account Free non è garantito che i cron partano: non verificato).
+
+Costi: nessun servizio a pagamento. Per GitHub Actions su repository privato con account Free la quota di minuti
+inclusi e il comportamento al suo superamento (stop dei workflow o addebito) **non sono stati verificati**:
+controllare *Settings → Billing and plans* e non aggiungere metodi di pagamento. Il backup usa ~1–2 minuti a notte.
+
+### Ripristino
+Il ripristino non tocca mai la produzione finché non decidi di cambiare `DATABASE_URL`.
+
+1. **Scarica** il backup: Supabase → *Storage → backups → db →* file più recente; oppure GitHub → *Actions →* esecuzione
+   → artifact `db-backup`.
+2. **Crea un branch Neon nuovo e vuoto** (*Branches → New branch* da un punto vecchio, oppure un progetto/database
+   nuovo) e copia la sua stringa di connessione diretta. Il database di destinazione deve essere **vuoto**.
+3. **Decifra e ripristina** (serve la tua chiave privata; servono `age` e `psql`/`pg_restore` ≥ versione del server):
+   ```bash
+   AGE_IDENTITY_FILE=chiave-backup.txt scripts/backup/restore.sh moto-acquisizione-<data>.dump.age "<URL del branch di test>"
+   ```
+   Lo script rifiuta database non vuoti.
+4. **Verifica**: `psql "<URL del branch di test>" -f scripts/backup/verify.sql` mostra i conteggi (richieste, richieste
+   acquistate con prezzo pagato, clienti, moto, offerte e offerte accettate, metadati foto, storico stati, eventi,
+   admin, migrazioni). Confrontali con la produzione. Verifica anche l'app: avvio con `DATABASE_URL` del branch.
+5. **Switch**: nel pannello Netlify cambia `DATABASE_URL` e `DATABASE_URL_DIRECT` col branch ripristinato,
+   rilancia il deploy (*Deploys → Trigger deploy*), esegui lo smoke test. Tieni il vecchio database finché non
+   sei sicuro.
+6. Le foto non sono nel backup: dopo un ripristino i metadati delle foto puntano agli oggetti del bucket `photos`,
+   che restano dove sono (se il bucket esiste ancora).
+
+### Prova di ripristino eseguita
+Durante la configurazione è stata eseguita una prova completa su PostgreSQL 16 locale (non su Neon):
+backup → cifratura → upload e rotazione (S3 simulato) → decifratura → restore in un database vuoto → confronto dei
+conteggi (identici) e dei dati (prezzo pagato distinto dall'offerta accettata). **Non ancora provato** con Neon,
+Supabase Storage e il runner GitHub reali: ripetere la prova di ripristino su un branch Neon subito dopo il primo
+backup notturno.
+
+## Rischi e limiti del setup gratuito
+
+- **Sito in pausa** quando i 300 crediti mensili Netlify finiscono (fino al ciclo successivo, nessun addebito).
+- **Funzioni Netlify negli USA**, database e storage in UE: latenza maggiore e trasferimento extra-UE (vedi [Privacy](#privacy)).
+- **Pausa del progetto Supabase** dopo 1 settimana senza attività: il backup notturno scrive nel suo Storage, ma se
+  conti come "attività" non è verificato. Controllare il pannello e riattivare a mano se serve.
+- **Foto senza backup** (vedi sopra).
+- **Backup artigianale**: dipende da GitHub Actions, da un cron che può saltare e dalla tua chiave privata.
+- **Neon Free**: 6 ore di storia, 0,5 GB, scale-to-zero.
+- **Rate limit per istanza** (non condiviso).
+- Nessun SLA su nessuno dei servizi.
 
 ## Sicurezza
 
 - **Fail fast:** configurazione validata all'avvio e prima del deploy (`src/config/env.ts`).
 - **IP del client** per il rate limit, da fonte affidabile (`CLIENT_IP_SOURCE`):
-  - **Vercel** (automatico): `x-vercel-forwarded-for`. Vercel imposta questo header e sovrascrive i valori
-    mandati dal client, quindi non è falsificabile;
+  - **Netlify** (assetto attuale): `CLIENT_IP_SOURCE=header` + `CLIENT_IP_HEADER=x-nf-client-connection-ip`.
+    È l'header che Netlify indica per l'IP del client; che non sia falsificabile va verificato dopo il primo deploy
+    (vedi [IP del client su Netlify](#ip-del-client-su-netlify));
+  - **Vercel**: `x-vercel-forwarded-for` (automatico);
   - **Cloudflare**: `cf-connecting-ip` (solo se il server è raggiungibile esclusivamente via Cloudflare);
   - **proxy proprio**: `CLIENT_IP_SOURCE=header` + `CLIENT_IP_HEADER` (es. `x-real-ip` impostato da nginx);
   - `x-forwarded-for` è falsificabile: rifiutato in produzione.
 - **Rate limit** (`src/lib/rate-limit.ts`): richieste 8/ora per IP, foto, eventi, login.
-  **Limite noto:** i contatori sono in memoria, per singola istanza. Su Vercel ogni istanza conta per conto suo:
+  **Limite noto:** i contatori sono in memoria, per singola istanza. Su hosting serverless ogni istanza conta per conto suo:
   la protezione contro lo spam leggero c'è, quella contro un attacco distribuito no.
   Per il soft launch è sufficiente. Per renderlo condiviso: implementare `RateLimitStore` (due metodi,
   `hit` e `reset`) su Redis/Upstash e registrarlo con `setRateLimitStore()`, senza toccare il resto.
@@ -352,8 +493,10 @@ collegate a `leads.id` quando lo stato è "Acquistata".
 ## Da completare prima del soft launch
 
 - [ ] Dati aziendali in `src/config/business.ts`: ragione sociale, P.IVA, sede, email, PEC, telefono, WhatsApp
-- [ ] Scelta fornitori (hosting, database, storage) e relativi account, poi `PROVIDERS` in `business.ts`
+- [ ] Account Netlify, Neon, Supabase creati (piani Free, nessun pagamento) e configurati come in [Deploy su Netlify](#deploy-su-netlify); poi `PROVIDERS` in `business.ts`
+- [ ] Verifica dei Terms/DPA: DPA e SCC di Netlify prima del lancio pubblico (funzioni negli USA, vedi [Privacy](#privacy))
 - [ ] Informativa completata e approvata → `PRIVACY_POLICY_VERSION = "1.0"`
-- [ ] Database con backup reale (Neon Launch 7 giorni o Supabase Pro) e prova di ripristino
-- [ ] Deploy su Vercel con variabili di produzione, admin creato, smoke test superato
+- [ ] Backup notturno attivo (secret GitHub, chiave `age` conservata offline) e prova di ripristino su un branch Neon
+- [ ] Rischio foto senza backup accettato o risolto (fase infrastrutturale successiva)
+- [ ] Deploy su Netlify con variabili di produzione, admin creato, smoke test superato e dati di prova cancellati
 - [ ] Dominio (solo dopo autorizzazione) → `SITE.domain`

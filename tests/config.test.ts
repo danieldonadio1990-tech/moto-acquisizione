@@ -101,3 +101,20 @@ test("IP client: fuori da Vercel in produzione serve una fonte esplicita e affid
 test("IP client: header atteso assente → contatore comune 'unknown' (più restrittivo)", () => {
   assert.equal(clientIp(new Headers({ "x-forwarded-for": "6.6.6.6" }), { source: "vercel" }), "unknown");
 });
+
+test("Netlify: IP client da x-nf-client-connection-ip via CLIENT_IP_SOURCE=header, non da x-forwarded-for", () => {
+  const env = { ...prodS3, VERCEL: "", CLIENT_IP_SOURCE: "header", CLIENT_IP_HEADER: "x-nf-client-connection-ip" };
+  const cfg = loadServerConfig(env);
+  const h = new Headers({ "x-forwarded-for": "6.6.6.6", "x-nf-client-connection-ip": "93.40.1.2" });
+  assert.equal(clientIp(h, cfg.clientIp), "93.40.1.2");
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "6.6.6.6" }), cfg.clientIp), "unknown");
+});
+
+test("guardia Netlify: i contesti non di produzione sono rifiutati", () => {
+  const env = { ...prodS3, VERCEL: "", CLIENT_IP_SOURCE: "header", CLIENT_IP_HEADER: "x-nf-client-connection-ip", NETLIFY: "true" };
+  assert.doesNotThrow(() => loadServerConfig({ ...env, CONTEXT: "production" }));
+  assert.doesNotThrow(() => loadServerConfig(env), "CONTEXT assente a runtime: ok");
+  for (const ctx of ["deploy-preview", "branch-deploy", "dev"]) {
+    assert.match(String(problems({ ...env, CONTEXT: ctx })), /non di produzione/);
+  }
+});
