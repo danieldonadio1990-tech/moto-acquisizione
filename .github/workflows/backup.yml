@@ -21,12 +21,8 @@ jobs:
     env:
       # deve essere >= alla versione PostgreSQL del progetto Neon (Neon → Settings → PostgreSQL version)
       PG_MAJOR: "17"
-      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
-      BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
-      BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
-      BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
-      BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
       BACKUP_OUT_DIR: backup-out
+      # I secret NON sono qui: ogni step riceve solo quelli che usa (niente segreti durante apt-get/curl)
     steps:
       - uses: actions/checkout@v4
 
@@ -40,9 +36,16 @@ jobs:
           echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
 
       - name: Dump e cifratura
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
         run: scripts/backup/backup.sh
 
       - name: Carica su Supabase Storage (bucket backups) e ruota le copie
+        env:
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
         run: scripts/backup/upload.sh
 
       - name: Carica come artifact GitHub (cifrato)

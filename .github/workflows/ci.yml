@@ -42,3 +42,15 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # Analisi statica degli script shell (backup/ripristino): ShellCheck è preinstallato su ubuntu-latest
+  shellcheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck -x
