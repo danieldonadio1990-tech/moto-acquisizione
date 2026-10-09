@@ -1,0 +1,44 @@
+name: CI
+
+# Verifica automatica a ogni push e pull request.
+# Nessun segreto, nessun database o storage esterno: i test usano PGlite e una cartella temporanea.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installa dipendenze
+        run: npm ci
+
+      # PageProps / RouteContext / LayoutProps sono tipi generati da Next: senza questo passo il typecheck fallisce
+      - name: Genera i tipi Next.js
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
