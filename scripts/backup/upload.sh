@@ -9,6 +9,8 @@ set -euo pipefail
 : "${BACKUP_S3_SECRET_ACCESS_KEY:?mancante}"
 BUCKET="${BACKUP_S3_BUCKET:-backups}"
 KEEP="${BACKUP_KEEP:-14}"
+# la rotazione elimina le copie oltre KEEP: un valore 0 o non numerico cancellerebbe tutti i backup
+[[ "$KEEP" =~ ^[1-9][0-9]*$ ]] || { echo "BACKUP_KEEP deve essere un intero >= 1 (valore: $KEEP)" >&2; exit 1; }
 OUT_DIR="${BACKUP_OUT_DIR:-./backup-out}"
 export AWS_ACCESS_KEY_ID="$BACKUP_S3_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$BACKUP_S3_SECRET_ACCESS_KEY"
 export AWS_DEFAULT_REGION="${BACKUP_S3_REGION:-eu-central-1}" AWS_EC2_METADATA_DISABLED=true

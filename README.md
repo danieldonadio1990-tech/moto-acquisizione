@@ -219,7 +219,10 @@ Prima del lancio pubblico definitivo (checklist privacy):
 - [ ] verificare e allegare il DPA di Netlify e le Clausole Contrattuali Standard (SCC) / adesione al Data Privacy Framework;
 - [ ] verificare DPA e sede del trattamento di Neon, Supabase e GitHub;
 - [ ] indicare nell'informativa (`/privacy`, `PROVIDERS` in `business.ts`) i fornitori, i trasferimenti verso gli USA e le garanzie;
-- [ ] valutare di portare l'esecuzione del codice in UE (hosting con region UE) e rivedere questa sezione.
+- [ ] valutare di portare l'esecuzione del codice in UE (hosting con region UE) e rivedere questa sezione;
+- [ ] **backup e cancellazione:** `privacy:erase` non modifica i backup già fatti. Un dato cancellato resta nelle ultime
+      14 copie su Supabase e per 30 giorni negli artifact GitHub (cifrati): allineare il testo dell'informativa
+      (tempi di cancellazione) e decidere la retention definitiva.
 
 ---
 
@@ -312,9 +315,10 @@ Flusso: `pg_dump -Fc` (client ≥ versione del server) → controllo che il dump
 della dimensione → rotazione (ultime **14** copie) → copia come artifact GitHub (cifrato, **30 giorni**).
 Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repository.
 
-> **Stato:** il workflow è stato provato solo in locale (stessi script, PostgreSQL 16 e S3 simulato). **Non è garantito
-> finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) e non ne è stato
-> ripristinato un file su Neon.
+> **Stato:** gli script `backup.sh` e `restore.sh` sono stati provati solo in locale, su un PostgreSQL 16 di prova con
+> ruoli non-superuser (vedi [Prova di ripristino eseguita](#prova-di-ripristino-eseguita)); `upload.sh` e il flusso S3 non
+> sono mai stati eseguiti. **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima
+> esecuzione notturna) contro Neon (PostgreSQL 18) e Supabase, e non ne è stato ripristinato un file su Neon.
 
 ### Configurazione (una tantum)
 1. **Chiavi `age`, sul tuo computer** (`age` si installa con `brew install age` / `apt install age`):
@@ -331,10 +335,10 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
    grant connect on database neondb to backup_reader;
    grant usage on schema public, drizzle to backup_reader;
    grant select on all tables in schema public, drizzle to backup_reader;
-   grant select on all sequences in schema public to backup_reader;
+   grant select on all sequences in schema public, drizzle to backup_reader;
    -- per le tabelle create da migrazioni future
    alter default privileges for role neondb_owner in schema public, drizzle grant select on tables to backup_reader;
-   alter default privileges for role neondb_owner in schema public grant select on sequences to backup_reader;
+   alter default privileges for role neondb_owner in schema public, drizzle grant select on sequences to backup_reader;
    ```
    Usa la stringa **diretta** (senza `-pooler`) con questo ruolo. Dopo ogni nuova migrazione il backup
    fallisce con "permission denied" se mancano i permessi: lo script lo segnala nel log.
@@ -378,11 +382,16 @@ Il ripristino non tocca mai la produzione finché non decidi di cambiare `DATABA
    che restano dove sono (se il bucket esiste ancora).
 
 ### Prova di ripristino eseguita
-Durante la configurazione è stata eseguita una prova completa su PostgreSQL 16 locale (non su Neon):
-backup → cifratura → upload e rotazione (S3 simulato) → decifratura → restore in un database vuoto → confronto dei
-conteggi (identici) e dei dati (prezzo pagato distinto dall'offerta accettata). **Non ancora provato** con Neon,
-Supabase Storage e il runner GitHub reali: ripetere la prova di ripristino su un branch Neon subito dopo il primo
-backup notturno.
+Prova locale, con dati finti, su un cluster PostgreSQL 16 usa e getta (**non** Neon, **non** PostgreSQL 18):
+migrazioni dell'app (`npm run db:migrate`, ripetute due volte) → ruolo `backup_reader` con i permessi di questo README →
+`backup.sh` (dump + cifratura `age`) → `restore.sh` in un database vuoto con un ruolo non-superuser → `verify.sql`:
+conteggi identici all'origine. Verificato anche: il ripristino su un database non vuoto e con la chiave sbagliata viene
+rifiutato, `backup_reader` non può scrivere, il file `.age` non contiene testo in chiaro, nessun file temporaneo
+resta dopo un errore. La prova ha rivelato che mancavano i permessi sulle sequenze dello schema `drizzle` (il backup
+falliva con "permission denied for sequence"): il SQL qui sopra è stato corretto.
+**Non ancora provato:** Neon e PostgreSQL 18 (compresi eventuali errori di ripristino legati a estensioni o ruoli di
+Neon), `upload.sh`/rotazione su Supabase Storage, il runner GitHub e l'installazione di `postgresql-client-18` da PGDG.
+Ripetere la prova di ripristino su un branch Neon subito dopo il primo backup.
 
 ## Rischi e limiti del setup gratuito
 

@@ -5,6 +5,9 @@
 # Variabili: BACKUP_DATABASE_URL, BACKUP_AGE_PUBLIC_KEY, [BACKUP_OUT_DIR=./backup-out]
 # Output: $BACKUP_OUT_DIR/moto-acquisizione-<UTC>.dump.age  e  $BACKUP_OUT_DIR/LATEST (nome del file)
 set -euo pipefail
+umask 077 # file temporanei e output leggibili solo dall'utente corrente
+# Neon (scale-to-zero) può impiegare qualche secondo a svegliarsi; senza limite una connessione bloccata consumerebbe tutto il timeout del job
+export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-30}"
 
 : "${BACKUP_DATABASE_URL:?BACKUP_DATABASE_URL mancante}"
 : "${BACKUP_AGE_PUBLIC_KEY:?BACKUP_AGE_PUBLIC_KEY mancante}"
@@ -25,14 +28,13 @@ mkdir -p "$OUT_DIR"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 name="moto-acquisizione-${stamp}.dump.age"
 tmp=$(mktemp)
-trap 'rm -f "$tmp"' EXIT
+trap 'rm -f "$tmp" "$tmp.list"' EXIT
 
 # formato custom (-Fc: già compresso, ripristinabile con pg_restore); niente owner/ACL (i ruoli cambiano tra progetti)
 pg_dump --format=custom --compress=9 --no-owner --no-privileges "$BACKUP_DATABASE_URL" --file="$tmp"
 # controllo di integrità: il dump deve essere leggibile e contenere le tabelle del progetto
 pg_restore --list "$tmp" > "$tmp.list"
-grep -q "TABLE public leads" "$tmp.list" || { echo "Il dump non contiene la tabella leads: backup scartato" >&2; rm -f "$tmp.list"; exit 1; }
-rm -f "$tmp.list"
+grep -q "TABLE public leads" "$tmp.list" || { echo "Il dump non contiene la tabella leads: backup scartato" >&2; exit 1; }
 
 age -r "$BACKUP_AGE_PUBLIC_KEY" -o "$OUT_DIR/$name" "$tmp"
 echo "$name" > "$OUT_DIR/LATEST"

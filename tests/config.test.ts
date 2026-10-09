@@ -72,6 +72,15 @@ test("log: niente dati personali dagli errori del database", () => {
   assert.equal(redact("scrivi a luigi@example.it o al 347 123 4567"), "scrivi a [email] o al [numero]");
 });
 
+test("log: le stringhe di connessione con password non compaiono mai", () => {
+  const url = "postgres://neondb_owner:S3cr3tPwd@ep-test-123.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+  const out = redact(`connect failed for ${url} (timeout)`);
+  assert.ok(!out.includes("S3cr3tPwd") && !out.includes("neondb_owner"), out);
+  assert.match(out, /\[url-con-credenziali\]/);
+  const s = JSON.stringify(safeError(new Error(`getaddrinfo ENOTFOUND ${url}`)));
+  assert.ok(!s.includes("S3cr3tPwd"), s);
+});
+
 test("rate limit: oltre il limite → bloccato", async () => {
   const rule: Rule = { name: `t-${Math.random()}`, limit: 3, windowMs: 60_000 };
   const r = [];

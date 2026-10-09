@@ -3,7 +3,9 @@ name: CI
 # Verifica automatica a ogni push e pull request.
 # Nessun segreto, nessun database o storage esterno: i test usano PGlite e una cartella temporanea.
 on:
+  # push solo su main: sui branch con una PR aperta il CI parte già con l'evento pull_request (niente doppio run)
   push:
+    branches: [main]
   pull_request:
 
 permissions:
@@ -15,7 +17,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: "1"
@@ -43,9 +45,9 @@ jobs:
       - name: Test
         run: npm test
 
-  # Analisi statica degli script shell (backup/ripristino): ShellCheck è preinstallato su ubuntu-latest
+  # Analisi statica degli script shell (backup/ripristino): ShellCheck è preinstallato sull'immagine ubuntu-24.04
   shellcheck:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
