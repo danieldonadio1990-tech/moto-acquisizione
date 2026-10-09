@@ -347,7 +347,7 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
 | `BACKUP_S3_ENDPOINT` | endpoint S3 di Supabase |
 | `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` | chiavi S3 con accesso al bucket `backups` |
 
-4. Nel workflow `PG_MAJOR` (default `17`) deve essere **≥ alla versione PostgreSQL del progetto Neon**; lo script si
+4. Nel workflow `PG_MAJOR` (ora `18`: il progetto Neon è su **PostgreSQL 18.6**) deve essere **≥ alla versione PostgreSQL del progetto Neon**; lo script si
    ferma con un messaggio chiaro se il client è più vecchio del server.
 5. Lancia il workflow a mano e controlla che sia verde; controlla poi che la prima esecuzione programmata parta
    davvero (sui repository privati con account Free non è garantito che i cron partano: non verificato).
@@ -363,7 +363,7 @@ Il ripristino non tocca mai la produzione finché non decidi di cambiare `DATABA
    → artifact `db-backup`.
 2. **Crea un branch Neon nuovo e vuoto** (*Branches → New branch* da un punto vecchio, oppure un progetto/database
    nuovo) e copia la sua stringa di connessione diretta. Il database di destinazione deve essere **vuoto**.
-3. **Decifra e ripristina** (serve la tua chiave privata; servono `age` e `psql`/`pg_restore` ≥ versione del server):
+3. **Decifra e ripristina** (serve la tua chiave privata; servono `age` e `psql`/`pg_restore` **versione 18 o superiore**, cioè ≥ del server Neon, altrimenti `restore.sh` si ferma):
    ```bash
    AGE_IDENTITY_FILE=chiave-backup.txt scripts/backup/restore.sh moto-acquisizione-<data>.dump.age "<URL del branch di test>"
    ```
