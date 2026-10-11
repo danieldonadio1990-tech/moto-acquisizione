@@ -357,8 +357,10 @@ lanciati **sul tuo computer**, mai in chat né in sessioni cloud.
       versione di Neon, ora 18.6). Controlla che sia verde e che il file compaia in `backups/db/`.
 - [ ] **7. Ripristino di prova** su un branch Neon vuoto (sezione [Ripristino](#ripristino)) e `verify.sql`. Solo dopo il
       backup è da considerarsi funzionante.
-- [ ] **8. Cron**: finché i punti 1–5 non sono fatti, il workflow schedulato (ogni notte) fallisce e GitHub manda email di errore.
-      Controlla che la prima esecuzione programmata parta (sui repository privati con account Free non è garantito: non verificato).
+- [ ] **8. Cron**: il workflow schedulato (ogni notte) è **disattivato finché la variabile di repository `BACKUP_ENABLED` non
+      vale `true`** (*Settings → Secrets and variables → Actions → Variables*); il lancio manuale funziona sempre. Impostala
+      solo dopo i punti 1–7. Se la dimentichi, i backup notturni non partono (e nessun errore avvisa). Dopo averla impostata
+      controlla che la prima esecuzione programmata parta (sui repository privati con account Free non è garantito: non verificato).
 
 Costi: nessun servizio a pagamento. Per GitHub Actions su repository privato con account Free la quota di minuti
 inclusi e il comportamento al suo superamento (stop dei workflow o addebito) **non sono stati verificati**:
