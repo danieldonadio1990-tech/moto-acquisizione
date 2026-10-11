@@ -154,6 +154,28 @@ expect "rifiutato" out_has 'coincide con quello vero'
 expect "nessuna scrittura" hasnt 'ro=no|kind=WRITE'
 
 # ---------------------------------------------------------------------------------------------------------------------------
+scenario "GUIDED con nome del database sbagliato: nessuna scrittura (la fase di lettura non scrive)" "altro\n" -- --guided
+expect "esce con 1" test "$RC" -eq 1
+expect "ha ispezionato Neon" has '^psql\|'
+expect "nessuna scrittura su Neon" hasnt 'ro=no|kind=WRITE'
+expect "gh mai chiamato" hasnt '^gh\|'
+expect "nessun segreto in log o output" no_canary
+
+scenario "GUIDED con migrazioni mancanti: si ferma prima di qualunque conferma" "" MOCK_MIGRATED=f -- --guided
+expect "esce con 1" test "$RC" -eq 1
+expect "nessuna scrittura su Neon" hasnt 'ro=no|kind=WRITE'
+expect "gh mai chiamato" hasnt '^gh\|'
+expect "nessuna migrazione" hasnt 'db:migrate'
+
+scenario "GUIDED percorso completo: stesso risultato di --apply, in una sola esecuzione" "neondb\ns\ns\ns\ns\ns\ns\n" -- --guided
+expect "esce con 0" test "$RC" -eq 0
+expect "prima fase di sola lettura: la prima scrittura arriva dopo la conferma generale" bash -c "awk '/kind=WRITE/{w=1} w==0 && /ro=no/{exit 1}' '$LOG'"
+expect "esattamente un CREATE e un DROP DATABASE" bash -c "[ \"\$(grep -c -i 'sql=create database ' '$LOG')\" = 1 ] && [ \"\$(grep -c -i 'sql=drop database ' '$LOG')\" = 1 ]"
+expect "NESSUN ALTER ROLE e nessuna migrazione" bash -c "! grep -q -i -E 'alter role|db:migrate' '$LOG'"
+expect "5 secret impostati dopo il DROP del database di prova" bash -c "[ \"\$(grep -c '^gh|secret set BACKUP_' '$LOG')\" = 5 ]"
+expect "nessun segreto in log o output" no_canary
+
+# ---------------------------------------------------------------------------------------------------------------------------
 scenario "--reuse-app-s3 SENZA la frase di consenso: rifiutato" "\n" BACKUP_S3_ACCESS_KEY_ID= BACKUP_S3_SECRET_ACCESS_KEY= BACKUP_S3_ENDPOINT= \
   S3_ENDPOINT="https://example.storage.supabase.co/storage/v1/s3" S3_ACCESS_KEY_ID=CANARY_S3_KEYID_2d4e S3_SECRET_ACCESS_KEY=CANARY_APP_SECRET_55aa -- --dry-run --reuse-app-s3
 expect "esce con errore" test "$RC" -ne 0

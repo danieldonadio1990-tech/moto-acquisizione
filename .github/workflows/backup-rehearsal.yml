@@ -135,3 +135,48 @@ jobs:
           left=$(aws --endpoint-url http://127.0.0.1:5055 s3 ls s3://backups/db/ | awk '{print $4}' | tr '\n' ' ')
           echo "rimasti: $left"
           [[ "$left" == "moto-acquisizione-20261003T020000Z.dump.age moto-acquisizione-20261004T020000Z.dump.age moto-acquisizione-20261005T020000Z.dump.age " ]]
+
+      - name: bootstrap.sh su PostgreSQL 18 reale (--dry-run poi --guided; solo gh e S3 simulati)
+        run: |
+          set -euo pipefail
+          boot_pw=$(openssl rand -hex 16); echo "::add-mask::$boot_pw"
+          PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -q <<SQL
+          create role boot_owner login password '${boot_pw}' createrole createdb;
+          create database bootdb owner boot_owner;
+          SQL
+          export BOOT_OWNER_URL="postgres://boot_owner:${boot_pw}@127.0.0.1:5432/bootdb"
+          DATABASE_URL_DIRECT="$BOOT_OWNER_URL" npm run --silent db:migrate
+          psql "$BOOT_OWNER_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
+          insert into customers(first_name,last_name,phone,email,city,privacy_consent_at,privacy_policy_version)
+            values ('Test','Due','+393331112244','t2@example.invalid','Roma',now(),'draft-2');
+          insert into motorcycles(brand,model,year) values ('Honda','CB500',2019);
+          insert into leads(code,motorcycle_id,customer_id,mileage,is_running,accident,mechanical_issues,maintenance,preferred_contact)
+            select 'BOOT01',(select id from motorcycles limit 1),(select id from customers limit 1),30000,true,'no','no','yes','email';
+          SQL
+          # S3 simulato (moto) e gh simulato (registra solo nomi e dimensioni dei secret)
+          "$RUNNER_TEMP/moto/bin/moto_server" -p 5056 >"$RUNNER_TEMP/moto2.log" 2>&1 &
+          for _ in $(seq 1 20); do curl -s -o /dev/null http://127.0.0.1:5056 && break; sleep 1; done
+          AWS_ACCESS_KEY_ID=testing AWS_SECRET_ACCESS_KEY=testing AWS_DEFAULT_REGION=us-east-1 aws --endpoint-url http://127.0.0.1:5056 s3 mb s3://backups
+          export GH="$PWD/tests/bootstrap/stubs/gh" MOCK_LOG="$RUNNER_TEMP/gh-mock.log" HOME="$RUNNER_TEMP/boothome" GITHUB_REPOSITORY=test/test
+          export BACKUP_S3_ENDPOINT=http://127.0.0.1:5056 BACKUP_S3_ACCESS_KEY_ID=testing BACKUP_S3_SECRET_ACCESS_KEY=testing BACKUP_S3_REGION=us-east-1
+          mkdir -p "$HOME"; : > "$MOCK_LOG"
+          snap() { PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -Atc "select md5(coalesce((select string_agg(datname, ',' order by datname) from pg_database), '') || coalesce((select string_agg(rolname || coalesce(rolpassword, ''), ',' order by rolname) from pg_authid), ''))"; }
+          reader_hash() { PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -Atc "select md5(rolpassword) from pg_authid where rolname = 'backup_reader'"; }
+          reader_before=$(reader_hash)
+
+          echo "--- --dry-run: nessuna modifica a ruoli, database, password, gh, chiavi"
+          before=$(snap)
+          scripts/backup/bootstrap.sh --dry-run
+          [[ "$before" == "$(snap)" ]]
+          [[ ! -s "$MOCK_LOG" ]]
+          [[ ! -e "$HOME/.config" ]]
+
+          echo "--- --guided con backup_reader già esistente (creato da un passo precedente): ruolo NUOVO, vecchio intatto"
+          printf 'bootdb\ns\ns\ns\ns\ns\ns\n' | scripts/backup/bootstrap.sh --guided --new-reader-role
+          [[ "$reader_before" == "$(reader_hash)" ]]
+          [[ "$(grep -c '^gh|secret set BACKUP_' "$MOCK_LOG")" == 5 ]]
+          roles=$(PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -Atc "select string_agg(rolname, ',' order by rolname) from pg_roles where rolname like 'backup_reader%'")
+          echo "ruoli di backup: $roles"
+          [[ "$roles" == backup_reader,backup_reader_* ]]
+          [[ "$(PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -Atc "select count(*) from pg_database where datname like 'restore_rehearsal_%'")" == 0 ]]
+          [[ "$(psql "$BOOT_OWNER_URL" -Atc 'select count(*) from leads')" == 1 ]]

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Configurazione guidata e collaudo del backup, SUL TUO COMPUTER.
 #
+#   scripts/backup/bootstrap.sh --guided  [opzioni]   UN SOLO COMANDO: ispezione in sola lettura + piano; se non ci sono bloccanti
+#                                                     continua come --apply (digiti il nome del database e confermi ogni scrittura)
 #   scripts/backup/bootstrap.sh --dry-run [opzioni]   NON modifica nulla: né Neon, né GitHub, né file persistenti
-#   scripts/backup/bootstrap.sh --apply   [opzioni]   esegue il collaudo reale, con riepilogo e conferme prima di ogni scrittura
+#   scripts/backup/bootstrap.sh --apply   [opzioni]   come --guided, ma senza la pausa dopo il piano
 #
 # Opzioni:
 #   --neon-auto        ricava la stringa DIRETTA Neon con `neonctl` (login nel browser) invece di chiederla. Non ancora provato su Neon reale.
@@ -32,6 +34,7 @@ for a in "$@"; do
   case "$a" in
     --dry-run) [[ -z "$mode" || "$mode" == dry ]] || { echo "usa --dry-run oppure --apply, non entrambi" >&2; exit 2; }; mode=dry ;;
     --apply)   [[ -z "$mode" || "$mode" == apply ]] || { echo "usa --dry-run oppure --apply, non entrambi" >&2; exit 2; }; mode=apply ;;
+    --guided)  [[ -z "$mode" || "$mode" == guided ]] || { echo "usa una sola modalità tra --dry-run, --apply e --guided" >&2; exit 2; }; mode=guided ;;
     --neon-auto) neon_auto=true ;;
     --new-reader-role) new_reader=true ;;
     --restore-to-url) restore_to_url=true ;;
@@ -40,8 +43,8 @@ for a in "$@"; do
   esac
 done
 if [[ -z "$mode" ]]; then
-  sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//' >&2
-  echo "Indica --dry-run (non modifica nulla) oppure --apply (collaudo reale con conferme)." >&2
+  sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//' >&2
+  echo "Indica --guided (consigliato), --dry-run (non modifica nulla) oppure --apply (collaudo reale con conferme)." >&2
   exit 2
 fi
 
@@ -83,13 +86,13 @@ ask_secret() { # ask_secret VARIABILE "domanda"  (usa la variabile d'ambiente se
 # --- Accesso a Neon: due sole porte, entrambe senza URL negli argomenti dei processi ---
 sql_ro() { with_pg_url_ro "$1" psql -v ON_ERROR_STOP=1 -Atqc "$2"; }
 sql_rw() { # scritture: impossibili in --dry-run (difesa in profondità oltre al controllo a monte)
-  [[ "$mode" == apply ]] || die "BUG: scrittura su Neon richiesta in --dry-run"
+  [[ "$mode" == apply ]] || die "BUG: scrittura su Neon richiesta fuori da --apply"
   local var="$1"; shift
   with_pg_url "$var" psql -v ON_ERROR_STOP=1 -q "$@"
 }
 
 # ===========================================================================================================================
-say "0. Controlli preliminari ($([[ $mode == dry ]] && echo 'DRY-RUN: nessuna modifica' || echo 'APPLY: collaudo reale'))"
+say "0. Controlli preliminari ($([[ $mode == dry ]] && echo 'DRY-RUN: nessuna modifica' || echo "$mode: collaudo reale con conferme"))"
 for t in age age-keygen psql pg_dump pg_restore openssl python3; do
   command -v "$t" >/dev/null || die "$t non installato"
 done
@@ -236,6 +239,7 @@ fi
 
 # ===========================================================================================================================
 ((${#blockers[@]} == 0)) || die "ci sono bloccanti (sopra): nessuna modifica eseguita"
+mode=apply   # da qui in poi le scritture sono consentite, ma solo dopo la conferma generale e quelle di ogni operazione
 say "4. Conferma generale"
 read -rp "Per procedere digita il nome del database Neon (\"$prod_db\"), oppure invio per annullare: " typed || typed=""
 [[ "$typed" == "$prod_db" ]] || die "annullato: nessuna modifica eseguita"
