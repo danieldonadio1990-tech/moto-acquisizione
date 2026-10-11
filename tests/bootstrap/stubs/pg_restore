@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+echo "pg_restore|argv=$*|db=${PGDATABASE:-}|pw=$([[ -n "${PGPASSWORD:-}" ]] && echo set || echo unset)" >> "${MOCK_LOG:?}"
+case "${1:-}" in
+  --version) echo "pg_restore (PostgreSQL) ${MOCK_CLIENT_VER:-18.2}" ;;
+  --list) echo "1; 1259 16385 TABLE public leads owner" ;;
+esac
+exit 0

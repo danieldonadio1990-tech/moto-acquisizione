@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Mock di psql per i test di bootstrap.sh: registra ogni chiamata (mai i valori dei segreti) e risponde alle query usate.
+# Una sessione di sola lettura (PGOPTIONS con default_transaction_read_only=on) RIFIUTA le scritture, come farebbe il server.
+log="${MOCK_LOG:?}"
+sql=""; file=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  a="${args[$i]}"
+  if [[ "$a" =~ ^-[A-Za-z]*c$ ]]; then sql="${args[$((i + 1))]:-}"; fi
+  if [[ "$a" == "-f" ]]; then file="${args[$((i + 1))]:-}"; fi
+done
+if [[ -z "$sql" && -z "$file" ]]; then sql=$(cat); fi
+one_line=$(printf '%s' "$sql" | tr '\n' ' ')
+ro=no; [[ "${PGOPTIONS:-}" == *default_transaction_read_only=on* ]] && ro=yes
+pw=absent; [[ -n "${PGPASSWORD:-}" ]] && pw=present
+fbase=""; [[ -n "$file" ]] && fbase=$(basename "$file")
+
+kind=other
+if [[ "$one_line" =~ ^[[:space:]]*(create|alter|drop|grant|revoke|insert|update|delete|truncate)[[:space:]] ]]; then kind=WRITE; fi
+if [[ "$one_line" == *"create role"* || "$one_line" == *'\gexec'* ]]; then kind=WRITE; fi
+[[ "$fbase" == "setup-backup-reader.sql" ]] && kind=WRITE
+printf 'psql|ro=%s|kind=%s|db=%s|user=%s|pw=%s|file=%s|argv=%s|sql=%s\n' "$ro" "$kind" "${PGDATABASE:-}" "${PGUSER:-}" "$pw" "$fbase" "$*" "$one_line" >> "$log"
+
+if [[ "$kind" == WRITE && "$ro" == yes ]]; then
+  echo "ERROR:  cannot execute statement in a read-only transaction" >&2
+  exit 1
+fi
+
+case "$one_line$fbase" in
+  *server_version_num*) echo "${MOCK_SERVER_NUM:-180006}" ;;
+  *"select current_database()"*) echo "${PGDATABASE:-}" ;;
+  *"to_regnamespace('drizzle')"*) echo "${MOCK_MIGRATED:-t}" ;;
+  *"rolname = 'backup_reader'"*) echo "${MOCK_READER_EXISTS:-f}" ;;
+  *"rolname = 'backup_reader_"*) echo "f" ;;
+  *"from pg_database"*) echo "f" ;;
+  *information_schema.tables*) echo "0" ;;
+  verify.sql)
+    if [[ "${MOCK_VERIFY_DIFF:-0}" == 1 && "${PGDATABASE:-}" == restore_rehearsal_* ]]; then printf 'leads|0\ncustomers|0\n'; else printf 'leads|1\ncustomers|1\n'; fi ;;
+esac
+exit 0

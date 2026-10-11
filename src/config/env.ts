@@ -154,12 +154,22 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
     clientIp = { source: "forwarded" };
   } else if (!ipSource && prod) {
     problems.push(
-      "CLIENT_IP_SOURCE mancante. Su Vercel è automatico; altrove indica come leggere l'IP reale del client (cloudflare, oppure header + CLIENT_IP_HEADER) per un rate limit non aggirabile.",
+      "CLIENT_IP_SOURCE mancante. Su Vercel è automatico; altrove indica come leggere l'IP reale del client (cloudflare, oppure header + CLIENT_IP_HEADER; su Netlify: header + x-nf-client-connection-ip) per un rate limit non aggirabile.",
     );
     clientIp = { source: "forwarded" };
   } else {
     problems.push(`CLIENT_IP_SOURCE non valido: "${ipSource}" (valori ammessi: vercel, cloudflare, header)`);
     clientIp = { source: "forwarded" };
+  }
+
+  // --- Guardia: i deploy non di produzione non usano MAI la configurazione di produzione ---
+  // Netlify imposta NETLIFY=true e CONTEXT=production | deploy-preview | branch-deploy | dev.
+  // (Difesa in profondità: le variabili vanno comunque assegnate al solo contesto Production nel pannello.)
+  const netlifyContext = e.NETLIFY === "true" ? e.CONTEXT?.trim() : undefined;
+  if (prod && netlifyContext && netlifyContext !== "production") {
+    problems.push(
+      `Deploy Netlify non di produzione (CONTEXT=${netlifyContext}): rifiutato per non toccare database e storage di produzione. Disattiva Deploy Previews e Branch deploys nel pannello Netlify.`,
+    );
   }
 
   // --- Avvisi non bloccanti ---

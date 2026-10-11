@@ -1,0 +1,55 @@
+name: Backup database
+
+# Copia notturna del database PostgreSQL, cifrata con age (chiave pubblica).
+# Le FOTO non sono incluse: stanno nel bucket "photos". Vedi README → Backup.
+on:
+  schedule:
+    - cron: "17 2 * * *" # ogni notte, 02:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    # Le esecuzioni programmate partono solo con la variabile di repository BACKUP_ENABLED=true
+    # (Settings → Secrets and variables → Actions → Variables), da impostare quando secret e permessi sono pronti.
+    # Il lancio manuale (workflow_dispatch) funziona sempre.
+    if: github.event_name == 'workflow_dispatch' || vars.BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # deve essere >= alla versione PostgreSQL del progetto Neon (rilevata: PostgreSQL 18.6)
+      PG_MAJOR: "18"
+      BACKUP_OUT_DIR: backup-out
+      # I secret NON sono qui: ogni step riceve solo quelli che usa (niente segreti durante apt-get/curl)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installa client PostgreSQL e age
+        run: scripts/backup/install-tools.sh
+
+      - name: Dump e cifratura
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+        run: scripts/backup/backup.sh
+
+      - name: Carica su Supabase Storage (bucket backups) e ruota le copie
+        env:
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          BACKUP_S3_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+        run: scripts/backup/upload.sh
+
+      - name: Carica come artifact GitHub (cifrato)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: backup-out/*.dump.age
+          retention-days: 30
+          if-no-files-found: error

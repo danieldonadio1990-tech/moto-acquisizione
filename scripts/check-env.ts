@@ -1,5 +1,5 @@
 /**
- * Controllo della configurazione PRIMA del deploy (usato da `npm run build:production` e da vercel.json).
+ * Controllo della configurazione PRIMA del deploy (usato da `npm run build:production`  e da netlify.toml).
  * Fallisce se manca una variabile obbligatoria: il deploy si ferma invece di andare online rotto.
  */
 import { ConfigError, loadServerConfig } from "@/config/env";

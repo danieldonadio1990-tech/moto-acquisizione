@@ -68,7 +68,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/leads/[id]/
     if (!(f instanceof File) || f.size === 0) {
       early.push({ clientPhotoId: ids[i], status: "invalid", message: "File vuoto o non valido" });
     } else if (f.size > MAX_PHOTO_BYTES) {
-      early.push({ clientPhotoId: ids[i], status: "invalid", message: "Foto troppo pesante (max 4 MB)" });
+      early.push({ clientPhotoId: ids[i], status: "invalid", message: "Foto troppo pesante (max 3 MB)" });
     } else {
       items.push({ clientPhotoId: ids[i], data: Buffer.from(await f.arrayBuffer()) });
     }

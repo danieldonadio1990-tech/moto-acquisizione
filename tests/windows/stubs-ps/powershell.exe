@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2154  # ProgramFiles arriva dal test
+# Mock di powershell.exe: emula (1) "& winget install …; Write-Host WINGET_EXIT=…" e (2) "Start-Process … -Verb RunAs" dell'installer.
+echo "powershell|$*" >> "${MOCK_LOG:?}"
+cmd="${*: -1}"
+if [[ "$cmd" == *Start-Process* ]]; then
+  # l'installer elevato: crea i client oppure fallisce con codice 4
+  if [[ "${MOCK_INSTALLER_FAIL:-0}" == 1 ]]; then echo "INSTALLER_EXIT=4"; exit 0; fi
+  for t in psql pg_dump pg_restore; do
+    [[ "$t" == pg_restore && "${MOCK_NO_PG_RESTORE:-0}" == 1 ]] && continue
+    mkdir -p "$ProgramFiles/PostgreSQL/18/bin"
+    printf '#!/usr/bin/env bash\necho "%s (PostgreSQL) 18.4"\n' "$t" > "$ProgramFiles/PostgreSQL/18/bin/$t"
+    chmod +x "$ProgramFiles/PostgreSQL/18/bin/$t"
+  done
+  echo "INSTALLER_EXIT=0"
+  exit 0
+fi
+if [[ "$cmd" == *"winget install"* ]]; then
+  body="${cmd%%; Write-Host*}"; body="${body#& }"
+  eval "$body"
+  rc=$?
+  if ((rc == 0)); then printf 'WINGET_EXIT=0x00000000\n'; else printf 'WINGET_EXIT=0x8A1501%02X\n' "$rc"; fi
+  exit 0
+fi
+exit 0

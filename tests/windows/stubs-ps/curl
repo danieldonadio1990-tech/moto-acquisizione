@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Mock di curl: registra l'URL e scrive un file con contenuto noto (il suo SHA256 è quello restituito dal winget finto).
+echo "curl|$*" >> "${MOCK_LOG:?}"
+[[ "${MOCK_CURL_FAIL:-0}" == 1 ]] && exit 22
+out=""; prev=""
+for a in "$@"; do [[ "$prev" == -o ]] && out="$a"; prev="$a"; done
+[[ -n "$out" ]] && printf 'mock-installer-bytes' > "$out"
+exit 0

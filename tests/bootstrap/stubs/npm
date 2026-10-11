@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+echo "npm|argv=$*|CHECK_READONLY=${CHECK_READONLY:-}|ALLOW_SAME_S3_KEY=${ALLOW_SAME_S3_KEY:-}" >> "${MOCK_LOG:?}"
+echo "✓ (mock) check:storage"
+exit 0

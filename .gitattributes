@@ -1,0 +1,5 @@
+# Gli script di shell devono avere sempre terminatori LF, anche quando il repository è clonato su Windows (autocrlf)
+*.sh text eol=lf
+*.sql text eol=lf
+tests/bootstrap/stubs/* text eol=lf
+tests/windows/stubs/* text eol=lf
