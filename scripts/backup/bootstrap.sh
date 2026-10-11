@@ -52,6 +52,12 @@ repo="${GITHUB_REPOSITORY:-danieldonadio1990-tech/moto-acquisizione}"
 GH="${GH:-gh}"
 here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
+# PATH dei programmi installati da setup-windows.sh (su Windows/Git Bash), se presente
+tools_env="$HOME/.config/moto-acquisizione/tools.env"
+if [[ -f "$tools_env" ]]; then
+  # shellcheck source=/dev/null
+  source "$tools_env"
+fi
 # shellcheck source=scripts/backup/pg-env.sh
 source "$here/pg-env.sh"
 key_file="${BACKUP_AGE_KEY_FILE:-$HOME/.config/moto-acquisizione/backup-age-key.txt}"
@@ -93,9 +99,19 @@ sql_rw() { # scritture: impossibili in --dry-run (difesa in profondità oltre al
 
 # ===========================================================================================================================
 say "0. Controlli preliminari ($([[ $mode == dry ]] && echo 'DRY-RUN: nessuna modifica' || echo "$mode: collaudo reale con conferme"))"
-for t in age age-keygen psql pg_dump pg_restore openssl python3; do
-  command -v "$t" >/dev/null || die "$t non installato"
+missing=()
+ensure_python3 || missing+=("python3 (Python 3)")
+for t in age age-keygen psql pg_dump pg_restore openssl npm; do
+  command -v "$t" >/dev/null 2>&1 || missing+=("$t")
 done
+if ((${#missing[@]})); then
+  printf '✗ Strumenti mancanti: %s\n' "${missing[*]}" >&2
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) echo "  Su Windows li installa e verifica uno script solo:  bash scripts/backup/setup-windows.sh" >&2 ;;
+    *) echo "  Installali con il gestore pacchetti del sistema (client PostgreSQL >= 18, age, openssl, python3, npm)." >&2 ;;
+  esac
+  exit 1
+fi
 ok "strumenti presenti"
 
 # ===========================================================================================================================

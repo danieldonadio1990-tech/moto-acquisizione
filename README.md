@@ -322,6 +322,22 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
 > **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) contro Neon
 > (PostgreSQL 18), e non ne è stato ripristinato un file su Neon.
 
+### Windows (Git Bash): un comando per installare e verificare gli strumenti
+
+```bash
+bash scripts/backup/setup-windows.sh          # controlla, mostra il piano, chiede UNA conferma, installa e verifica
+bash scripts/backup/setup-windows.sh --check  # solo controllo: non installa e non scrive nulla
+```
+
+Installa con `winget` (incluso in Windows 10/11, gratuito, con verifica dell'hash dei pacchetti) solo ciò che manca: `age` (`FiloSottile.age`),
+il **client PostgreSQL** della versione del workflow (`PostgreSQL.PostgreSQL.18`, **solo gli strumenti da riga di comando**: niente server né
+servizio Windows), GitHub CLI, Node.js LTS e Python 3. Può comparire una richiesta di conferma di Windows (UAC). Non si collega a Neon, Supabase
+o GitHub e non tocca database o secret. Poi verifica le versioni (client PostgreSQL >= 18), prova `age` con una cifratura e decifratura locale,
+e salva i percorsi trovati in `~/.config/moto-acquisizione/tools.env`, che `bootstrap.sh` legge da solo (niente modifiche al PATH di Windows).
+Se dopo l'installazione compare un servizio PostgreSQL lo segnala senza rimuoverlo. Se qualcosa fallisce, chiudi e riapri Git Bash e rilancia.
+`.gitattributes` forza i terminatori di riga LF sugli script (su Windows `core.autocrlf` li renderebbe CRLF e bash non li eseguirebbe).
+Testato su Linux con un `winget` simulato (34 controlli in CI); **non** provato su Windows reale.
+
 ### Scorciatoia guidata: `bootstrap.sh` (un solo comando: `--guided`)
 
 Sul tuo computer, dalla cartella del repository. Una modalità è obbligatoria:

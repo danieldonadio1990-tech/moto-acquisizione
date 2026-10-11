@@ -58,3 +58,24 @@ from urllib.parse import urlsplit, unquote
 u = urlsplit(os.environ["URL"])
 print("%s:%s/%s" % (u.hostname, u.port or 5432, unquote(u.path[1:])))'
 }
+
+# --- Python su Windows (Git Bash) ---------------------------------------------------------------------------------------
+# Su Windows "python3" può mancare o essere l'alias di Microsoft Store; l'interprete nativo scrive "\r\n": i \r finirebbero nei valori
+# catturati con $(...) (URL, impostazioni). Qui si risolve un vero Python 3 e si definisce una funzione python3 che toglie i \r.
+ensure_python3() {
+  local v cmd
+  for cmd in "python3" "python" "py -3"; do
+    # shellcheck disable=SC2086  # "py -3" va diviso di proposito
+    v=$($cmd -c 'import sys; print(sys.version_info[0])' 2>/dev/null | tr -d '\r')
+    if [[ "$v" == 3 ]]; then
+      case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*|CYGWIN*)
+          eval "python3() { command $cmd \"\$@\" | tr -d '\\r'; }" ;;
+        *) [[ "$cmd" == python3 ]] || eval "python3() { command $cmd \"\$@\"; }" ;;
+      esac
+      return 0
+    fi
+  done
+  return 1
+}
+ensure_python3 || true

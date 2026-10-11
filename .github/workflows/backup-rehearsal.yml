@@ -8,6 +8,7 @@ on:
     paths:
       - "scripts/backup/**"
       - "tests/bootstrap/**"
+      - "tests/windows/**"
       - ".github/workflows/backup.yml"
       - ".github/workflows/backup-rehearsal.yml"
       - "drizzle/**"
