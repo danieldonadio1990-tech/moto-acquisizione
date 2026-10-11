@@ -1,0 +1,136 @@
+name: Backup rehearsal
+
+# Collaudo SENZA SEGRETI di tutta la catena di backup sul runner reale, con PostgreSQL 18 in un container usa e getta:
+# installazione del client da PGDG, migrazioni, ruolo di sola lettura, backup cifrato, ripristino in un database vuoto,
+# confronto dei conteggi, upload e rotazione con la CLI AWS v2 del runner (su S3 simulato). Non tocca Neon né Supabase.
+on:
+  pull_request:
+    paths:
+      - "scripts/backup/**"
+      - ".github/workflows/backup.yml"
+      - ".github/workflows/backup-rehearsal.yml"
+      - "drizzle/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rehearsal:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: rehearsal-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PG_MAJOR: "18"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installa dipendenze
+        run: npm ci
+
+      - name: Installa client PostgreSQL e age (stesso script del backup vero)
+        run: scripts/backup/install-tools.sh
+
+      - name: Versioni effettive degli strumenti
+        run: |
+          set -euo pipefail
+          pg_dump --version
+          pg_restore --version
+          psql --version
+          age --version
+          aws --version
+          server_major=$(( $(PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -Atc "show server_version_num") / 10000 ))
+          client_major=$(pg_dump --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+          echo "server=$server_major client=$client_major"
+          [[ "$server_major" == "18" && "$client_major" == "18" ]]
+          aws --version | grep -q '^aws-cli/2\.'
+
+      - name: Database di prova, ruoli e migrazioni
+        run: |
+          set -euo pipefail
+          owner_pw=$(openssl rand -hex 16); reader_pw=$(openssl rand -hex 16)
+          echo "::add-mask::$owner_pw"; echo "::add-mask::$reader_pw"
+          {
+            echo "OWNER_URL=postgres://app_owner:${owner_pw}@127.0.0.1:5432/motodb"
+            echo "READER_URL=postgres://backup_reader:${reader_pw}@127.0.0.1:5432/motodb"
+            echo "RESTORE_URL=postgres://app_owner:${owner_pw}@127.0.0.1:5432/restoredb"
+          } >> "$GITHUB_ENV"
+          PGPASSWORD=rehearsal-only psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -q <<SQL
+          create role app_owner login password '${owner_pw}' createrole createdb;
+          create role backup_reader login password '${reader_pw}';
+          create database motodb owner app_owner;
+          create database restoredb owner app_owner;
+          SQL
+          DATABASE_URL_DIRECT="postgres://app_owner:${owner_pw}@127.0.0.1:5432/motodb" npm run --silent db:migrate
+
+      - name: Dati finti
+        run: |
+          psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q <<'SQL'
+          insert into customers(first_name,last_name,phone,email,city,privacy_consent_at,privacy_policy_version)
+            values ('Test','Uno','+393331112233','t1@example.invalid','Milano',now(),'draft-2');
+          insert into motorcycles(brand,model,year) values ('Yamaha','MT-07',2020);
+          insert into leads(code,motorcycle_id,customer_id,mileage,is_running,accident,mechanical_issues,maintenance,preferred_contact)
+            select 'RHRSL1',(select id from motorcycles limit 1),(select id from customers limit 1),12000,true,'no','no','yes','phone';
+          insert into events(name) values ('valuation_start');
+          SQL
+
+      - name: Permessi di backup_reader
+        run: |
+          set -euo pipefail
+          psql "$OWNER_URL" -v ON_ERROR_STOP=1 -q -f scripts/backup/setup-backup-reader.sql
+          psql "$READER_URL" -v ON_ERROR_STOP=1 -q -f scripts/backup/check-permissions.sql
+
+      - name: Backup cifrato, ripristino in un database vuoto e confronto
+        run: |
+          set -euo pipefail
+          age-keygen -o "$RUNNER_TEMP/rehearsal-key.txt" 2>/dev/null
+          export BACKUP_AGE_PUBLIC_KEY; BACKUP_AGE_PUBLIC_KEY=$(age-keygen -y "$RUNNER_TEMP/rehearsal-key.txt")
+          export BACKUP_DATABASE_URL="$READER_URL" BACKUP_OUT_DIR="$RUNNER_TEMP/out"
+          scripts/backup/backup.sh
+          AGE_IDENTITY_FILE="$RUNNER_TEMP/rehearsal-key.txt" scripts/backup/restore.sh "$BACKUP_OUT_DIR/$(cat "$BACKUP_OUT_DIR/LATEST")" "$RESTORE_URL"
+          psql "$OWNER_URL" -Atq -f scripts/backup/verify.sql > "$RUNNER_TEMP/src.txt"
+          psql "$RESTORE_URL" -Atq -f scripts/backup/verify.sql > "$RUNNER_TEMP/dst.txt"
+          diff "$RUNNER_TEMP/src.txt" "$RUNNER_TEMP/dst.txt"
+          grep -q '^leads|1$' "$RUNNER_TEMP/dst.txt"
+          echo "Ripristino identico all'origine ($(wc -l < "$RUNNER_TEMP/dst.txt") controlli)"
+
+      - name: Upload e rotazione con la CLI AWS v2 del runner (S3 simulato)
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/moto" && "$RUNNER_TEMP/moto/bin/pip" install -q "moto[server]"
+          "$RUNNER_TEMP/moto/bin/moto_server" -p 5055 >"$RUNNER_TEMP/moto.log" 2>&1 &
+          for _ in $(seq 1 20); do curl -s -o /dev/null http://127.0.0.1:5055 && break; sleep 1; done
+          export AWS_ACCESS_KEY_ID=testing AWS_SECRET_ACCESS_KEY=testing AWS_DEFAULT_REGION=us-east-1
+          aws --endpoint-url http://127.0.0.1:5055 s3 mb s3://backups
+          export BACKUP_S3_ENDPOINT=http://127.0.0.1:5055 BACKUP_S3_ACCESS_KEY_ID=testing BACKUP_S3_SECRET_ACCESS_KEY=testing \
+                 BACKUP_S3_REGION=us-east-1 BACKUP_S3_BUCKET=backups BACKUP_KEEP=3 BACKUP_OUT_DIR="$RUNNER_TEMP/up"
+          mkdir -p "$BACKUP_OUT_DIR"
+          for d in 01 02 03 04 05; do
+            name="moto-acquisizione-202610${d}T020000Z.dump.age"
+            head -c 5000 /dev/urandom > "$BACKUP_OUT_DIR/$name"; echo "$name" > "$BACKUP_OUT_DIR/LATEST"
+            scripts/backup/upload.sh
+          done
+          left=$(aws --endpoint-url http://127.0.0.1:5055 s3 ls s3://backups/db/ | awk '{print $4}' | tr '\n' ' ')
+          echo "rimasti: $left"
+          [[ "$left" == "moto-acquisizione-20261003T020000Z.dump.age moto-acquisizione-20261004T020000Z.dump.age moto-acquisizione-20261005T020000Z.dump.age " ]]

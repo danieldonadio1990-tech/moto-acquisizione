@@ -31,13 +31,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Installa client PostgreSQL e age
-        run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -q
-          sudo apt-get install -y -q "postgresql-client-${PG_MAJOR}" age
-          echo "/usr/lib/postgresql/${PG_MAJOR}/bin" >> "$GITHUB_PATH"
+        run: scripts/backup/install-tools.sh
 
       - name: Dump e cifratura
         env:
