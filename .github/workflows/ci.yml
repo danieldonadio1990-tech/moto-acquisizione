@@ -56,3 +56,18 @@ jobs:
         run: |
           shellcheck --version
           git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck -x
+          shellcheck -x tests/bootstrap/stubs/*
+
+  # Test di scripts/backup/bootstrap.sh con mock verificabili (nessuna rete, nessun segreto): dimostrano che --dry-run non scrive
+  # su Neon né su GitHub, che --apply non fa migrazioni né ALTER ROLE e che nessun segreto finisce in output o negli argomenti
+  script-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installa age
+        run: sudo apt-get update -q && sudo apt-get install -y -q age
+
+      - name: Test di bootstrap.sh (mock)
+        run: bash tests/bootstrap/run.sh

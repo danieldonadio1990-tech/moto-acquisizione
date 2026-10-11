@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+echo "pg_dump|argv=$*|pw=$([[ -n "${PGPASSWORD:-}" ]] && echo set || echo unset)" >> "${MOCK_LOG:?}"
+if [[ "${1:-}" == "--version" ]]; then echo "pg_dump (PostgreSQL) ${MOCK_CLIENT_VER:-18.2}"; exit 0; fi
+for a in "$@"; do [[ "$a" == --file=* ]] && head -c 2000 /dev/urandom > "${a#--file=}"; done
+exit 0

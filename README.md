@@ -322,39 +322,46 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
 > **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) contro Neon
 > (PostgreSQL 18), e non ne è stato ripristinato un file su Neon.
 
-### Scorciatoia: un solo comando (consigliata)
+### Scorciatoia guidata: `bootstrap.sh` (prima `--dry-run`, poi `--apply`)
 
-Sul tuo computer, dalla cartella del repository:
+Sul tuo computer, dalla cartella del repository. Le due modalità sono **separate** e una delle due è obbligatoria:
 
 ```bash
-scripts/backup/bootstrap.sh --dry-run --neon-auto --reuse-app-s3   # prova completa, non scrive i secret su GitHub
-scripts/backup/bootstrap.sh --neon-auto --reuse-app-s3             # come sopra, poi imposta i 5 secret BACKUP_*
+scripts/backup/bootstrap.sh --dry-run [--neon-auto]   # NON modifica nulla (né Neon, né GitHub, né file persistenti)
+scripts/backup/bootstrap.sh --apply   [--neon-auto]   # collaudo reale: riepilogo, poi conferma esplicita prima di ogni scrittura
 ```
 
-Se `gh` non è autenticato parte il login nel browser; con `--neon-auto` anche quello di Neon (`neonctl`, gratuito). Sono le
-uniche autorizzazioni: nessun valore passa da chat o file, i segreti mancanti si digitano a schermo nascosto.
+**`--dry-run`** apre su Neon solo sessioni di **sola lettura** (`default_transaction_read_only=on`: è il server a rifiutare
+qualunque scrittura), legge versione, migrazioni e ruoli, stampa il piano completo con i bloccanti e fa solo simulazioni locali
+(cifratura `age` con una coppia temporanea, calcolo del verificatore SCRAM). Non usa `gh`, non crea database o ruoli, non scrive secret,
+non applica migrazioni, non lascia file di chiave. Il bucket viene solo elencato.
 
-| Opzione | Effetto |
-|---|---|
-| `--neon-auto` | ricava con `neonctl` la stringa **diretta** Neon, senza copiarla a mano (**non ancora provato contro Neon reale**; se fallisce la chiede) |
-| `--reuse-app-s3` | riusa le chiavi S3 dell'app (da ambiente o `.env.local`) invece di crearne una coppia nuova in Supabase. **Meno sicuro**: non revocabile separatamente (le chiavi S3 di Supabase hanno comunque accesso a tutti i bucket) |
-| `--restore-to-url` | ripristina su un branch/database vuoto indicato da te invece di crearne uno di prova |
-| `--dry-run` | niente scritture su GitHub (non serve `gh`) |
+**`--apply`** stampa il riepilogo (database, ruolo, database di prova, repository) e chiede di digitare il nome del database Neon;
+poi chiede conferma prima di: creare la chiave `age`, creare il ruolo, concedere i permessi, creare il database di prova, eliminarlo,
+scrivere i secret. Regole fisse:
+- **mai migrazioni**: se lo schema `drizzle` manca si ferma e spiega come procedere (avvio del sito oppure `npm run db:migrate` fatto da te);
+- **mai `ALTER ROLE` né cambio di password**: se `backup_reader` esiste già si ferma. Rotazione coordinata: `--new-reader-role` crea un
+  ruolo **nuovo** (`backup_reader_<data>`), imposta il secret solo dopo le verifiche e lascia il vecchio ruolo intatto e valido finché non lo elimini tu;
+- **database di prova**: `restore_rehearsal_<UTC>_<hex>` creato dallo script (mai uguale a quello vero, mai uno preesistente);
+  l'unico `DROP DATABASE` possibile è quello di quel nome, dopo conferma. Se qualcosa fallisce a metà, lo script stampa il database rimasto e
+  il comando per eliminarlo. Con `--restore-to-url` ripristini invece su un branch/database **vuoto** indicato da te (nessuna creazione né eliminazione);
+- **S3**: di default servono chiavi **dedicate** ai backup (`BACKUP_S3_*`, a schermo nascosto). Riusare quelle dell'app è possibile solo con
+  `--reuse-app-s3` **e** scrivendo a mano la frase `RIUSA CHIAVI APP`;
+- **segreti**: mai in output, nei log o negli argomenti dei processi (libpq via variabili d'ambiente `PG*`, secret GitHub via stdin).
 
-Richiede `age`, `gh`, `psql`/`pg_dump`/`pg_restore` **di versione ≥ a quella di Neon** (18), `openssl`, `python3`, `npm`.
-Cosa fa: crea/riusa la chiave `age` (privata in `~/.config/moto-acquisizione/`, mai stampata), crea `backup_reader` con password
-casuale (verificatore SCRAM calcolato in locale: la password finisce solo nel secret), applica i permessi, esegue un **backup
-reale in sola lettura**, lo decifra, lo **ripristina in un database di prova vuoto** nello stesso progetto Neon, confronta i
-conteggi con `verify.sql`, elimina il database di prova (con conferma), prova il bucket e **solo se tutto riesce** imposta i
-secret. Non imposta `BACKUP_ENABLED`.
+`--neon-auto` ricava la stringa diretta Neon con `neonctl` (login nel browser; **non ancora provato contro Neon reale**: se fallisce la chiede).
+Richiede `age`, `gh` (solo `--apply`), `psql`/`pg_dump`/`pg_restore` **di versione ≥ a quella di Neon** (18), `openssl`, `python3`, `npm`.
 
-**Collaudo automatico senza segreti:** il workflow `Backup rehearsal` (`.github/workflows/backup-rehearsal.yml`) gira sulle PR che
-toccano gli script di backup e prova, sul runner GitHub reale con PostgreSQL 18 in un container, l'installazione del client da
-PGDG, migrazioni, ruolo di sola lettura, backup cifrato, ripristino in un database vuoto, confronto dei conteggi e
-upload+rotazione con la CLI AWS v2 (su S3 simulato). Non tocca Neon né Supabase.
+**Test automatici** (`bash tests/bootstrap/run.sh`, eseguiti dalla CI): usano mock di `psql`, `pg_dump`, `pg_restore`, `gh`, `npx`, `npm` che registrano
+ogni chiamata. Dimostrano, tra l'altro, che in `--dry-run` tutte le sessioni sono in sola lettura, che non partono CREATE/ALTER/DROP, `gh`, migrazioni,
+backup o ripristini, e che nessun segreto (stringhe-canarino) compare in log, output o argomenti dei processi. Una prova di mutazione ha
+verificato che i test falliscono se si introduce di proposito uno di questi difetti.
 
-Provato in locale (PostgreSQL 16, S3 simulato, `gh` finto) e sul runner (PostgreSQL 18, container). **Mai** contro Neon, Supabase
-e GitHub reali.
+**Collaudo senza segreti sul runner:** il workflow `Backup rehearsal` (`.github/workflows/backup-rehearsal.yml`) gira sulle PR che toccano gli
+script e prova, con PostgreSQL 18 in un container, installazione del client da PGDG, migrazioni, ruolo di sola lettura, backup cifrato,
+ripristino in un database vuoto, confronto dei conteggi e upload+rotazione con la CLI AWS v2 (S3 simulato). Non tocca Neon né Supabase.
+
+Provato in locale (PostgreSQL 16, S3 simulato, `gh` finto), sul runner (PostgreSQL 18, container) e con i mock. **Mai** contro Neon, Supabase e GitHub reali.
 
 ### Checklist operativa (passi manuali equivalenti)
 
@@ -367,7 +374,7 @@ lanciati **sul tuo computer**, mai in chat né in sessioni cloud.
       essa i backup non si aprono; se qualcuno la ottiene li legge. Non va mai nel repository né su GitHub.
 - [ ] **2. Neon, dopo la prima migrazione** (il sito è partito o hai lanciato `npm run db:migrate`): crea il ruolo
       `backup_reader` da Neon Console → *Roles* (password forte, solo lì), poi con la stringa **diretta** (senza `-pooler`)
-      del proprietario del database: `psql "<URL diretta proprietario>" -v ON_ERROR_STOP=1 -f scripts/backup/setup-backup-reader.sql`.
+      del proprietario del database: `psql "<URL diretta proprietario>" -v ON_ERROR_STOP=1 -f scripts/backup/setup-backup-reader.sql` (ruolo con altro nome: `-v reader=<nome>`).
       Concede solo `CONNECT`, `USAGE`, `SELECT` (tabelle e sequenze di `public` **e** `drizzle`, più i privilegi di default
       per le migrazioni future). Lo script si ferma con un messaggio chiaro se il ruolo o lo schema `drizzle` mancano.
 - [ ] **3. Verifica dei permessi**: `psql "$BACKUP_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/backup/check-permissions.sql`
@@ -409,7 +416,7 @@ Il ripristino non tocca mai la produzione finché non decidi di cambiare `DATABA
    nuovo) e copia la sua stringa di connessione diretta. Il database di destinazione deve essere **vuoto**.
 3. **Decifra e ripristina** (serve la tua chiave privata; servono `age` e `psql`/`pg_restore` **versione 18 o superiore**, cioè ≥ del server Neon, altrimenti `restore.sh` si ferma):
    ```bash
-   AGE_IDENTITY_FILE=chiave-backup.txt scripts/backup/restore.sh moto-acquisizione-<data>.dump.age "<URL del branch di test>"
+   AGE_IDENTITY_FILE=chiave-backup.txt RESTORE_DATABASE_URL="<URL del branch di test>" scripts/backup/restore.sh moto-acquisizione-<data>.dump.age
    ```
    Lo script rifiuta database non vuoti.
 4. **Verifica**: `psql "<URL del branch di test>" -f scripts/backup/verify.sql` mostra i conteggi (richieste, richieste

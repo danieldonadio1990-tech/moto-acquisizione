@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+echo "npx|argv=$*" >> "${MOCK_LOG:?}"
+case "$*" in
+  *" me") exit 0 ;;
+  *"projects list"*) echo '{"projects":[{"id":"proj-1","name":"moto"}]}' ;;
+  *"connection-string"*) printf '%s\n' "${MOCK_NEON_URL:-}" ;;
+esac
+exit 0

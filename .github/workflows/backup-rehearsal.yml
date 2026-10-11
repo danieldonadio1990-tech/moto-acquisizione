@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - "scripts/backup/**"
+      - "tests/bootstrap/**"
       - ".github/workflows/backup.yml"
       - ".github/workflows/backup-rehearsal.yml"
       - "drizzle/**"
@@ -108,7 +109,7 @@ jobs:
           export BACKUP_AGE_PUBLIC_KEY; BACKUP_AGE_PUBLIC_KEY=$(age-keygen -y "$RUNNER_TEMP/rehearsal-key.txt")
           export BACKUP_DATABASE_URL="$READER_URL" BACKUP_OUT_DIR="$RUNNER_TEMP/out"
           scripts/backup/backup.sh
-          AGE_IDENTITY_FILE="$RUNNER_TEMP/rehearsal-key.txt" scripts/backup/restore.sh "$BACKUP_OUT_DIR/$(cat "$BACKUP_OUT_DIR/LATEST")" "$RESTORE_URL"
+          RESTORE_DATABASE_URL="$RESTORE_URL" AGE_IDENTITY_FILE="$RUNNER_TEMP/rehearsal-key.txt" scripts/backup/restore.sh "$BACKUP_OUT_DIR/$(cat "$BACKUP_OUT_DIR/LATEST")"
           psql "$OWNER_URL" -Atq -f scripts/backup/verify.sql > "$RUNNER_TEMP/src.txt"
           psql "$RESTORE_URL" -Atq -f scripts/backup/verify.sql > "$RUNNER_TEMP/dst.txt"
           diff "$RUNNER_TEMP/src.txt" "$RUNNER_TEMP/dst.txt"

@@ -2,9 +2,12 @@
 # Backup del database PostgreSQL: pg_dump → cifratura con age (chiave PUBBLICA).
 # Le FOTO NON sono incluse (stanno nel bucket "photos"). La chiave privata non è mai qui.
 #
-# Variabili: BACKUP_DATABASE_URL, BACKUP_AGE_PUBLIC_KEY, [BACKUP_OUT_DIR=./backup-out]
+# Variabili: BACKUP_DATABASE_URL (stringa diretta, ruolo di sola lettura), BACKUP_AGE_PUBLIC_KEY, [BACKUP_OUT_DIR=./backup-out]
 # Output: $BACKUP_OUT_DIR/moto-acquisizione-<UTC>.dump.age  e  $BACKUP_OUT_DIR/LATEST (nome del file)
 set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+# shellcheck source=scripts/backup/pg-env.sh
+source "$here/pg-env.sh"
 umask 077 # file temporanei e output leggibili solo dall'utente corrente
 # Neon (scale-to-zero) può impiegare qualche secondo a svegliarsi; senza limite una connessione bloccata consumerebbe tutto il timeout del job
 export PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-30}"
@@ -15,7 +18,10 @@ OUT_DIR="${BACKUP_OUT_DIR:-./backup-out}"
 [[ "$BACKUP_AGE_PUBLIC_KEY" == age1* ]] || { echo "BACKUP_AGE_PUBLIC_KEY deve iniziare con age1 (è la chiave PUBBLICA)" >&2; exit 1; }
 
 # pg_dump deve avere versione >= del server, altrimenti rifiuta (o produce dump incompleti)
-server_num=$(psql "$BACKUP_DATABASE_URL" -Atqc "show server_version_num")
+# la password va nelle variabili libpq (PGPASSWORD…), non negli argomenti dei comandi
+eval "$(pg_env_exports BACKUP_DATABASE_URL)"
+unset BACKUP_DATABASE_URL
+server_num=$(psql -Atqc "show server_version_num")
 client_major=$(pg_dump --version | sed -E 's/[^0-9]*([0-9]+).*/\1/')
 server_major=$((server_num / 10000))
 echo "Server PostgreSQL: $server_major — client pg_dump: $client_major"
@@ -31,7 +37,7 @@ tmp=$(mktemp)
 trap 'rm -f "$tmp" "$tmp.list"' EXIT
 
 # formato custom (-Fc: già compresso, ripristinabile con pg_restore); niente owner/ACL (i ruoli cambiano tra progetti)
-pg_dump --format=custom --compress=9 --no-owner --no-privileges "$BACKUP_DATABASE_URL" --file="$tmp"
+pg_dump --format=custom --compress=9 --no-owner --no-privileges --file="$tmp"
 # controllo di integrità: il dump deve essere leggibile e contenere le tabelle del progetto
 pg_restore --list "$tmp" > "$tmp.list"
 grep -q "TABLE public leads" "$tmp.list" || { echo "Il dump non contiene la tabella leads: backup scartato" >&2; exit 1; }

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Mock di gh: registra argomenti e dimensione dello stdin dei secret, mai il contenuto.
+case "$1 $2" in
+  "auth status") echo "gh|auth status" >> "${MOCK_LOG:?}"; exit "${MOCK_GH_AUTH:-0}" ;;
+  "auth login")  echo "gh|auth login" >> "${MOCK_LOG:?}"; exit 0 ;;
+  "secret set")  n=$(wc -c); echo "gh|secret set $3 bytes=$n argv=$*" >> "${MOCK_LOG:?}"; exit 0 ;;
+  "secret list") echo "gh|secret list" >> "${MOCK_LOG:?}"; exit 0 ;;
+esac
+echo "gh|UNEXPECTED $*" >> "${MOCK_LOG:?}"; exit 1

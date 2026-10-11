@@ -49,10 +49,19 @@ async function step(name: string, fn: () => Promise<void>) {
   }
 }
 
+// CHECK_READONLY=true: solo lettura (elenco del bucket), nessun oggetto viene scritto né cancellato
+const readOnly = e.CHECK_READONLY === "true";
+
 const small = Buffer.from("healthcheck");
 const big = Buffer.alloc(3 * 1024 * 1024, 7);
 
 async function main() {
+  if (readOnly) {
+    await step("elenco del bucket (ListObjectsV2, sola lettura)", async () => {
+      await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix ? `${prefix}/` : undefined, MaxKeys: 1 }));
+    });
+    return;
+  }
   await step("scrittura (PutObject)", async () => {
     await client.send(new PutObjectCommand({ Bucket: bucket, Key: `${base}/small.txt`, Body: small, ContentType: "text/plain" }));
   });
@@ -89,7 +98,13 @@ async function main() {
 
 main()
   .then(() => {
-    console.log(failed ? "\nStorage NON pronto: correggi gli errori sopra." : "\nStorage pronto (bucket privato, scrittura/lettura/cancellazione ok).");
+    console.log(
+      failed
+        ? "\nStorage NON pronto: correggi gli errori sopra."
+        : readOnly
+          ? "\nBucket raggiungibile con queste credenziali (sola lettura: nessuna scrittura provata)."
+          : "\nStorage pronto (bucket privato, scrittura/lettura/cancellazione ok).",
+    );
     process.exit(failed ? 1 : 0);
   })
   .catch((err) => {
