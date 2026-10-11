@@ -322,14 +322,19 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
 > **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) contro Neon
 > (PostgreSQL 18), e non ne è stato ripristinato un file su Neon.
 
-### Scorciatoia guidata: `bootstrap.sh` (prima `--dry-run`, poi `--apply`)
+### Scorciatoia guidata: `bootstrap.sh` (un solo comando: `--guided`)
 
-Sul tuo computer, dalla cartella del repository. Le due modalità sono **separate** e una delle due è obbligatoria:
+Sul tuo computer, dalla cartella del repository. Una modalità è obbligatoria:
 
 ```bash
+scripts/backup/bootstrap.sh --guided  [--neon-auto]   # CONSIGLIATA: ispezione in sola lettura + piano; se non ci sono bloccanti prosegue come --apply
 scripts/backup/bootstrap.sh --dry-run [--neon-auto]   # NON modifica nulla (né Neon, né GitHub, né file persistenti)
 scripts/backup/bootstrap.sh --apply   [--neon-auto]   # collaudo reale: riepilogo, poi conferma esplicita prima di ogni scrittura
 ```
+
+`--guided` è la sequenza `--dry-run` → `--apply` in una sola sessione: la fase di lettura non può scrivere (sessioni di sola lettura), si ferma se
+ci sono bloccanti (migrazioni mancanti, `backup_reader` già esistente, client PostgreSQL troppo vecchio) e, se è tutto a posto, chiede di digitare il
+nome del database e conferma ogni scrittura. Senza `--neon-auto` serve incollare (a schermo nascosto) la stringa diretta Neon.
 
 **`--dry-run`** apre su Neon solo sessioni di **sola lettura** (`default_transaction_read_only=on`: è il server a rifiutare
 qualunque scrittura), legge versione, migrazioni e ruoli, stampa il piano completo con i bloccanti e fa solo simulazioni locali
