@@ -322,7 +322,26 @@ Il file si chiama `moto-acquisizione-<UTC>.dump.age`. Nessun segreto è nel repo
 > **Non è garantito finché non viene eseguito davvero su GitHub** (avvio manuale + prima esecuzione notturna) contro Neon
 > (PostgreSQL 18), e non ne è stato ripristinato un file su Neon.
 
-### Checklist operativa (in ordine)
+### Scorciatoia: un solo comando (consigliata)
+
+Dopo aver creato in Supabase (*Storage → S3 Connection*) una **nuova coppia di chiavi S3 per i backup** (non quelle dell'app) e fatto
+`gh auth login` sul tuo computer:
+
+```bash
+scripts/backup/bootstrap.sh --dry-run   # prova completa senza scrivere i secret su GitHub
+scripts/backup/bootstrap.sh             # come sopra, poi imposta i 5 secret BACKUP_*
+```
+
+Richiede sul tuo computer `age`, `gh`, `psql`/`pg_dump`/`pg_restore` **di versione ≥ a quella di Neon** (18), `openssl`, `python3`, `npm`.
+Ti chiede (a schermo nascosto, niente passa da chat o file) la stringa **diretta** Neon del proprietario e le tre variabili S3, poi:
+crea/riusa la chiave `age` (privata in `~/.config/moto-acquisizione/`, mai stampata), crea `backup_reader` con password casuale
+(verificatore SCRAM calcolato in locale, la password finisce solo nel secret), applica i permessi, esegue un **backup reale in sola
+lettura**, lo decifra, lo **ripristina in un database di prova vuoto** creato nello stesso progetto Neon (oppure `--restore-to-url`
+per un branch vuoto che indichi tu), confronta i conteggi con `verify.sql`, elimina il database di prova (con conferma), prova il
+bucket e **solo se tutto riesce** imposta i secret. Non imposta `BACKUP_ENABLED`. Provato in locale con PostgreSQL 16, S3 simulato e
+`gh` finto; **mai** contro Neon, Supabase e GitHub reali.
+
+### Checklist operativa (passi manuali equivalenti)
 
 I comandi sono script del repository; **non stampano mai segreti**. Quelli con la chiave privata o con le credenziali vanno
 lanciati **sul tuo computer**, mai in chat né in sessioni cloud.

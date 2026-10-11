@@ -5,6 +5,7 @@
 set -uo pipefail
 
 repo="${GITHUB_REPOSITORY:-danieldonadio1990-tech/moto-acquisizione}"
+GH="${GH:-gh}"
 fail=0
 ok()   { echo "✓ $1"; }
 ko()   { echo "✗ $1"; fail=1; }
@@ -17,9 +18,9 @@ if command -v pg_dump >/dev/null; then
   echo "  pg_dump: $(pg_dump --version | sed -E 's/[^0-9]*([0-9]+).*/versione \1/') (Neon è su PostgreSQL 18: per il ripristino serve >= 18)"
 fi
 
-if ! command -v gh >/dev/null; then
+if ! command -v "$GH" >/dev/null; then
   warn "gh non installato: elenco dei secret non verificabile"
-elif ! out=$(gh secret list --repo "$repo" 2>&1); then
+elif ! out=$("$GH" secret list --repo "$repo" 2>&1); then
   warn "elenco dei secret non leggibile (gh non autenticato o senza permessi): verifica a mano in Settings → Secrets"
 else
   names=$(echo "$out" | awk '{print $1}')
