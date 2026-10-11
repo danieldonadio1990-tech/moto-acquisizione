@@ -6,7 +6,7 @@
 set -euo pipefail
 : "${BACKUP_S3_ENDPOINT:?mancante}" "${BACKUP_S3_ACCESS_KEY_ID:?mancante}" "${BACKUP_S3_SECRET_ACCESS_KEY:?mancante}"
 
-if [[ -n "${S3_ACCESS_KEY_ID:-}" && "$S3_ACCESS_KEY_ID" == "$BACKUP_S3_ACCESS_KEY_ID" ]]; then
+if [[ -n "${S3_ACCESS_KEY_ID:-}" && "$S3_ACCESS_KEY_ID" == "$BACKUP_S3_ACCESS_KEY_ID" && "${ALLOW_SAME_S3_KEY:-}" != "true" ]]; then
   echo "ATTENZIONE: la chiave del backup coincide con quella dell'app. Genera una coppia dedicata ai backup." >&2
   exit 1
 fi

@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # Configurazione guidata e collaudo del backup, SUL TUO COMPUTER. Un solo comando:
 #
-#   gh auth login                       # una volta sola
-#   scripts/backup/bootstrap.sh         # aggiungi --dry-run per provare senza scrivere i secret su GitHub
+#   scripts/backup/bootstrap.sh [--dry-run] [--neon-auto] [--reuse-app-s3] [--restore-to-url]
+#
+#   --dry-run         prova completa senza scrivere i secret su GitHub (non serve gh)
+#   --neon-auto       niente copia della stringa Neon: usa `neonctl` (login nel browser, gratuito) per ricavare quella diretta
+#                     del progetto; se non riesce, la chiede a schermo nascosto. NON ancora provato contro Neon reale.
+#   --reuse-app-s3    niente nuova coppia di chiavi Supabase: riusa quella dell'app (S3_* nell'ambiente o in .env.local).
+#                     Meno sicuro: non è revocabile separatamente (le chiavi S3 di Supabase hanno comunque accesso a tutti i bucket).
+#   --restore-to-url  ripristina su un branch/database vuoto indicato da te invece di crearne uno di prova
+#   Se gh non è autenticato, parte il login nel browser (una sola autorizzazione).
 #
 # Cosa fa (nessun valore viene mai stampato; i segreti si digitano a schermo nascosto, non passano da chat né da file):
 #   1. crea (o riusa) la coppia di chiavi age: la privata resta in ~/.config/moto-acquisizione/backup-age-key.txt (600)
@@ -22,10 +29,14 @@ umask 077
 
 dry_run=false
 restore_to_url=false
+neon_auto=false
+reuse_app_s3=false
 for a in "$@"; do
   case "$a" in
     --dry-run) dry_run=true ;;
     --restore-to-url) restore_to_url=true ;;
+    --neon-auto) neon_auto=true ;;
+    --reuse-app-s3) reuse_app_s3=true ;;
     *) echo "Argomento sconosciuto: $a" >&2; exit 2 ;;
   esac
 done
@@ -60,7 +71,10 @@ for t in age age-keygen psql pg_dump pg_restore openssl python3 npm; do
 done
 if ! $dry_run; then
   command -v "$GH" >/dev/null || die "gh non installato"
-  "$GH" auth status >/dev/null 2>&1 || die "gh non autenticato: lancia prima 'gh auth login'"
+  if ! "$GH" auth status >/dev/null 2>&1; then
+    echo "gh non è autenticato: apro il login nel browser (serve per scrivere i secret del repository)."
+    "$GH" auth login --web --git-protocol https || die "login gh non riuscito"
+  fi
 fi
 ok "strumenti presenti"
 
@@ -76,6 +90,30 @@ BACKUP_AGE_PUBLIC_KEY=$(age-keygen -y "$key_file")
 [[ "$BACKUP_AGE_PUBLIC_KEY" == age1* ]] || die "chiave pubblica non valida"
 
 say "2. Neon: ruolo backup_reader"
+if $neon_auto && [[ -z "${BOOT_OWNER_URL:-}" ]]; then
+  neon_cli() { npx --yes neonctl@latest "$@"; }
+  if ! neon_cli me >/dev/null 2>&1; then
+    echo "Login Neon nel browser (gratuito, una volta sola)."
+    neon_cli login || echo "Login Neon non riuscito: passo all'inserimento manuale."
+  fi
+  if neon_cli me >/dev/null 2>&1; then
+    project_id=$(neon_cli projects list --output json 2>/dev/null | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+ps = d.get("projects", d) if isinstance(d, dict) else d
+ps = [p for p in ps if isinstance(p, dict) and p.get("id")]
+if len(ps) == 1:
+    print(ps[0]["id"])
+elif ps:
+    sys.stderr.write("Più progetti Neon: " + ", ".join(p.get("name", "?") + " (" + p["id"] + ")" for p in ps) + "\n")
+' || true)
+    if [[ -z "$project_id" ]]; then read -rp "ID del progetto Neon (o invio per incollare la stringa): " project_id; fi
+    if [[ -n "$project_id" ]]; then
+      BOOT_OWNER_URL=$(neon_cli connection-string --project-id "$project_id" --pooled=false --ssl require 2>/dev/null || true)
+      [[ -n "$BOOT_OWNER_URL" ]] && export BOOT_OWNER_URL && ok "stringa diretta Neon ricavata con neonctl (non mostrata)"
+    fi
+  fi
+fi
 ask_secret BOOT_OWNER_URL "Stringa DIRETTA Neon del proprietario del database (senza -pooler; digitazione nascosta)"
 [[ "$BOOT_OWNER_URL" =~ ^postgres(ql)?:// ]] || die "la stringa deve iniziare con postgres:// o postgresql://"
 [[ "$BOOT_OWNER_URL" != *-pooler* ]] || die "serve la stringa DIRETTA (senza -pooler)"
@@ -177,6 +215,18 @@ if [[ -n "$created_db" ]]; then
 fi
 
 say "5. Bucket Supabase dei backup (chiavi dedicate)"
+if $reuse_app_s3 && [[ -z "${BACKUP_S3_ACCESS_KEY_ID:-}" ]]; then
+  # S3_* dall'ambiente o da .env.local, senza stamparli
+  envfile="$root/.env.local"
+  for v in ENDPOINT ACCESS_KEY_ID SECRET_ACCESS_KEY; do
+    cur="S3_$v"; val="${!cur:-}"
+    if [[ -z "$val" && -f "$envfile" ]]; then val=$(sed -nE "s/^S3_$v=//p" "$envfile" | tail -1 | tr -d "\"'"); fi
+    [[ -n "$val" ]] || die "S3_$v non trovata nell'ambiente né in .env.local: usa una coppia dedicata"
+    export "BACKUP_S3_$v=$val"
+  done
+  export ALLOW_SAME_S3_KEY=true
+  echo "! Riuso la coppia di chiavi dell'app per i backup (meno sicuro: non revocabile separatamente)."
+fi
 ask_secret BACKUP_S3_ENDPOINT "BACKUP_S3_ENDPOINT (https://<ref>.storage.supabase.co/storage/v1/s3)"
 ask_secret BACKUP_S3_ACCESS_KEY_ID "BACKUP_S3_ACCESS_KEY_ID (coppia DEDICATA ai backup)"
 ask_secret BACKUP_S3_SECRET_ACCESS_KEY "BACKUP_S3_SECRET_ACCESS_KEY"
