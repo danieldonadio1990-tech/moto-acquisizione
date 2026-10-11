@@ -336,7 +336,14 @@ o GitHub e non tocca database o secret. Poi verifica le versioni (client Postgre
 e salva i percorsi trovati in `~/.config/moto-acquisizione/tools.env`, che `bootstrap.sh` legge da solo (niente modifiche al PATH di Windows).
 Se dopo l'installazione compare un servizio PostgreSQL lo segnala senza rimuoverlo. Se qualcosa fallisce, chiudi e riapri Git Bash e rilancia.
 `.gitattributes` forza i terminatori di riga LF sugli script (su Windows `core.autocrlf` li renderebbe CRLF e bash non li eseguirebbe).
-Testato su Linux con un `winget` simulato (34 controlli in CI); **non** provato su Windows reale.
+Se `winget` fallisce sul client PostgreSQL, lo script mostra il codice di uscita reale (anche in esadecimale), salva il log in
+`~/.config/moto-acquisizione/logs/` (con i segreti oscurati), segnala se manca il permesso di amministratore e riprova con l'installer
+ufficiale EDB: l'URL e lo SHA256 sono quelli del manifest winget (`winget show`), l'URL deve essere `https://get.enterprisedb.com/`, il file viene
+scaricato solo con HTTPS, **non viene eseguito se l'hash non coincide** e viene cancellato dopo l'uso. Il server, pgAdmin e Stack Builder sono
+sempre esclusi (`--disable-components`). Alla fine verifica che `psql`, `pg_dump` e `pg_restore` esistano e siano >= 18; se non riesce, stampa le
+istruzioni ufficiali manuali. Rilanciandolo non reinstalla i pacchetti già presenti.
+Testato su Linux con `winget`, PowerShell e `curl` simulati (72 controlli in CI, inclusi installer fallito, hash errato e `pg_restore` mancante);
+**non** provato su Windows reale.
 
 ### Scorciatoia guidata: `bootstrap.sh` (un solo comando: `--guided`)
 

@@ -122,16 +122,121 @@ print_table() {
   done
 }
 
+# opzioni dell'installer EDB (BitRock) per i SOLI strumenti da riga di comando: il manifest ufficiale winget ha Scope=machine e
+# switch silenziosi "--mode unattended --unattendedmodeui none"; qui si aggiunge la disattivazione di server, pgAdmin e StackBuilder
+pg_override_base="--mode unattended --unattendedmodeui none --disable-components server,pgAdmin,stackbuilder"
+log_dir="$env_dir/logs"
+
 plan_installs() { # riempie need_install con "id|override"
   need_install=()
   [[ "${status[age]}" != ok || "${status[age-keygen]}" != ok ]] && need_install+=("FiloSottile.age|")
   if [[ "${status[psql]}" != ok || "${status[pg_dump]}" != ok || "${status[pg_restore]}" != ok ]]; then
-    need_install+=("PostgreSQL.PostgreSQL.$pg_major|--mode unattended --unattendedmodeui none --disable-components server,pgAdmin,stackbuilder")
+    need_install+=("PostgreSQL.PostgreSQL.$pg_major|$pg_override_base")
   fi
   [[ "${status[gh]}" != ok ]] && need_install+=("GitHub.cli|")
   [[ "${status[node]}" != ok || "${status[npm]}" != ok ]] && need_install+=("OpenJS.NodeJS.LTS|")
   [[ "${status[python]}" != ok ]] && need_install+=("Python.Python.3.12|")
   return 0
+}
+
+# --- installazione ------------------------------------------------------------------------------------------------------
+last_hex=""
+last_log=""
+is_admin() { net session >/dev/null 2>&1; }
+winget_installed() { "$winget_bin" list --id "$1" --exact --accept-source-agreements 2>/dev/null | tr -d '\r' | grep -q -F "$1"; }
+redact() { sed -E 's/--superpassword [0-9a-fA-F]+/--superpassword <omesso>/g'; }
+
+winget_install() { # winget_install ID [override]  → 0 solo se winget riporta successo; salva log e codice reale (HRESULT) in last_hex
+  local id="$1" ov="${2:-}" cmd rc
+  mkdir -p "$log_dir"
+  last_log="$log_dir/winget-$id-$(date +%Y%m%d%H%M%S).log"
+  if command -v powershell.exe >/dev/null 2>&1; then
+    # via PowerShell per leggere il codice di uscita COMPLETO: Git Bash lo riduce a 8 bit (un HRESULT 0x8A150004 apparirebbe come 4)
+    cmd="& winget install --id $id --exact --silent --accept-package-agreements --accept-source-agreements"
+    [[ -n "$ov" ]] && cmd+=" --override '$ov'"
+    cmd+="; Write-Host ('WINGET_EXIT=0x{0:X8}' -f \$LASTEXITCODE)"
+    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$cmd" 2>&1 | tr -d '\r' > "$last_log"
+    last_hex=$(sed -n 's/.*WINGET_EXIT=\(0x[0-9A-Fa-f]*\).*/\1/p' "$last_log" | tail -1)
+  else
+    local args=(install --id "$id" --exact --silent --accept-package-agreements --accept-source-agreements)
+    [[ -n "$ov" ]] && args+=(--override "$ov")
+    "$winget_bin" "${args[@]}" 2>&1 | tr -d '\r' > "$last_log"
+    rc=${PIPESTATUS[0]}
+    last_hex=$(printf '0x%08X' "$rc")
+  fi
+  redact < "$last_log" | tail -n 12 | sed 's/^/    /'
+  [[ "${last_hex,,}" == 0x00000000 ]]
+}
+
+diagnose_winget() { # stampa che cosa è successo, senza segreti
+  warn "winget non è riuscito per $1: codice reale ${last_hex:-sconosciuto} (Git Bash mostrerebbe solo l'ultimo byte: $(( ${last_hex:-0} & 255 )))"
+  warn "log completo: ${last_log/#$HOME/~}   — tabella dei codici: https://learn.microsoft.com/windows/package-manager/winget/returnCodes"
+  if is_admin; then warn "terminale con privilegi di amministratore: sì"; else warn "terminale con privilegi di amministratore: no (il manifest ufficiale di PostgreSQL ha Scope=machine: serve la conferma UAC; se non compare o viene negata l'installazione fallisce. Puoi riprovare aprendo Git Bash con 'Esegui come amministratore')"; fi
+}
+
+pg_tools_present() { # tutti e tre i comandi, versione >= pg_major
+  local t m
+  for t in psql pg_dump pg_restore; do
+    command -v "$t" >/dev/null 2>&1 || return 1
+    m=$(major_of "$("$t" --version 2>&1 | head -1 | tr -d '\r')")
+    [[ -n "$m" ]] && (( m >= pg_major )) || return 1
+  done
+}
+
+pg_direct_install() { # installer ufficiale scaricato direttamente, ESEGUITO SOLO se l'SHA256 coincide con quello del manifest winget
+  local ov="$1" info url sha dl exe got winexe out code
+  if ! command -v powershell.exe >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; then
+    bad "metodo alternativo non disponibile (servono powershell, curl e sha256sum)"; return 1
+  fi
+  info=$("$winget_bin" show --id "PostgreSQL.PostgreSQL.$pg_major" --exact --accept-source-agreements 2>/dev/null | tr -d '\r')
+  url=$(sed -n 's/^ *Installer Url: *//p' <<<"$info" | head -1)
+  sha=$(sed -n 's/^ *Installer SHA256: *//p' <<<"$info" | head -1 | tr 'A-F' 'a-f')
+  [[ "$url" =~ ^https://get\.enterprisedb\.com/postgresql/postgresql-[0-9]+\.[0-9]+(-[0-9]+)?-windows-x64\.exe$ ]] \
+    || { bad "URL dell'installer non trovato o inatteso nel manifest di winget: non scarico nulla"; return 1; }
+  [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { bad "SHA256 del manifest assente o non valido: non scarico nulla"; return 1; }
+  dl="$env_dir/downloads"; mkdir -p "$dl"; exe="$dl/$(basename "$url")"
+  echo "  scarico $(basename "$url") (fonte indicata dal manifest ufficiale winget)"
+  curl -fL --retry 2 --proto '=https' --tlsv1.2 -sS -o "$exe" "$url" || { bad "download non riuscito"; rm -f "$exe"; return 1; }
+  got=$(sha256sum "$exe" | awk '{print tolower($1)}')
+  if [[ "$got" != "$sha" ]]; then
+    rm -f "$exe"
+    bad "SHA256 del file scaricato diverso da quello del manifest ufficiale: file eliminato, installer NON eseguito"
+    return 1
+  fi
+  ok "SHA256 coincide con il manifest ufficiale winget"
+  winexe=$(command -v cygpath >/dev/null 2>&1 && cygpath -w "$exe" || printf '%s' "$exe")
+  echo "  avvio l'installer con elevazione (UAC), solo strumenti da riga di comando"
+  out=$(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "\$p = Start-Process -FilePath '$winexe' -ArgumentList '$ov' -Verb RunAs -Wait -PassThru; Write-Host ('INSTALLER_EXIT=' + \$p.ExitCode)" 2>&1 | tr -d '\r')
+  rm -f "$exe"
+  code=$(sed -n 's/.*INSTALLER_EXIT=\([0-9-]*\).*/\1/p' <<<"$out" | tail -1)
+  redact <<<"$out" | tail -n 6 | sed 's/^/    /'
+  if [[ "$code" == 0 ]]; then ok "installer terminato con codice 0"; return 0; fi
+  bad "installer terminato con codice ${code:-sconosciuto}"
+  return 1
+}
+
+install_pg_client() {
+  local pw ov
+  say "Client PostgreSQL $pg_major (solo strumenti da riga di comando: niente server, niente servizio)"
+  pw=$(openssl rand -hex 16 2>/dev/null || echo "x$RANDOM$RANDOM")   # password casuale mai salvata né stampata: serve solo se l'installer la richiede
+  ov="$pg_override_base --superpassword $pw"
+  if winget_installed "PostgreSQL.PostgreSQL.$pg_major"; then
+    warn "PostgreSQL.PostgreSQL.$pg_major risulta già installato (winget list): non lo reinstallo. Cerco i client nelle cartelle note."
+    extend_path; detect
+    pg_tools_present && return 0
+    bad "ma psql, pg_dump e pg_restore non sono tutti presenti: vedi la tabella finale (disinstalla e reinstalla solo i client dal programma di installazione ufficiale)"
+    return 1
+  fi
+  echo "  Tentativo 1: winget (PostgreSQL.PostgreSQL.$pg_major)"
+  winget_install "PostgreSQL.PostgreSQL.$pg_major" "$ov" || diagnose_winget "PostgreSQL.PostgreSQL.$pg_major"
+  extend_path; detect
+  if pg_tools_present; then ok "psql, pg_dump e pg_restore presenti"; return 0; fi
+  echo "  Tentativo 2: installer ufficiale scaricato direttamente (eseguito solo se l'hash coincide con quello del manifest)"
+  pg_direct_install "$ov" || true
+  extend_path; detect
+  if pg_tools_present; then ok "psql, pg_dump e pg_restore presenti"; return 0; fi
+  bad "client PostgreSQL non installati. Gli altri pacchetti sono a posto e non verranno reinstallati. Metodo manuale ufficiale: https://www.postgresql.org/download/windows/ → installer EDB → deseleziona 'PostgreSQL Server', 'pgAdmin 4' e 'Stack Builder', lascia solo 'Command Line Tools'; poi rilancia questo script."
+  return 1
 }
 
 # ==========================================================================================================================
@@ -170,12 +275,16 @@ if ((${#need_install[@]})); then
     [[ "$answer" == [sS] ]] || { echo "Annullato: nulla è stato installato."; exit 1; }
   fi
   for item in "${need_install[@]}"; do
-    id="${item%%|*}"; ov="${item#*|}"
-    say "winget install $id"
-    args=(install --id "$id" --exact --silent --accept-package-agreements --accept-source-agreements)
-    [[ -n "$ov" ]] && args+=(--override "$ov")
-    "$winget_bin" "${args[@]}"
-    echo "  (codice di uscita di winget: $?)"
+    id="${item%%|*}"
+    if [[ "$id" == PostgreSQL.* ]]; then
+      install_pg_client || true   # l'esito definitivo lo decide la verifica finale
+    elif winget_installed "$id"; then
+      say "$id"
+      warn "risulta già installato (winget list): non lo reinstallo. Se il programma non si trova, chiudi e riapri Git Bash."
+    else
+      say "winget install $id"
+      winget_install "$id" "" || diagnose_winget "$id"
+    fi
   done
   extend_path
   detect

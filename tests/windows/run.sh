@@ -6,6 +6,7 @@ set -uo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd)
 stubs="$root/tests/windows/stubs"
+stubs_ps="$root/tests/windows/stubs-ps"
 REAL_AGE=$(command -v age) || { echo "serve age per questo test"; exit 1; }
 REAL_AGEKEYGEN=$(command -v age-keygen)
 REAL_PYTHON3=$(command -v python3)
@@ -47,6 +48,7 @@ scenario() {
   printf '\n== %s\n' "$SC_NAME"
   local pathvar="$SYSBIN"
   [[ "${NO_WINGET:-0}" == 1 ]] || pathvar="$stubs:$SYSBIN"
+  [[ "${WITH_PS:-0}" == 1 ]] && pathvar="$stubs_ps:$pathvar"
   printf '%b' "$stdin_data" | env -i PATH="$pathvar" HOME="$T/home" LOCALAPPDATA="$T/AppData/Local" ProgramFiles="$T/PF" \
     MOCK_LOG="$LOG" REAL_AGE="$REAL_AGE" REAL_AGEKEYGEN="$REAL_AGEKEYGEN" REAL_PYTHON3="$REAL_PYTHON3" SETUP_FORCE_WINDOWS=1 \
     "${envs[@]}" bash "$root/scripts/backup/setup-windows.sh" "$@" > "$OUT" 2>&1
@@ -114,6 +116,66 @@ scenario "winget fallisce: la verifica finale lo dice e l'esito è negativo" "" 
 expect "esce con 1" test "$RC" -eq 1
 expect "dice che il setup non è completo" out_has 'Setup NON completo'
 expect "non dichiara successo" out_hasnt 'Setup completo\.'
+
+# ---------------------------------------------------------------------------------------------------------------------------
+# Fallimento dell'installer PostgreSQL (il caso reale: winget install PostgreSQL.PostgreSQL.18 → codice 4)
+WITH_PS=1 scenario "winget fallisce SOLO per PostgreSQL: diagnosi + installer ufficiale verificato sull'hash del manifest" "" MOCK_PG_WINGET_FAIL=1 -- --yes
+expect "esce con 0: i tre comandi PostgreSQL alla fine ci sono" test "$RC" -eq 0
+expect "mostra il codice REALE di winget (HRESULT), non solo l'ultimo byte" out_has 'codice reale 0x8A1501'
+expect "indica il log completo" out_has 'log completo: .*winget-PostgreSQL\.PostgreSQL\.18-'
+expect "il log di winget è stato salvato" bash -c "ls '$T/home/.config/moto-acquisizione/logs'/winget-PostgreSQL.PostgreSQL.18-*.log >/dev/null"
+expect "spiega il requisito di amministratore (Scope=machine)" out_has 'Scope=machine'
+expect "scarica SOLO dall'URL del manifest ufficiale (get.enterprisedb.com)" bash -c "[ \"\$(grep -c '^curl|' '$LOG')\" = 1 ] && grep -q 'curl|.*https://get.enterprisedb.com/postgresql/postgresql-18.6-5-windows-x64.exe' '$LOG'"
+expect "scarica solo in HTTPS con TLS >= 1.2" has '^curl\|.*--proto =https --tlsv1\.2'
+expect "verifica l'SHA256 prima di eseguire" out_has 'SHA256 coincide con il manifest ufficiale'
+expect "avvia l'installer con elevazione e SOLO i componenti da riga di comando" has 'Start-Process.*--disable-components server,pgAdmin,stackbuilder.*-Verb RunAs'
+expect "psql, pg_dump e pg_restore presenti dopo il metodo alternativo" out_has 'psql, pg_dump e pg_restore presenti'
+expect "la verifica finale non ha ✗" bash -c "[ \"\$(sed -n '/Verifica finale/,\$p' '$OUT' | grep -c '✗')\" = 0 ]"
+expect "gli altri pacchetti sono installati UNA sola volta" bash -c "for i in FiloSottile.age GitHub.cli OpenJS.NodeJS.LTS Python.Python.3.12; do [ \"\$(grep -c \"^winget|install --id \$i \" '$LOG')\" = 1 ] || exit 1; done"
+expect "la password casuale dell'installer non compare nell'output" out_hasnt 'superpassword [0-9a-f]{16}'
+expect "nessun accesso a Neon, Supabase o GitHub (solo winget, powershell e curl verso EDB)" bash -c "! grep -v -E '^(winget|powershell|curl|gh)\|' '$LOG' | grep -q ."
+
+WITH_PS=1 scenario "hash diverso dal manifest: l'installer scaricato NON viene eseguito" "" MOCK_PG_WINGET_FAIL=1 MOCK_SHA_BAD=1 -- --yes
+expect "esce con 1" test "$RC" -eq 1
+expect "dice che il file è stato eliminato e NON eseguito" out_has 'SHA256 .* diverso .* NON eseguito'
+expect "nessun Start-Process (l'installer non parte)" hasnt 'Start-Process'
+expect "indica il metodo manuale ufficiale" out_has 'https://www\.postgresql\.org/download/windows/'
+expect "il file scaricato non resta su disco" bash -c "! ls '$T/home/.config/moto-acquisizione/downloads'/*.exe 2>/dev/null | grep -q ."
+expect "gli altri pacchetti sono comunque installati (nessun lavoro perso)" bash -c "grep -q 'install --id FiloSottile.age ' '$LOG' && grep -q 'install --id GitHub.cli ' '$LOG'"
+expect "la verifica finale segnala psql mancante" out_has 'psql — non trovato'
+expect "non dichiara successo" out_hasnt 'Setup completo\.'
+
+WITH_PS=1 scenario "anche l'installer elevato fallisce (codice 4): esito negativo con istruzioni" "" MOCK_PG_WINGET_FAIL=1 MOCK_INSTALLER_FAIL=1 -- --yes
+expect "esce con 1" test "$RC" -eq 1
+expect "riporta il codice dell'installer" out_has 'installer terminato con codice 4'
+expect "client PostgreSQL non installati, resto a posto" out_has 'client PostgreSQL non installati\. Gli altri pacchetti sono a posto'
+SAVED_FAIL="$T"
+
+WITH_PS=1 scenario "client incompleti: pg_restore manca dopo l'installazione → segnalato, non spacciato per riuscito" "" MOCK_NO_PG_RESTORE=1 -- --yes
+expect "esce con 1" test "$RC" -eq 1
+expect "psql e pg_dump presenti ma pg_restore no" bash -c "grep -q 'psql — psql (PostgreSQL) 18' '$OUT' && grep -q 'pg_dump — pg_dump (PostgreSQL) 18' '$OUT' && sed -n '/Verifica finale/,\$p' '$OUT' | grep -q 'pg_restore — non trovato'"
+expect "non dichiara successo" out_hasnt 'Setup completo\.'
+
+NO_WINGET=0 scenario "senza PowerShell il metodo alternativo non è disponibile e lo dice (winget PostgreSQL fallisce)" "" MOCK_PG_WINGET_FAIL=1 -- --yes
+expect "esce con 1" test "$RC" -eq 1
+expect "diagnosi con codice di winget anche senza PowerShell" out_has 'codice reale 0x00000004'
+expect "spiega che servono powershell, curl e sha256sum" out_has 'metodo alternativo non disponibile'
+
+# rilancio dopo un successo parziale (stessa HOME/AppData del fallimento sopra): si ritenta SOLO il client PostgreSQL
+printf '\n== rilancio dopo successo parziale: solo il client PostgreSQL viene ritentato\n'
+printf '' | env -i PATH="$stubs_ps:$stubs:$SYSBIN" HOME="$SAVED_FAIL/home" LOCALAPPDATA="$SAVED_FAIL/AppData/Local" ProgramFiles="$SAVED_FAIL/PF" \
+  MOCK_LOG="$SAVED_FAIL/mock2.log" REAL_AGE="$REAL_AGE" REAL_AGEKEYGEN="$REAL_AGEKEYGEN" REAL_PYTHON3="$REAL_PYTHON3" SETUP_FORCE_WINDOWS=1 \
+  bash "$root/scripts/backup/setup-windows.sh" --yes > "$SAVED_FAIL/out2.txt" 2>&1
+RC3=$?
+expect "esce con 0: ora il client PostgreSQL c'è" test "$RC3" -eq 0
+expect "ha chiamato winget install UNA sola volta, per PostgreSQL" bash -c "[ \"\$(grep -c '^winget|install' '$SAVED_FAIL/mock2.log')\" = 1 ] && grep -q '^winget|install --id PostgreSQL.PostgreSQL.18 ' '$SAVED_FAIL/mock2.log'"
+expect "age, gh, Node e Python NON reinstallati" bash -c "! grep -E '^winget\|install --id (FiloSottile.age|GitHub.cli|OpenJS.NodeJS.LTS|Python.Python.3.12) ' '$SAVED_FAIL/mock2.log'"
+expect "non serve scaricare nulla se winget riesce" bash -c "! grep -q '^curl|' '$SAVED_FAIL/mock2.log'"
+
+WITH_PS=1 scenario "winget list segnala il pacchetto già installato ma non nel PATH: non viene reinstallato" "" MOCK_PREINSTALLED="FiloSottile.age" -- --yes
+expect "age NON reinstallato" hasnt 'install --id FiloSottile\.age '
+expect "dice che risulta già installato" out_has 'risulta già installato'
+expect "gli altri pacchetti mancanti sono invece installati" has 'install --id GitHub\.cli '
 
 # ---------------------------------------------------------------------------------------------------------------------------
 printf '\n== python su Windows: \\r\\n dell'"'"'interprete non finiscono nei valori catturati\n'

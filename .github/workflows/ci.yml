@@ -56,7 +56,7 @@ jobs:
         run: |
           shellcheck --version
           git ls-files -z '*.sh' | xargs -0 --no-run-if-empty shellcheck -x
-          shellcheck -x tests/bootstrap/stubs/* tests/windows/stubs/*
+          shellcheck -x tests/bootstrap/stubs/* tests/windows/stubs/* tests/windows/stubs-ps/*
 
   # Test di scripts/backup/bootstrap.sh con mock verificabili (nessuna rete, nessun segreto): dimostrano che --dry-run non scrive
   # su Neon né su GitHub, che --apply non fa migrazioni né ALTER ROLE e che nessun segreto finisce in output o negli argomenti
