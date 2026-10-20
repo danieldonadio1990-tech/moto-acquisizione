@@ -104,6 +104,15 @@ describe("0. Marca e modello scritti a mano (\"Altro\")", () => {
     assert.equal(detail?.motorcycle.model, "Monster 821");
   });
 
+  test("Vespa sotto Piaggio: marca Piaggio, modello scritto a mano", async () => {
+    const lead = await svc.createLead(
+      submission({ motorcycle: { brand: "Piaggio", modelId: "other", modelOther: "Vespa Primavera", year: 2021, displacement: 125 } }),
+    );
+    const detail = await svc.getLeadDetail(lead.id);
+    assert.equal(detail?.motorcycle.brand, "Piaggio");
+    assert.equal(detail?.motorcycle.model, "Vespa Primavera");
+  });
+
   test("richieste con modello a catalogo (anche Vespa, fuori dalle 10 marche) continuano a funzionare", async () => {
     const lead = await svc.createLead(
       submission({ motorcycle: { brand: "Vespa", modelId: "vespa-primavera", year: 2019, displacement: 125 } }),

@@ -112,3 +112,9 @@ test("brand: nome commerciale impostato, nessun segnaposto [BRAND] nei sorgenti 
   const offenders = sources("src").filter((f) => readFileSync(f, "utf8").includes("[BRAND]"));
   assert.deepEqual(offenders, []);
 });
+
+test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con suggerimento per il modello scritto a mano", () => {
+  assert.ok(!(MAIN_BRANDS as readonly string[]).includes("Vespa"));
+  const step = readFileSync("src/modules/funnel/steps/MotoStep.tsx", "utf8");
+  assert.match(step, /moto\.brand === "Piaggio"[^\n]*Vespa/);
+});

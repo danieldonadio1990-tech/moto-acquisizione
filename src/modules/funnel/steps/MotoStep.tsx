@@ -77,6 +77,7 @@ export function MotoStep({
           <div className="step-in">
             <TextField
               label="Scrivi il modello"
+              hint={moto.brand === "Piaggio" ? "Per una Vespa scrivi il nome completo, es. Vespa Primavera" : undefined}
               value={moto.modelOther}
               onChange={(e) => onChange({ modelOther: e.target.value })}
               error={errors.modelOther}
