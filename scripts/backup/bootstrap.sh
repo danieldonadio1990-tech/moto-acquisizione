@@ -218,8 +218,13 @@ else
   restore_desc="un database di prova NUOVO: \"$tmp_db\""
 fi
 
-bucket_ro=$(CHECK_READONLY=true "$here/check-bucket.sh" 2>&1 | tail -1) || true
+bucket_full=$(CHECK_READONLY=true "$here/check-bucket.sh" 2>&1) || true
+bucket_ro=$(tail -n 1 <<<"$bucket_full")
 printf '  bucket: %s\n' "$bucket_ro"
+if [[ "$bucket_ro" != *pronto* || "$bucket_ro" == *NON\ pronto* ]]; then
+  echo "  dettaglio (ultime righe, senza chiavi):"
+  tail -n 12 <<<"$bucket_full" | cut -c1-220 | sed 's/^/    /'
+fi
 
 # ===========================================================================================================================
 say "3. Riepilogo di ciò che farebbe/farà --apply"
