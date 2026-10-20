@@ -228,6 +228,8 @@ Prima del lancio pubblico definitivo (checklist privacy):
 
 ## Deploy su Netlify
 
+> **Guida passo passo in italiano semplice, con elenco variabili e test dopo la pubblicazione: [docs/PUBBLICAZIONE.md](docs/PUBBLICAZIONE.md).**
+
 Architettura del soft launch, **costo €0/mese**, nessun metodo di pagamento da inserire:
 
 | Funzione | Servizio (piano Free) | Note |
