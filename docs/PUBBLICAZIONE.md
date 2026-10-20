@@ -45,8 +45,31 @@ nella PR #1. Prima di unirla controlla che tutti i controlli GitHub («Checks»)
 
 ## Passo 4 — Variabili d'ambiente (Netlify → Site configuration → Environment variables)
 
-Per ognuna: nome esatto, valore incollato **solo lì**, scope **Production** soltanto (togli le altre spunte). Quando
-l'opzione c'è, segna come **segreta** («Contains secret values»). **Mai in chat, mai nel repository.**
+Per ognuna: nome esatto e valore incollato **solo lì**. **Mai in chat, mai nel repository.**
+
+**Due concetti diversi (non confonderli):**
+
+| Concetto | Cosa decide | Cosa fare |
+|---|---|---|
+| **Contesto di deploy** (Production, Deploy Previews, Branch deploys, Local development) | **per quale tipo di pubblicazione** vale il valore | Il valore va impostato **solo per Production**. Gli altri contesti restano **vuoti**. |
+| **Scope di disponibilità** (Builds, Functions, Runtime, Post processing) | **dove** la variabile è leggibile (durante il build, nelle funzioni del sito…) | **Lasciali tutti attivi (predefinito)**. Sul piano Free gli scope non si possono limitare, e comunque servono: il build legge le variabili per controllarle (`Builds`) e il sito le legge mentre funziona (`Functions`). **Non togliere nessuno scope.** |
+
+Come si fa su Netlify Free, per ogni variabile (**Add a variable**):
+1. Scrivi il nome esatto (colonna «Variabile» della tabella sotto).
+2. Scegli di impostare un valore **diverso per ogni contesto di deploy** (la dicitura esatta può cambiare: l'idea è
+   non usare «lo stesso valore per tutti i contesti»).
+3. Compila **soltanto il campo del contesto Production** e lascia vuoti Deploy Previews, Branch deploys e
+   Local development.
+4. Per i valori sensibili (`SESSION_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, `S3_ACCESS_KEY_ID`,
+   `S3_SECRET_ACCESS_KEY`, `ADMIN_PASSWORD`) attiva, se compare, **«Contains secret values»**. Attenzione: una volta
+   attivata non si può togliere e il valore non si rilegge più dal pannello (si può solo sostituire). Perciò tienine
+   una copia in un luogo sicuro tuo.
+5. Le modifiche valgono solo dalla **pubblicazione successiva**: dopo aver cambiato o rimosso una variabile (per esempio
+   `ADMIN_PASSWORD`) serve un nuovo deploy.
+
+Perché solo Production: il codice rifiuta di partire (`NETLIFY=true` con `CONTEXT` diverso da `production`) in un
+deploy non di produzione, per non toccare per sbaglio il database e le foto reali. Per questo, con Deploy Previews e
+Branch deploys già disattivati (passo 3.5), le variabili vuote negli altri contesti sono la configurazione voluta.
 
 | Variabile | Cosa metterci | Dove la trovi |
 |---|---|---|

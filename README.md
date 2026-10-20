@@ -265,8 +265,10 @@ Deploy Preview e Branch deploy (usano la configurazione di produzione).
    ```
    Scrive, legge, elenca e cancella un oggetto di prova, carica un file da 3 MB e controlla che il bucket non
    sia pubblico. Esce con errore se qualcosa non va. Poi rimuovi le chiavi da `.env.local`.
-6. **Netlify** → *Site configuration → Environment variables*: crea ogni variabile con scope **Production soltanto**
-   (deseleziona Deploy Previews, Branch deploys, Local development):
+6. **Netlify** → *Site configuration → Environment variables*: crea ogni variabile con valore **solo per il contesto di
+   deploy Production** (Deploy Previews, Branch deploys e Local development restano vuoti). **Non togliere gli scope di
+   disponibilità** (Builds, Functions, Runtime): servono tutti, il build controlla le variabili e il sito le legge a runtime;
+   sul piano Free non sono comunque limitabili. Dettagli e procedura passo passo: [docs/PUBBLICAZIONE.md](docs/PUBBLICAZIONE.md), «Passo 4»:
 
 | Variabile | Valore | Perché |
 |---|---|---|
@@ -291,7 +293,7 @@ Deploy Preview e Branch deploy (usano la configurazione di produzione).
    **Non acquistare un dominio senza autorizzazione.**
 
 ### Guardie contro l'uso della produzione da parte di build non di produzione
-1. Le variabili esistono solo nello scope Production (punto 6).
+1. I valori delle variabili sono impostati solo per il contesto di deploy Production (punto 6); gli altri contesti restano vuoti.
 2. Deploy Preview e Branch deploys sono disattivati (punto 4) e, se riattivati, `netlify.toml` li fa fallire.
 3. `src/config/env.ts` rifiuta qualsiasi avvio/build con `NETLIFY=true` e `CONTEXT` diverso da `production`.
 
