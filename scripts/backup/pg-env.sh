@@ -63,14 +63,22 @@ print("%s:%s/%s" % (u.hostname, u.port or 5432, unquote(u.path[1:])))'
 # Su Windows "python3" può mancare o essere l'alias di Microsoft Store; l'interprete nativo scrive "\r\n": i \r finirebbero nei valori
 # catturati con $(...) (URL, impostazioni). Qui si risolve un vero Python 3 e si definisce una funzione python3 che toglie i \r.
 ensure_python3() {
-  local v cmd
+  local v cmd exe
   for cmd in "python3" "python" "py -3"; do
     # shellcheck disable=SC2086  # "py -3" va diviso di proposito
     v=$($cmd -c 'import sys; print(sys.version_info[0])' 2>/dev/null | tr -d '\r')
     if [[ "$v" == 3 ]]; then
       case "$(uname -s 2>/dev/null)" in
         MINGW*|MSYS*|CYGWIN*)
-          eval "python3() { command $cmd \"\$@\" | tr -d '\\r'; }" ;;
+          # percorso ASSOLUTO dell'interprete vero: evita di richiamare per nome l'alias del Microsoft Store ("Python non è stato trovato")
+          # shellcheck disable=SC2086
+          exe=$($cmd -c 'import sys; print(sys.executable)' 2>/dev/null | tr -d '\r')
+          [[ -n "$exe" ]] && command -v cygpath >/dev/null 2>&1 && exe=$(cygpath -u "$exe" 2>/dev/null || printf '%s' "$exe")
+          if [[ -n "$exe" && -x "$exe" ]]; then
+            eval "python3() { command '$exe' \"\$@\" | tr -d '\\r'; }"
+          else
+            eval "python3() { command $cmd \"\$@\" | tr -d '\\r'; }"
+          fi ;;
         *) [[ "$cmd" == python3 ]] || eval "python3() { command $cmd \"\$@\"; }" ;;
       esac
       return 0

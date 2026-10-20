@@ -208,5 +208,12 @@ printf '#!/usr/bin/env bash\nif [[ "$*" == *version_info* ]]; then printf "3\\r\
 got=$(PATH="$W/bin:$PATH" bash -c "source '$root/scripts/backup/pg-env.sh'; x=\$(python3 -c 'print(1)'); printf '%s' \"\$x\" | od -c | head -1")
 expect "il valore catturato è 'VALORE' senza \\r" bash -c "[[ \"$got\" == *V*A*L*O*R*E* && \"$got\" != *'\\r'* ]]"
 
+# l'alias del Microsoft Store risponde alla prova iniziale ma non funziona quando viene richiamato per nome: si deve usare il percorso assoluto
+mkdir -p "$W/real"
+printf '#!/usr/bin/env bash\nprintf "VALORE\\r\\n"\n' > "$W/real/pyreal"; chmod +x "$W/real/pyreal"
+printf '#!/usr/bin/env bash\ncase "$*" in *version_info*) printf "3\\r\\n" ;; *sys.executable*) echo "%s" ;; *) echo "Python non è stato trovato" >&2; exit 9 ;; esac\n' "$W/real/pyreal" > "$W/bin/python3"; chmod +x "$W/bin/python3"
+got=$(PATH="$W/bin:$PATH" bash -c "source '$root/scripts/backup/pg-env.sh'; python3 -c 'print(1)' 2>&1")
+expect "usa il percorso assoluto dell'interprete, non l'alias per nome" bash -c "[[ \"$got\" == VALORE ]]"
+
 printf '\nRisultato: %d passati, %d falliti\n' "$pass" "$fail"
 [[ "$fail" -eq 0 ]]
