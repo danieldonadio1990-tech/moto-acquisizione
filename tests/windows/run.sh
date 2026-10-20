@@ -135,6 +135,29 @@ expect "gli altri pacchetti sono installati UNA sola volta" bash -c "for i in Fi
 expect "la password casuale dell'installer non compare nell'output" out_hasnt 'superpassword [0-9a-f]{16}'
 expect "nessun accesso a Neon, Supabase o GitHub (solo winget, powershell e curl verso EDB)" bash -c "! grep -v -E '^(winget|powershell|curl|gh)\|' '$LOG' | grep -q ."
 
+WITH_PS=1 scenario "winget in italiano: il metodo alternativo legge comunque URL e hash" "" MOCK_PG_WINGET_FAIL=1 MOCK_SHOW_IT=1 -- --yes
+expect "esce con 0" test "$RC" -eq 0
+expect "SHA256 verificato" out_has 'SHA256 coincide con il manifest ufficiale'
+expect "psql, pg_dump e pg_restore presenti" out_has 'psql, pg_dump e pg_restore presenti'
+
+MANUAL_DIR=$(mktemp -d); printf 'mock-installer-bytes' > "$MANUAL_DIR/postgresql-18.6-5-windows-x64.exe"
+WITH_PS=1 scenario "download bloccato (403): usa l'installer scaricato a mano con --pg-installer" "" MOCK_PG_WINGET_FAIL=1 MOCK_CURL_FAIL=1 -- --yes --pg-installer "$MANUAL_DIR/postgresql-18.6-5-windows-x64.exe"
+expect "esce con 0" test "$RC" -eq 0
+expect "SHA256 verificato" out_has 'SHA256 coincide con il manifest ufficiale'
+expect "avvia l'installer con soli strumenti da riga di comando" has 'Start-Process.*--disable-components server,pgAdmin,stackbuilder'
+expect "il file scaricato a mano NON viene cancellato" test -f "$MANUAL_DIR/postgresql-18.6-5-windows-x64.exe"
+
+WITH_PS=1 scenario "download bloccato: trova da solo l'installer in Download" "" MOCK_PG_WINGET_FAIL=1 MOCK_CURL_FAIL=1 DOWNLOADS_DIR="$MANUAL_DIR" -- --yes
+expect "esce con 0" test "$RC" -eq 0
+expect "dice di averlo trovato in Download" out_has 'trovato in Download'
+expect "psql, pg_dump e pg_restore presenti" out_has 'psql, pg_dump e pg_restore presenti'
+
+printf 'altro-contenuto' > "$MANUAL_DIR/postgresql-18.6-5-windows-x64.exe"
+WITH_PS=1 scenario "installer scaricato a mano con hash sbagliato: NON eseguito" "" MOCK_PG_WINGET_FAIL=1 MOCK_CURL_FAIL=1 -- --yes --pg-installer "$MANUAL_DIR/postgresql-18.6-5-windows-x64.exe"
+expect "esce con 1" test "$RC" -eq 1
+expect "nessun Start-Process" hasnt 'Start-Process'
+rm -rf "$MANUAL_DIR"
+
 WITH_PS=1 scenario "hash diverso dal manifest: l'installer scaricato NON viene eseguito" "" MOCK_PG_WINGET_FAIL=1 MOCK_SHA_BAD=1 -- --yes
 expect "esce con 1" test "$RC" -eq 1
 expect "dice che il file è stato eliminato e NON eseguito" out_has 'SHA256 .* diverso .* NON eseguito'

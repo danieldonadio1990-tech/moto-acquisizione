@@ -4,6 +4,7 @@
 #   bash scripts/backup/setup-windows.sh            controlla, mostra cosa installerebbe, chiede UNA conferma, installa e verifica
 #   bash scripts/backup/setup-windows.sh --check    solo controllo: non installa e non scrive nulla
 #   bash scripts/backup/setup-windows.sh --yes      come sopra, senza la conferma
+#   bash scripts/backup/setup-windows.sh --pg-installer FILE.exe   usa un installer PostgreSQL scaricato a mano (eseguito solo se l'hash coincide)
 #
 # GARANZIE
 #   - installa solo software gratuito, con `winget` (incluso in Windows 10/11), che verifica l'hash dei pacchetti
@@ -16,11 +17,15 @@
 set -uo pipefail
 
 mode=install
-for a in "$@"; do
+pg_installer_arg=""
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+  a="${args[i]}"
   case "$a" in
     --check) mode=check ;;
     --yes) mode=yes ;;
-    -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --pg-installer) i=$((i + 1)); pg_installer_arg="${args[i]:-}"; [[ -n "$pg_installer_arg" ]] || { echo "--pg-installer richiede il percorso del file" >&2; exit 2; } ;;
+    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Argomento sconosciuto: $a" >&2; exit 2 ;;
   esac
 done
@@ -184,30 +189,36 @@ pg_tools_present() { # tutti e tre i comandi, versione >= pg_major
 }
 
 pg_direct_install() { # installer ufficiale scaricato direttamente, ESEGUITO SOLO se l'SHA256 coincide con quello del manifest winget
-  local ov="$1" info url sha dl exe got winexe out code
+  local ov="$1" local_file="${2:-}" keep=0 info url sha dl exe got winexe out code
   if ! command -v powershell.exe >/dev/null 2>&1 || ! command -v curl >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; then
     bad "metodo alternativo non disponibile (servono powershell, curl e sha256sum)"; return 1
   fi
   info=$("$winget_bin" show --id "PostgreSQL.PostgreSQL.$pg_major" --exact --accept-source-agreements 2>/dev/null | tr -d '\r')
-  url=$(sed -n 's/^ *Installer Url: *//p' <<<"$info" | head -1)
-  sha=$(sed -n 's/^ *Installer SHA256: *//p' <<<"$info" | head -1 | tr 'A-F' 'a-f')
-  [[ "$url" =~ ^https://get\.enterprisedb\.com/postgresql/postgresql-[0-9]+\.[0-9]+(-[0-9]+)?-windows-x64\.exe$ ]] \
-    || { bad "URL dell'installer non trovato o inatteso nel manifest di winget: non scarico nulla"; return 1; }
-  [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { bad "SHA256 del manifest assente o non valido: non scarico nulla"; return 1; }
+  # niente dipendenza dalla lingua di winget (in italiano le etichette cambiano): cerco direttamente URL e hash nel testo
+  url=$(grep -oE 'https://get\.enterprisedb\.com/postgresql/postgresql-[0-9]+\.[0-9]+(-[0-9]+)?-windows-x64\.exe' <<<"$info" | head -1)
+  sha=$(grep -oiE '(^|[^0-9a-f])[0-9a-f]{64}($|[^0-9a-f])' <<<"$info" | head -1 | grep -oiE '[0-9a-f]{64}' | tr 'A-F' 'a-f')
+  [[ -n "$url" ]] || { bad "URL dell'installer non trovato nel manifest di winget: non scarico nulla"; return 1; }
+  [[ "$sha" =~ ^[0-9a-f]{64}$ ]] || { bad "SHA256 del manifest assente o non valido: non eseguo nulla"; return 1; }
   dl="$env_dir/downloads"; mkdir -p "$dl"; exe="$dl/$(basename "$url")"
-  echo "  scarico $(basename "$url") (fonte indicata dal manifest ufficiale winget)"
-  curl -fL --retry 2 --proto '=https' --tlsv1.2 -sS -o "$exe" "$url" || { bad "download non riuscito"; rm -f "$exe"; return 1; }
+  if [[ -n "$local_file" ]]; then
+    [[ -f "$local_file" ]] || { bad "file non trovato: $local_file"; return 1; }
+    echo "  uso l'installer già scaricato: $local_file"
+    exe="$local_file"; keep=1
+  else
+    echo "  scarico $(basename "$url") (fonte indicata dal manifest ufficiale winget)"
+    curl -fL --retry 2 --proto '=https' --tlsv1.2 -sS -o "$exe" "$url" || { bad "download non riuscito (il server get.enterprisedb.com ha rifiutato la richiesta?)"; rm -f "$exe"; return 1; }
+  fi
   got=$(sha256sum "$exe" | awk '{print tolower($1)}')
   if [[ "$got" != "$sha" ]]; then
-    rm -f "$exe"
-    bad "SHA256 del file scaricato diverso da quello del manifest ufficiale: file eliminato, installer NON eseguito"
+    [[ "$keep" == 1 ]] || rm -f "$exe"
+    bad "SHA256 del file diverso da quello del manifest ufficiale: installer NON eseguito"
     return 1
   fi
   ok "SHA256 coincide con il manifest ufficiale winget"
   winexe=$(command -v cygpath >/dev/null 2>&1 && cygpath -w "$exe" || printf '%s' "$exe")
   echo "  avvio l'installer con elevazione (UAC), solo strumenti da riga di comando"
   out=$(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "\$p = Start-Process -FilePath '$winexe' -ArgumentList '$ov' -Verb RunAs -Wait -PassThru; Write-Host ('INSTALLER_EXIT=' + \$p.ExitCode)" 2>&1 | tr -d '\r')
-  rm -f "$exe"
+  [[ "$keep" == 1 ]] || rm -f "$exe"
   code=$(sed -n 's/.*INSTALLER_EXIT=\([0-9-]*\).*/\1/p' <<<"$out" | tail -1)
   redact <<<"$out" | tail -n 6 | sed 's/^/    /'
   if [[ "$code" == 0 ]]; then ok "installer terminato con codice 0"; return 0; fi
@@ -232,10 +243,23 @@ install_pg_client() {
   extend_path; detect
   if pg_tools_present; then ok "psql, pg_dump e pg_restore presenti"; return 0; fi
   echo "  Tentativo 2: installer ufficiale scaricato direttamente (eseguito solo se l'hash coincide con quello del manifest)"
-  pg_direct_install "$ov" || true
+  pg_direct_install "$ov" "$pg_installer_arg" || true
   extend_path; detect
   if pg_tools_present; then ok "psql, pg_dump e pg_restore presenti"; return 0; fi
-  bad "client PostgreSQL non installati. Gli altri pacchetti sono a posto e non verranno reinstallati. Metodo manuale ufficiale: https://www.postgresql.org/download/windows/ → installer EDB → deseleziona 'PostgreSQL Server', 'pgAdmin 4' e 'Stack Builder', lascia solo 'Command Line Tools'; poi rilancia questo script."
+  if [[ -z "$pg_installer_arg" ]]; then
+    local f="" c dldir
+    dldir="${DOWNLOADS_DIR:-$HOME/Downloads}"
+    for c in "$dldir"/postgresql-"$pg_major".*-windows-x64.exe; do
+      [[ -f "$c" ]] && { [[ -z "$f" || "$c" -nt "$f" ]] && f="$c"; }
+    done
+    if [[ -n "$f" ]]; then
+      echo "  Tentativo 3: installer trovato in Download ($f)"
+      pg_direct_install "$ov" "$f" || true
+      extend_path; detect
+      if pg_tools_present; then ok "psql, pg_dump e pg_restore presenti"; return 0; fi
+    fi
+  fi
+  bad "client PostgreSQL non installati. Gli altri pacchetti sono a posto e non verranno reinstallati. Metodo manuale: scarica dal browser l'installer Windows x86-64 della versione $pg_major da https://www.postgresql.org/download/windows/ (salvalo in Download, NON avviarlo) e rilancia questo script: lo trova da solo, ne verifica l'hash col manifest winget e installa solo i Command Line Tools. Oppure: bash scripts/backup/setup-windows.sh --pg-installer <percorso del file>."
   return 1
 }
 

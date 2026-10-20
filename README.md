@@ -340,9 +340,9 @@ Se `winget` fallisce sul client PostgreSQL, lo script mostra il codice di uscita
 `~/.config/moto-acquisizione/logs/` (con i segreti oscurati), segnala se manca il permesso di amministratore e riprova con l'installer
 ufficiale EDB: l'URL e lo SHA256 sono quelli del manifest winget (`winget show`), l'URL deve essere `https://get.enterprisedb.com/`, il file viene
 scaricato solo con HTTPS, **non viene eseguito se l'hash non coincide** e viene cancellato dopo l'uso. Il server, pgAdmin e Stack Builder sono
-sempre esclusi (`--disable-components`). Alla fine verifica che `psql`, `pg_dump` e `pg_restore` esistano e siano >= 18; se non riesce, stampa le
+sempre esclusi (`--disable-components`). Se anche il download diretto viene rifiutato (es. 403), scarica a mano l'installer dal sito ufficiale nella cartella Download senza avviarlo e rilancia lo script (o usa `--pg-installer <file>`): ne verifica l'hash col manifest e installa solo i Command Line Tools. Alla fine verifica che `psql`, `pg_dump` e `pg_restore` esistano e siano >= 18; se non riesce, stampa le
 istruzioni ufficiali manuali. Rilanciandolo non reinstalla i pacchetti già presenti.
-Testato su Linux con `winget`, PowerShell e `curl` simulati (72 controlli in CI, inclusi installer fallito, hash errato e `pg_restore` mancante);
+Testato su Linux con `winget`, PowerShell e `curl` simulati (84 controlli in CI, inclusi installer fallito, hash errato e `pg_restore` mancante);
 **non** provato su Windows reale.
 
 ### Scorciatoia guidata: `bootstrap.sh` (un solo comando: `--guided`)
