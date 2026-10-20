@@ -8,5 +8,6 @@ import { PRIVACY_POLICY_IS_DRAFT } from "./business";
 export function indexingEnabled() {
   if (process.env.SITE_INDEXING === "false") return false;
   if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return false;
+  if (process.env.NETLIFY === "true" && process.env.CONTEXT && process.env.CONTEXT !== "production") return false;
   return !PRIVACY_POLICY_IS_DRAFT;
 }

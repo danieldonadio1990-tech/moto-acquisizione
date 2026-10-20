@@ -74,6 +74,25 @@ export function appEnv(e: NodeJS.ProcessEnv = process.env): AppEnv {
 
 const blank = (v: string | undefined) => !v || !v.trim();
 
+/** Host del pooler Neon (es. ep-xxx-pooler.eu-central-1.aws.neon.tech). Legge solo il nome host, mai le credenziali. */
+function isNeonPooler(url: string): boolean {
+  try {
+    return /-pooler\./.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function validS3Endpoint(v: string): boolean {
+  try {
+    const u = new URL(v);
+    if (u.protocol === "https:") return true;
+    return u.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConfig {
   const env = appEnv(e);
   const prod = env === "production";
@@ -88,6 +107,19 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
     const direct = e.DATABASE_URL_DIRECT?.trim() || undefined;
     if (direct && !/^postgres(ql)?:\/\//.test(direct)) problems.push("DATABASE_URL_DIRECT deve iniziare con postgres:// o postgresql://");
     database = { kind: "postgres", url, migrationUrl: direct };
+    // Le migrazioni usano un advisory lock di sessione: non funziona dietro un pooler in modalità "transaction".
+    // Serve quindi una connessione diretta SOLO se le migrazioni partono all'avvio; con MIGRATE_ON_START=false
+    // (migrazioni applicate a parte con `npm run db:migrate`) il runtime usa solo DATABASE_URL.
+    // Nessun valore (né URL) finisce nei messaggi: si controlla soltanto il nome host.
+    if (prod && e.MIGRATE_ON_START !== "false") {
+      if (isNeonPooler(url) && !direct) {
+        problems.push(
+          "DATABASE_URL usa il pooler Neon (-pooler) e le migrazioni partono all'avvio: imposta DATABASE_URL_DIRECT con la stringa Neon DIRETTA (senza -pooler), oppure MIGRATE_ON_START=false e applica le migrazioni con `npm run db:migrate`.",
+        );
+      } else if (direct && isNeonPooler(direct)) {
+        problems.push("DATABASE_URL_DIRECT punta al pooler Neon (-pooler): per le migrazioni serve la stringa DIRETTA (senza -pooler).");
+      }
+    }
   } else if (prod) {
     problems.push(
       "DATABASE_URL mancante. In produzione serve un database PostgreSQL persistente: il database locale non viene mai usato in produzione.",
@@ -103,6 +135,19 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
   if (driver === "s3") {
     const need = ["S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const;
     for (const k of need) if (blank(e[k])) problems.push(`${k} mancante (richiesta da STORAGE_DRIVER=s3)`);
+    if (prod) {
+      // In produzione l'endpoint, la regione e la modalità path-style sono obbligatori e impostati in modo esplicito:
+      // un valore dimenticato farebbe parlare l'app con il servizio sbagliato (AWS) o con la regione sbagliata.
+      if (blank(e.S3_ENDPOINT)) {
+        problems.push("S3_ENDPOINT mancante (richiesta da STORAGE_DRIVER=s3 in produzione), es. https://<codice>.storage.supabase.co/storage/v1/s3");
+      } else if (!validS3Endpoint(e.S3_ENDPOINT!.trim())) {
+        problems.push("S3_ENDPOINT non valido: deve essere un URL https:// (http:// ammesso solo per localhost)");
+      }
+      if (blank(e.S3_REGION)) problems.push("S3_REGION mancante (richiesta da STORAGE_DRIVER=s3 in produzione), es. eu-central-1");
+      const fps = e.S3_FORCE_PATH_STYLE?.trim();
+      if (!fps) problems.push('S3_FORCE_PATH_STYLE mancante (richiesta da STORAGE_DRIVER=s3 in produzione): "true" per Supabase Storage');
+      else if (fps !== "true" && fps !== "false") problems.push('S3_FORCE_PATH_STYLE non valido: usa "true" oppure "false"');
+    }
     storage = {
       driver: "s3",
       bucket: e.S3_BUCKET?.trim() ?? "",
@@ -110,7 +155,7 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
       endpoint: e.S3_ENDPOINT?.trim() || undefined,
       accessKeyId: e.S3_ACCESS_KEY_ID?.trim() ?? "",
       secretAccessKey: e.S3_SECRET_ACCESS_KEY?.trim() ?? "",
-      forcePathStyle: e.S3_FORCE_PATH_STYLE === "true",
+      forcePathStyle: e.S3_FORCE_PATH_STYLE?.trim() === "true",
       prefix: (e.S3_PREFIX?.trim() || "").replace(/^\/+|\/+$/g, ""),
     };
   } else if (driver === "local" || (!driver && !prod)) {
@@ -154,12 +199,22 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
     clientIp = { source: "forwarded" };
   } else if (!ipSource && prod) {
     problems.push(
-      "CLIENT_IP_SOURCE mancante. Su Vercel è automatico; altrove indica come leggere l'IP reale del client (cloudflare, oppure header + CLIENT_IP_HEADER) per un rate limit non aggirabile.",
+      "CLIENT_IP_SOURCE mancante. Su Vercel è automatico; altrove indica come leggere l'IP reale del client (cloudflare, oppure header + CLIENT_IP_HEADER; su Netlify: header + x-nf-client-connection-ip) per un rate limit non aggirabile.",
     );
     clientIp = { source: "forwarded" };
   } else {
     problems.push(`CLIENT_IP_SOURCE non valido: "${ipSource}" (valori ammessi: vercel, cloudflare, header)`);
     clientIp = { source: "forwarded" };
+  }
+
+  // --- Guardia: i deploy non di produzione non usano MAI la configurazione di produzione ---
+  // Netlify imposta NETLIFY=true e CONTEXT=production | deploy-preview | branch-deploy | dev.
+  // (Difesa in profondità: le variabili vanno comunque assegnate al solo contesto Production nel pannello.)
+  const netlifyContext = e.NETLIFY === "true" ? e.CONTEXT?.trim() : undefined;
+  if (prod && netlifyContext && netlifyContext !== "production") {
+    problems.push(
+      `Deploy Netlify non di produzione (CONTEXT=${netlifyContext}): rifiutato per non toccare database e storage di produzione. Disattiva Deploy Previews e Branch deploys nel pannello Netlify.`,
+    );
   }
 
   // --- Avvisi non bloccanti ---

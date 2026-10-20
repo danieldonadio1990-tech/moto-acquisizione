@@ -88,6 +88,10 @@ class S3Storage implements PhotoStorage {
           endpoint: cfg.endpoint,
           forcePathStyle: cfg.forcePathStyle,
           credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
+          // i checksum aggiuntivi inviati di default dall'SDK recente non sono accettati da tutti gli storage
+          // S3-compatibili (Supabase incluso): li si invia solo quando il protocollo li richiede
+          requestChecksumCalculation: "WHEN_REQUIRED",
+          responseChecksumValidation: "WHEN_REQUIRED",
         }),
     );
   }

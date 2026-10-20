@@ -42,7 +42,7 @@ export const SITE = {
   /**
    * Dominio di produzione, con https:// e senza "/" finale (es. https://www.nomedominio.it).
    * Usato per URL canonici, sitemap, robots e anteprime social.
-   * Finché è un segnaposto si usa l'indirizzo del deploy (Vercel) o localhost.
+   * Finché è un segnaposto si usa l'indirizzo del deploy (Netlify/Vercel) o localhost.
    */
   domain: "[DA COMPLETARE: https://www.dominio.it]",
 } as const;
@@ -79,9 +79,11 @@ export function missingBusinessData(): string[] {
   return out;
 }
 
-/** URL pubblico del sito: dominio configurato, altrimenti indirizzo di produzione Vercel, altrimenti locale. */
+/** URL pubblico del sito: dominio configurato, altrimenti indirizzo del sito su Netlify (variabile URL) o Vercel, altrimenti locale. */
 export function siteUrl(): URL {
   if (!isPlaceholder(SITE.domain)) return new URL(SITE.domain);
+  const netlify = process.env.URL;
+  if (netlify && /^https:\/\//.test(netlify)) return new URL(netlify);
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   if (vercel) return new URL(`https://${vercel}`);
   return new URL(`http://localhost:${process.env.PORT || 3000}`);
