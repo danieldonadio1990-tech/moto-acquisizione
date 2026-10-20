@@ -52,7 +52,7 @@ l'opzione c'è, segna come **segreta** («Contains secret values»). **Mai in ch
 |---|---|---|
 | `SESSION_SECRET` | testo casuale lungo almeno 32 caratteri | Git Bash: `openssl rand -base64 48` |
 | `DATABASE_URL` | stringa Neon **pooled** | Neon → Connect (passo 2) |
-| `DATABASE_URL_DIRECT` | stringa Neon **diretta** | Neon → Connect (passo 2) |
+| `DATABASE_URL_DIRECT` | stringa Neon **diretta** (senza `-pooler`) | Neon → Connect (passo 2). Obbligatoria finché le migrazioni partono all'avvio |
 | `STORAGE_DRIVER` | `s3` | valore fisso |
 | `S3_BUCKET` | `photos` | valore fisso |
 | `S3_ENDPOINT` | endpoint S3 | Supabase → Storage → S3 Connection |
@@ -64,6 +64,10 @@ l'opzione c'è, segna come **segreta** («Contains secret values»). **Mai in ch
 | `CLIENT_IP_HEADER` | `x-nf-client-connection-ip` | valore fisso (header di Netlify) |
 | `ADMIN_EMAIL` | la tua email da amministratore | scegli tu |
 | `ADMIN_PASSWORD` | password di almeno 12 caratteri | scegli tu; **rimuovila dopo il primo avvio** |
+
+Il build **si ferma con un errore chiaro** (senza stampare valori segreti) se manca una variabile S3 (`S3_ENDPOINT`, `S3_REGION`,
+`S3_BUCKET`, `S3_FORCE_PATH_STYLE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`), se `S3_ENDPOINT` non è `https://`, o se `DATABASE_URL`
+è la stringa Neon *pooled* (`-pooler`) senza `DATABASE_URL_DIRECT` (a meno di `MIGRATE_ON_START=false`).
 
 Facoltative: `SITE_INDEXING` (lasciala vuota: i motori di ricerca restano esclusi finché l'informativa privacy è in
 bozza), `MIGRATE_ON_START` (lascia vuota = migrazioni automatiche), `DB_POOL_MAX` (lascia vuota = 3).

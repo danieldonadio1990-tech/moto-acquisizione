@@ -12,6 +12,9 @@ const prodS3 = {
   SESSION_SECRET: SECRET,
   STORAGE_DRIVER: "s3",
   S3_BUCKET: "foto",
+  S3_ENDPOINT: "https://abc.storage.supabase.co/storage/v1/s3",
+  S3_REGION: "eu-central-1",
+  S3_FORCE_PATH_STYLE: "true",
   S3_ACCESS_KEY_ID: "k",
   S3_SECRET_ACCESS_KEY: "s",
   VERCEL: "1",
@@ -51,6 +54,100 @@ test("produzione S3 senza credenziali → errore; completa → ok", () => {
   const cfg = loadServerConfig(prodS3);
   assert.equal(cfg.database.kind, "postgres");
   assert.equal(cfg.storage.driver, "s3");
+});
+
+// --- S3 in produzione: ogni variabile obbligatoria, errori chiari, mai segreti nei messaggi ---
+const SECRET_KEY = "CANARY_SECRET_KEY_9f3a";
+const SECRET_ID = "CANARY_KEY_ID_77b1";
+const S3_REQUIRED = ["S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_FORCE_PATH_STYLE", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"] as const;
+
+for (const name of S3_REQUIRED) {
+  test(`produzione con S3: ${name} mancante → errore chiaro che nomina la variabile`, () => {
+    const msg = String(problems({ ...prodS3, S3_ACCESS_KEY_ID: SECRET_ID, S3_SECRET_ACCESS_KEY: SECRET_KEY, [name]: "" }));
+    assert.match(msg, new RegExp(`${name} mancante`));
+    assert.ok(!msg.includes(SECRET_KEY) && !msg.includes(SECRET_ID), "il messaggio non deve contenere credenziali");
+  });
+}
+
+test("produzione con S3: più variabili mancanti → tutte segnalate in un solo errore", () => {
+  const msg = String(problems({ ...prodS3, S3_ENDPOINT: "", S3_REGION: "", S3_FORCE_PATH_STYLE: "" }));
+  assert.match(msg, /S3_ENDPOINT mancante/);
+  assert.match(msg, /S3_REGION mancante/);
+  assert.match(msg, /S3_FORCE_PATH_STYLE mancante/);
+});
+
+test("produzione con S3: valori non validi rifiutati", () => {
+  assert.match(String(problems({ ...prodS3, S3_ENDPOINT: "http://esempio.it/s3" })), /S3_ENDPOINT non valido/);
+  assert.match(String(problems({ ...prodS3, S3_ENDPOINT: "non-un-url" })), /S3_ENDPOINT non valido/);
+  assert.match(String(problems({ ...prodS3, S3_FORCE_PATH_STYLE: "si" })), /S3_FORCE_PATH_STYLE non valido/);
+  // http è ammesso solo verso localhost (prove locali)
+  assert.equal(loadServerConfig({ ...prodS3, S3_ENDPOINT: "http://127.0.0.1:5055" }).storage.driver, "s3");
+});
+
+test("produzione con S3 completo: configurazione letta correttamente", () => {
+  const cfg = loadServerConfig(prodS3);
+  assert.equal(cfg.storage.driver, "s3");
+  if (cfg.storage.driver === "s3") {
+    assert.equal(cfg.storage.region, "eu-central-1");
+    assert.equal(cfg.storage.endpoint, "https://abc.storage.supabase.co/storage/v1/s3");
+    assert.equal(cfg.storage.forcePathStyle, true);
+  }
+});
+
+test("driver alternativo (local persistente): le variabili S3 non servono", () => {
+  const env: NodeJS.ProcessEnv = { ...prodS3, STORAGE_DRIVER: "local", UPLOADS_DIR: "/srv/foto", STORAGE_LOCAL_PERSISTENT: "true" };
+  for (const k of S3_REQUIRED) delete env[k];
+  const cfg = loadServerConfig(env);
+  assert.equal(cfg.storage.driver, "local");
+});
+
+test("sviluppo con S3: endpoint, regione e path-style restano facoltativi (comportamento invariato)", () => {
+  const cfg = loadServerConfig({
+    NODE_ENV: "development",
+    SESSION_SECRET: SECRET,
+    STORAGE_DRIVER: "s3",
+    S3_BUCKET: "foto",
+    S3_ACCESS_KEY_ID: "k",
+    S3_SECRET_ACCESS_KEY: "s",
+  } as NodeJS.ProcessEnv);
+  assert.equal(cfg.storage.driver, "s3");
+});
+
+// --- DATABASE_URL_DIRECT: serve alle migrazioni, non al runtime ---
+const NEON_POOLED = "postgres://u:PW_CANARY_81c2@ep-cool-name-123456-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+const NEON_DIRECT = "postgres://u:PW_CANARY_81c2@ep-cool-name-123456.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+
+test("Neon pooled senza DATABASE_URL_DIRECT con migrazioni all'avvio → errore chiaro, senza URL né password", () => {
+  const msg = String(problems({ ...prodS3, DATABASE_URL: NEON_POOLED }));
+  assert.match(msg, /DATABASE_URL_DIRECT/);
+  assert.match(msg, /MIGRATE_ON_START=false/);
+  assert.ok(!msg.includes("PW_CANARY_81c2") && !msg.includes("neon.tech"), "il messaggio non deve contenere l'URL");
+});
+
+test("Neon pooled + DATABASE_URL_DIRECT diretta → ok", () => {
+  const cfg = loadServerConfig({ ...prodS3, DATABASE_URL: NEON_POOLED, DATABASE_URL_DIRECT: NEON_DIRECT });
+  assert.equal(cfg.database.kind, "postgres");
+  if (cfg.database.kind === "postgres") assert.equal(cfg.database.migrationUrl, NEON_DIRECT);
+});
+
+test("Neon pooled con MIGRATE_ON_START=false: il runtime NON richiede DATABASE_URL_DIRECT", () => {
+  const cfg = loadServerConfig({ ...prodS3, DATABASE_URL: NEON_POOLED, MIGRATE_ON_START: "false" });
+  assert.equal(cfg.migrateOnStart, false);
+  if (cfg.database.kind === "postgres") assert.equal(cfg.database.migrationUrl, undefined);
+});
+
+test("DATABASE_URL_DIRECT che punta al pooler → errore (non serve a nulla per le migrazioni)", () => {
+  assert.match(String(problems({ ...prodS3, DATABASE_URL: NEON_POOLED, DATABASE_URL_DIRECT: NEON_POOLED })), /punta al pooler/);
+});
+
+test("connessione non pooled senza DATABASE_URL_DIRECT → ok (non si blocca inutilmente)", () => {
+  assert.equal(loadServerConfig({ ...prodS3, DATABASE_URL: NEON_DIRECT }).database.kind, "postgres");
+  assert.equal(loadServerConfig({ ...prodS3, DATABASE_URL: "postgres://u:p@db:5432/app" }).database.kind, "postgres");
+});
+
+test("fuori dalla produzione il controllo su DATABASE_URL_DIRECT non scatta", () => {
+  const cfg = loadServerConfig({ ...prodS3, NODE_ENV: "development", DATABASE_URL: NEON_POOLED });
+  assert.equal(cfg.database.kind, "postgres");
 });
 
 test("sviluppo: database e storage locali ammessi", () => {
