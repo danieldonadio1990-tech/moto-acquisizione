@@ -126,9 +126,13 @@ if $neon_auto && [[ -z "${BOOT_OWNER_URL:-}" ]]; then
   fi
   if neon_cli me >/dev/null 2>&1; then
     echo "  cerco i progetti Neon…"
-    project_id=$(neon_cli projects list --output json 2>/dev/null | python3 -c '
+    neon_err=$(mktemp)
+    project_id=$(neon_cli projects list --output json 2>"$neon_err" | python3 -c '
 import json, sys
-d = json.load(sys.stdin)
+try:
+    d = json.load(sys.stdin)
+except ValueError:
+    sys.exit(0)
 ps = d.get("projects", d) if isinstance(d, dict) else d
 ps = [p for p in ps if isinstance(p, dict) and p.get("id")]
 if len(ps) == 1:
@@ -137,9 +141,11 @@ elif ps:
     sys.stderr.write("Più progetti Neon: " + ", ".join(p.get("name", "?") + " (" + p["id"] + ")" for p in ps) + "\n")
 ' || true)
     if [[ -z "$project_id" ]]; then
+      [[ -s "$neon_err" ]] && { echo "  Messaggio di neonctl:"; head -n 4 "$neon_err" | cut -c1-200 | sed 's/^/    /'; }
       echo "  Non sono riuscito a scegliere il progetto da solo (più progetti o organizzazioni, oppure neonctl non ha risposto)."
       echo "  Lo trovi su console.neon.tech → il tuo progetto → Settings → Project ID (non è un segreto)."
     fi
+    rm -f "$neon_err"
     if [[ -z "$project_id" ]]; then read -rp "ID del progetto Neon (o invio per incollare la stringa): " project_id || project_id=""; fi
     if [[ -n "$project_id" ]]; then
       BOOT_OWNER_URL=$(neon_cli connection-string --project-id "$project_id" --pooled=false --ssl require 2>/dev/null || true)
