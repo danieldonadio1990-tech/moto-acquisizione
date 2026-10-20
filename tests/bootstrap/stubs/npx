@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 echo "npx|argv=$*" >> "${MOCK_LOG:?}"
+if [[ "${MOCK_NPX_NEEDS_STDIN:-0}" == 1 && ! "$*" == *" me" ]]; then  # simula una domanda interattiva: se stdin è aperto, resta appeso
+  read -r -t 5 _x && { echo "npx|BLOCCATO su stdin" >> "${MOCK_LOG:?}"; exit 0; }
+  exit 1
+fi
 case "$*" in
   *" me") exit 0 ;;
   *"projects list"*) echo '{"projects":[{"id":"proj-1","name":"moto"}]}' ;;

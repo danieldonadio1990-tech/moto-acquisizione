@@ -117,12 +117,15 @@ ok "strumenti presenti"
 # ===========================================================================================================================
 say "1. Credenziali in ingresso (a schermo nascosto, mai stampate)"
 if $neon_auto && [[ -z "${BOOT_OWNER_URL:-}" ]]; then
-  neon_cli() { npx --yes neonctl@latest "$@"; }
+  # stdin chiuso e tempo massimo: se neonctl volesse fare una domanda interattiva (es. scelta dell'organizzazione) NON resta appeso in silenzio
+  neon_cli() { if command -v timeout >/dev/null 2>&1; then timeout 90 npx --yes neonctl@latest "$@" </dev/null; else npx --yes neonctl@latest "$@" </dev/null; fi; }
+  echo "  verifico l'accesso a Neon (fino a 90 secondi)…"
   if ! neon_cli me >/dev/null 2>&1; then
     echo "Login Neon nel browser (gratuito; autentica la CLI, non modifica nulla)."
-    neon_cli login || echo "Login Neon non riuscito: passo all'inserimento manuale."
+    npx --yes neonctl@latest login </dev/null || echo "Login Neon non riuscito: passo all'inserimento manuale."
   fi
   if neon_cli me >/dev/null 2>&1; then
+    echo "  cerco i progetti Neon…"
     project_id=$(neon_cli projects list --output json 2>/dev/null | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
@@ -133,6 +136,10 @@ if len(ps) == 1:
 elif ps:
     sys.stderr.write("Più progetti Neon: " + ", ".join(p.get("name", "?") + " (" + p["id"] + ")" for p in ps) + "\n")
 ' || true)
+    if [[ -z "$project_id" ]]; then
+      echo "  Non sono riuscito a scegliere il progetto da solo (più progetti o organizzazioni, oppure neonctl non ha risposto)."
+      echo "  Lo trovi su console.neon.tech → il tuo progetto → Settings → Project ID (non è un segreto)."
+    fi
     if [[ -z "$project_id" ]]; then read -rp "ID del progetto Neon (o invio per incollare la stringa): " project_id || project_id=""; fi
     if [[ -n "$project_id" ]]; then
       BOOT_OWNER_URL=$(neon_cli connection-string --project-id "$project_id" --pooled=false --ssl require 2>/dev/null || true)

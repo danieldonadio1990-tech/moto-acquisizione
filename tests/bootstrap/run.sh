@@ -85,6 +85,11 @@ expect "ha usato neonctl (connection-string, non pooled)" has 'npx\|.*connection
 expect "nessun segreto in log o output" no_canary
 expect "nessuna scrittura" hasnt 'ro=no|kind=WRITE'
 
+scenario "DRY-RUN --neon-auto: neonctl che farebbe una domanda interattiva NON resta appeso e si passa all'ID manuale" "x\n" BOOT_OWNER_URL= MOCK_NPX_NEEDS_STDIN=1 -- --dry-run --neon-auto
+expect "neonctl non ha ricevuto stdin" hasnt 'BLOCCATO su stdin'
+expect "spiega dove trovare l'ID del progetto" out_has 'Project ID'
+expect "nessun segreto in log o output" no_canary
+
 # ---------------------------------------------------------------------------------------------------------------------------
 scenario "APPLY annullato alla conferma generale: nessuna modifica" "\n" -- --apply
 expect "esce con 1" test "$RC" -eq 1
