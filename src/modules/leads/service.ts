@@ -12,7 +12,7 @@ import {
   motorcycles,
   offers,
 } from "@/db/schema";
-import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
+import { canonicalBrand, getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { matchBuyBox } from "@/modules/buybox/match";
 import { recordEvent } from "@/modules/analytics/server";
 import { getPhotoStorage } from "@/modules/photos/storage";
@@ -73,7 +73,7 @@ export async function createLead(input: LeadSubmission): Promise<CreatedLead> {
         .insert(motorcycles)
         .values({
           catalogModelId: catalog?.id ?? null,
-          brand: catalog?.brand ?? m.brand,
+          brand: catalog?.brand ?? canonicalBrand(m.brand),
           model: catalog?.name ?? m.modelOther!,
           version: m.version || null,
           year: m.year,

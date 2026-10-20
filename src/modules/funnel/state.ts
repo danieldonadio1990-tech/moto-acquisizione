@@ -60,7 +60,7 @@ export const initialState: FunnelState = {
   photosSent: 0,
 };
 
-const KEY = "funnel-v1";
+const KEY = "funnel-v2";
 
 /** Stato del funnel salvato in sessionStorage: un refresh non fa perdere i dati inseriti. */
 export function useFunnelState() {

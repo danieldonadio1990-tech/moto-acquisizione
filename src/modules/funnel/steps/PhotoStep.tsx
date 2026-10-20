@@ -77,7 +77,7 @@ export function PhotoStep({
 
   return (
     <>
-      <StepTitle sub="Con le foto possiamo darti una risposta più precisa. Non servono documenti.">
+      <StepTitle sub="Sono facoltative: con le foto possiamo darti una risposta più precisa, ma puoi inviare la richiesta anche senza. Non servono documenti.">
         Aggiungi qualche foto
       </StepTitle>
 

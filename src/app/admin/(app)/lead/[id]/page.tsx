@@ -72,6 +72,10 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
   const purchased = lead.status === "purchased";
   const acceptedOffer = offers.find((o) => o.status === "accepted");
   const motoName = `${moto.brand} ${moto.model}${moto.displacement ? ` ${moto.displacement}` : ""}`;
+  const customerWhatsapp = whatsappLink(
+    `Ciao ${customer.firstName}, ti scrivo per la tua richiesta ${lead.code} (${motoName}).`,
+    customer.phone,
+  );
 
   return (
     <>
@@ -153,17 +157,16 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
               ]}
             />
             <div className="mt-5 flex flex-wrap gap-2">
-              <a
-                href={whatsappLink(
-                  `Ciao ${customer.firstName}, ti scrivo per la tua richiesta ${lead.code} (${motoName}).`,
-                  customer.phone,
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-10 items-center rounded-lg bg-ok px-4 text-sm font-bold text-paper"
-              >
-                Scrivi su WhatsApp
-              </a>
+              {customerWhatsapp && (
+                <a
+                  href={customerWhatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-10 items-center rounded-lg bg-ok px-4 text-sm font-bold text-paper"
+                >
+                  Scrivi su WhatsApp
+                </a>
+              )}
               <a href={`tel:${customer.phone}`} className="inline-flex h-10 items-center rounded-lg px-4 text-sm font-bold ring-1 ring-line">
                 Chiama
               </a>

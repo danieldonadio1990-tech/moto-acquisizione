@@ -14,10 +14,12 @@ export function DoneStep({
   photosSent: number;
   onHome: () => void;
 }) {
-  const message =
+  // senza un numero WhatsApp aziendale configurato il pulsante non compare (mai un link verso un numero di esempio)
+  const waHref = whatsappLink(
     photosSent > 0
       ? `Ciao! Ho appena inviato la richiesta ${code} per la mia ${motoLabel}.`
-      : `Ciao! Ho appena inviato la richiesta ${code} per la mia ${motoLabel}. Vi mando qui le foto.`;
+      : `Ciao! Ho appena inviato la richiesta ${code} per la mia ${motoLabel}. Vi mando qui le foto.`,
+  );
 
   return (
     <div className="step-in">
@@ -32,21 +34,29 @@ export function DoneStep({
         Il nostro team verificherà le informazioni e ti ricontatterà per completare la valutazione.
       </p>
 
+      {!waHref && (
+        <p className="mt-2 max-w-[38ch] text-lg leading-snug text-asphalt-soft">
+          Conserva il codice qui sotto: ti ricontatteremo ai recapiti che ci hai lasciato.
+        </p>
+      )}
+
       <div className="mt-8 inline-flex items-center gap-3 rounded-xl bg-paper px-4 py-3 ring-1 ring-line">
         <span className="text-sm text-concrete">Codice richiesta</span>
         <span className="display tabular text-2xl tracking-widest">{code}</span>
       </div>
 
       <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-        <a
-          href={whatsappLink(message)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => track("whatsapp_click", { from: "done" })}
-          className="inline-flex h-14 items-center justify-center rounded-xl bg-plate px-8 text-lg font-bold text-paper hover:bg-plate-deep"
-        >
-          Contattaci su WhatsApp
-        </a>
+        {waHref && (
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track("whatsapp_click", { from: "done" })}
+            className="inline-flex h-14 items-center justify-center rounded-xl bg-plate px-8 text-lg font-bold text-paper hover:bg-plate-deep"
+          >
+            Contattaci su WhatsApp
+          </a>
+        )}
         <Link
           href="/"
           onClick={onHome}

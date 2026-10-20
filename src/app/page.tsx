@@ -48,7 +48,7 @@ export default function Home() {
 
       <header className="mx-auto flex max-w-5xl items-center justify-between px-5 pt-5 md:px-8">
         <BrandMark />
-        <a href="#come-funziona" className="text-sm font-semibold underline-offset-4 hover:underline">
+        <a href="#come-funziona" className="hidden text-sm font-semibold underline-offset-4 hover:underline sm:inline">
           Come funziona
         </a>
       </header>

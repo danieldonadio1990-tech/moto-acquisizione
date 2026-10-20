@@ -2,13 +2,32 @@ import { CATALOG, OTHER_MODEL_ID, type CatalogModel } from "./data";
 
 export { OTHER_MODEL_ID, type CatalogModel };
 
-/** Marche in ordine: prima quelle più trattate, poi alfabetico. */
-const FEATURED_BRANDS = ["Honda", "Piaggio", "Kymco"];
+/**
+ * Le 10 marche mostrate subito nel modulo, in quest'ordine (senza duplicati). Per tutte le altre c'è la voce "Altro"
+ * (marca e modello scritti a mano). Un modello del catalogo di una marca non presente qui (es. Vespa) resta salvabile
+ * come "Altro" digitando la marca.
+ */
+export const MAIN_BRANDS = [
+  "Honda",
+  "Piaggio",
+  "Yamaha",
+  "Kymco",
+  "SYM",
+  "BMW",
+  "Suzuki",
+  "Kawasaki",
+  "Aprilia",
+  "Ducati",
+] as const;
 
 export function listBrands(): string[] {
-  const all = [...new Set(CATALOG.map((m) => m.brand))];
-  const rest = all.filter((b) => !FEATURED_BRANDS.includes(b)).sort();
-  return [...FEATURED_BRANDS.filter((b) => all.includes(b)), ...rest];
+  return [...MAIN_BRANDS];
+}
+
+/** Se il testo scritto a mano coincide (maiuscole a parte) con una marca principale, usa il nome canonico. */
+export function canonicalBrand(text: string): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  return MAIN_BRANDS.find((b) => b.toLowerCase() === t.toLowerCase()) ?? t;
 }
 
 export function listModels(brand: string): CatalogModel[] {

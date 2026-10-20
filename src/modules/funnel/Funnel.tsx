@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ZodError } from "zod";
 import { BrandMark } from "@/components/BrandMark";
+import { hasWhatsapp } from "@/config/business";
 import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { captureAttribution, getAttribution, track } from "@/modules/analytics/client";
 import { postWithRetry } from "./net";
@@ -371,7 +372,7 @@ export function Funnel() {
                   disabled={submitting}
                   className="mt-2 h-11 w-full font-semibold text-plate underline-offset-4 hover:underline"
                 >
-                  Le mando dopo su WhatsApp
+                  {hasWhatsapp() ? "Le mando dopo su WhatsApp" : "Invia senza foto"}
                 </button>
               )}
             </div>

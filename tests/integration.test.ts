@@ -76,6 +76,44 @@ const uploadsOf = async (leadId: string) => {
   return keys;
 };
 
+describe("0. Marca e modello scritti a mano (\"Altro\")", () => {
+  test("marca non in elenco + modello libero: salvati, visibili in elenco, dettaglio ed export", async () => {
+    const s = submission({
+      motorcycle: { brand: "Triumph", modelId: "other", modelOther: "Street Triple", year: 2018, displacement: 765 },
+    });
+    const lead = await svc.createLead(s);
+    const detail = await svc.getLeadDetail(lead.id);
+    assert.equal(detail?.motorcycle.brand, "Triumph");
+    assert.equal(detail?.motorcycle.model, "Street Triple");
+    assert.equal(detail?.motorcycle.catalogModelId, null);
+    const list = await svc.listLeads({});
+    const row = list.find((r) => r.id === lead.id);
+    assert.equal(row?.brand, "Triumph");
+    assert.equal(row?.model, "Street Triple");
+    const { buildDataset } = await import("@/modules/leads/dataset");
+    const ds = await buildDataset();
+    assert.ok(ds.some((d) => d.marca === "Triumph"));
+  });
+
+  test("marca principale senza modelli in catalogo (Ducati) con modello libero; maiuscole normalizzate", async () => {
+    const lead = await svc.createLead(
+      submission({ motorcycle: { brand: "ducati", modelId: "other", modelOther: "Monster 821", year: 2020 } }),
+    );
+    const detail = await svc.getLeadDetail(lead.id);
+    assert.equal(detail?.motorcycle.brand, "Ducati");
+    assert.equal(detail?.motorcycle.model, "Monster 821");
+  });
+
+  test("richieste con modello a catalogo (anche Vespa, fuori dalle 10 marche) continuano a funzionare", async () => {
+    const lead = await svc.createLead(
+      submission({ motorcycle: { brand: "Vespa", modelId: "vespa-primavera", year: 2019, displacement: 125 } }),
+    );
+    const detail = await svc.getLeadDetail(lead.id);
+    assert.equal(detail?.motorcycle.brand, "Vespa");
+    assert.equal(detail?.motorcycle.model, "Primavera");
+  });
+});
+
 describe("1. Idempotenza lead", () => {
   test("stesso submissionId due volte → stesso lead e stesso token", async () => {
     const s = submission();

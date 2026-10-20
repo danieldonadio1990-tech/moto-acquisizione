@@ -12,8 +12,11 @@
  */
 
 export const BRAND = {
-  /** Nome provvisorio: sostituire dopo la fase di naming e verifica disponibilità */
-  name: "[BRAND]",
+  /**
+   * Nome commerciale scelto. NON è ancora stata verificata la disponibilità legale del nome (marchio) né del dominio:
+   * farlo prima di investire in comunicazione.
+   */
+  name: "Compro Moto",
   /** Area servita, mostrata nei testi */
   area: "Milano e provincia",
   /** Testo usato in titolo e descrizione per i motori di ricerca e la condivisione */
@@ -75,7 +78,8 @@ export function missingBusinessData(): string[] {
   for (const [g, obj] of Object.entries(groups)) {
     for (const [k, v] of Object.entries(obj)) if (isPlaceholder(v)) out.push(`${g}.${k}`);
   }
-  if (BRAND.name === "[BRAND]") out.push("BRAND.name (nome provvisorio)");
+  if (BRAND.name.startsWith("[")) out.push("BRAND.name (nome provvisorio)");
+  if (!hasWhatsapp()) out.push("CONTACTS.whatsapp (finché manca, il pulsante WhatsApp è nascosto)");
   return out;
 }
 
@@ -89,11 +93,26 @@ export function siteUrl(): URL {
   return new URL(`http://localhost:${process.env.PORT || 3000}`);
 }
 
-/** Link wa.me verso il numero aziendale, oppure verso un numero indicato (es. il cliente, dal backoffice). */
-export function whatsappLink(message?: string, toNumber: string = CONTACTS.whatsapp) {
-  const digits = toNumber.replace(/\D/g, "");
-  const base = digits ? `https://wa.me/${digits}` : "https://wa.me/";
+/** Un numero WhatsApp valido: solo cifre in formato internazionale, senza "+" (es. 393331234567). */
+const WHATSAPP_DIGITS = /^\d{8,15}$/;
+
+/** Vero solo se il numero aziendale è stato configurato davvero (mai per un segnaposto). */
+export const hasWhatsapp = () => !isPlaceholder(CONTACTS.whatsapp) && WHATSAPP_DIGITS.test(CONTACTS.whatsapp.trim());
+
+/**
+ * Link wa.me verso il numero aziendale, oppure verso un numero indicato (es. il cliente, dal backoffice).
+ * Restituisce null se non c'è un numero valido: in particolare NON genera mai un link dalle cifre di un segnaposto.
+ */
+export function whatsappLink(message?: string, toNumber?: string): string | null {
+  let digits: string;
+  if (toNumber === undefined) {
+    if (!hasWhatsapp()) return null;
+    digits = CONTACTS.whatsapp.trim();
+  } else {
+    if (isPlaceholder(toNumber)) return null;
+    digits = toNumber.replace(/\D/g, "");
+    if (!WHATSAPP_DIGITS.test(digits)) return null;
+  }
+  const base = `https://wa.me/${digits}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
-
-export const hasWhatsapp = () => !isPlaceholder(CONTACTS.whatsapp);
