@@ -29,6 +29,8 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* le animazioni di ingresso non devono mai creare uno scorrimento orizzontale */
+  overflow-x: clip;
 }
 
 body {
