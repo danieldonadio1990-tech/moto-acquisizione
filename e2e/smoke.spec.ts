@@ -112,9 +112,12 @@ test("home pubblica: contenuti, nessun segnaposto in pagina, nessun link WhatsAp
   expect(text).not.toContain("[BRAND]");
   const hrefs = await page.locator("a").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).href));
   expect(hrefs.filter((h) => h.includes("wa.me"))).toEqual([]);
+  expect(hrefs.filter((h) => h.startsWith("tel:"))).toEqual([]); // nessun telefono configurato → nessun pulsante «Chiama»
+  await expect(page.getByRole("link", { name: /Chiama|WhatsApp/ })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   // le 10 marche e "Altro" nel modulo
   await page.goto("/valuta");
+  await expect(page.getByText("Che moto hai?")).toBeVisible(); // il modulo compare dopo l'idratazione
   const marche = (await page.locator("fieldset", { hasText: "Marca" }).locator("label").allInnerTexts()).map((l) => l.trim());
   expect(marche).toEqual(["Honda", "Piaggio", "Yamaha", "Kymco", "SYM", "BMW", "Suzuki", "Kawasaki", "Aprilia", "Ducati", "Altro"]);
 });

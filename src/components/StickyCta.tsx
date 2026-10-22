@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { TrackedLink } from "./Track";
 import { btnPrimary } from "./buttons";
+import { PhoneButton, WhatsAppButton } from "./ContactButtons";
 
 /** Su mobile, quando la CTA principale esce dallo schermo, compare una barra in basso. */
 export function StickyCta({ watchId }: { watchId: string }) {
@@ -22,14 +23,13 @@ export function StickyCta({ watchId }: { watchId: string }) {
         visible ? "translate-y-0" : "translate-y-full"
       }`}
     >
-      <TrackedLink
-        href="/valuta"
-        event="cta_click"
-        label="sticky"
-        className={`${btnPrimary} w-full`}
-      >
-        Valuta la tua moto
-      </TrackedLink>
+      <div className="flex gap-2">
+        <TrackedLink href="/valuta" event="cta_click" label="sticky" className={`${btnPrimary} min-w-0 flex-1 px-4`}>
+          Valuta la tua moto
+        </TrackedLink>
+        <WhatsAppButton from="sticky" size="icon" />
+        <PhoneButton size="icon" />
+      </div>
     </div>
   );
 }

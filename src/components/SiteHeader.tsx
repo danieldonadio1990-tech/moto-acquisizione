@@ -1,6 +1,7 @@
 import { BrandMark } from "./BrandMark";
 import { TrackedLink } from "./Track";
 import { btnPrimarySm } from "./buttons";
+import { PhoneButton, WhatsAppButton } from "./ContactButtons";
 
 /** Intestazione del sito: logo, link essenziali e CTA. Su telefono stretto la CTA resta nella barra in basso. */
 export function SiteHeader() {
@@ -9,12 +10,17 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <BrandMark size="sm" />
         <nav aria-label="Principale" className="flex items-center gap-5">
-          <a href="#come-funziona" className="hidden text-sm font-bold underline-offset-4 hover:underline md:inline">
+          <a href="#come-funziona" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline md:inline">
             Come funziona
           </a>
-          <a href="#mezzi" className="hidden text-sm font-bold underline-offset-4 hover:underline md:inline">
+          <a href="#mezzi" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline 2xl:inline">
             Quali mezzi
           </a>
+          {/* contatti diretti: solo da schermi larghi e solo se i numeri sono configurati */}
+          <div className="hidden items-center gap-2 lg:flex">
+            <PhoneButton size="sm" numberOnly />
+            <WhatsAppButton from="header" size="sm" />
+          </div>
           <TrackedLink
             href="/valuta"
             event="cta_click"

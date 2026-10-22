@@ -4,6 +4,7 @@ import { whatsappLink } from "@/config/business";
 import { track } from "@/modules/analytics/client";
 import { IconCheck } from "@/components/Icons";
 import { btnOutline, btnPrimary } from "@/components/buttons";
+import { PhoneButton } from "@/components/ContactButtons";
 
 export function DoneStep({
   code,
@@ -72,6 +73,7 @@ export function DoneStep({
             Contattaci su WhatsApp
           </a>
         )}
+        <PhoneButton showNumber />
         <Link href="/" onClick={onHome} className={btnOutline}>
           Torna alla home
         </Link>

@@ -59,6 +59,13 @@ body {
   outline-color: var(--color-signal);
 }
 
+/* Mezzeria orizzontale tratteggiata (decorazione tipografica, nessuna immagine) */
+.lane-h {
+  background-image: linear-gradient(to right, var(--color-signal) 0 60%, transparent 60% 100%);
+  background-size: 28px 4px;
+  background-repeat: repeat-x;
+}
+
 /* Linea di mezzeria tratteggiata (percorso "come funziona") */
 .lane {
   background-image: linear-gradient(to bottom, var(--color-signal) 0 60%, transparent 60% 100%);

@@ -28,7 +28,10 @@ export const BRAND = {
 export const CONTACTS = {
   /** Formato internazionale, solo cifre, senza "+" (es. 393331234567) */
   whatsapp: "[DA COMPLETARE: numero WhatsApp, es. 393331234567]",
-  /** Telefono come va mostrato */
+  /**
+   * Telefono come va mostrato (es. "02 1234 5678" o "+39 333 123 4567"). Il link "tel:" si ricava dalle cifre: senza
+   * prefisso internazionale si assume l'Italia (+39). Può essere diverso dal numero WhatsApp.
+   */
   phone: "[DA COMPLETARE: telefono]",
   email: "[DA COMPLETARE: email di contatto]",
 } as const;
@@ -80,6 +83,7 @@ export function missingBusinessData(): string[] {
   }
   if (BRAND.name.startsWith("[")) out.push("BRAND.name (nome provvisorio)");
   if (!hasWhatsapp()) out.push("CONTACTS.whatsapp (finché manca, il pulsante WhatsApp è nascosto)");
+  if (!hasPhone()) out.push("CONTACTS.phone (finché manca, il pulsante Chiama è nascosto)");
   return out;
 }
 
@@ -116,3 +120,48 @@ export function whatsappLink(message?: string, toNumber?: string): string | null
   const base = `https://wa.me/${digits}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
+
+/** Primo messaggio precompilato nella conversazione WhatsApp dal sito. */
+export const WHATSAPP_MESSAGE = "Ciao, vorrei informazioni per vendere il mio scooter";
+
+/**
+ * Link "tel:" in formato internazionale ricavato dal numero indicato (mostrato così com'è). Restituisce null se il numero
+ * è un segnaposto o non è valido: in quel caso il pulsante "Chiama" non deve comparire.
+ */
+export function phoneTelHref(raw: string): string | null {
+  const v = raw.trim();
+  if (isPlaceholder(v) || !/^\+?[\d\s().\-/]{6,24}$/.test(v)) return null;
+  let digits = v.replace(/\D/g, "");
+  if (v.startsWith("+")) {
+    /* già internazionale */
+  } else if (digits.startsWith("00")) {
+    digits = digits.slice(2);
+  } else {
+    digits = `39${digits}`;
+  }
+  return /^\d{8,15}$/.test(digits) ? `tel:+${digits}` : null;
+}
+
+/** Vero solo se il telefono aziendale è stato configurato davvero. */
+export const hasPhone = () => phoneTelHref(CONTACTS.phone) !== null;
+
+export type ContactLinks = {
+  /** link wa.me con messaggio precompilato, oppure null (pulsante nascosto) */
+  whatsapp: string | null;
+  /** link tel: e testo da mostrare, oppure null (pulsante nascosto) */
+  phone: { href: string; label: string } | null;
+};
+
+/** Pulsanti di contatto da mostrare per i numeri dati. Funzione pura (testabile con numeri di prova). */
+export function buildContactLinks(c: { whatsapp: string; phone: string }, message: string = WHATSAPP_MESSAGE): ContactLinks {
+  const wa = c.whatsapp.trim();
+  const waOk = !isPlaceholder(wa) && WHATSAPP_DIGITS.test(wa);
+  const tel = phoneTelHref(c.phone);
+  return {
+    whatsapp: waOk ? `https://wa.me/${wa}?text=${encodeURIComponent(message)}` : null,
+    phone: tel ? { href: tel, label: c.phone.trim() } : null,
+  };
+}
+
+/** Contatti aziendali configurati (vuoti finché i numeri sono segnaposto). */
+export const contactLinks = (message?: string): ContactLinks => buildContactLinks(CONTACTS, message);

@@ -1,11 +1,12 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { SitePhoto } from "@/components/SitePhoto";
+import { SitePhoto, hasPhoto } from "@/components/SitePhoto";
+import { PhoneButton, WhatsAppButton } from "@/components/ContactButtons";
 import { StickyCta } from "@/components/StickyCta";
 import { TrackedLink, TrackOnMount } from "@/components/Track";
 import { IconArrowRight, IconCheck, IconClipboard, IconKey, IconPlus, IconSearch } from "@/components/Icons";
 import { btnOutline, btnPrimary } from "@/components/buttons";
-import { BRAND } from "@/config/business";
+import { BRAND, contactLinks } from "@/config/business";
 import type { ImageKey } from "@/config/images";
 
 const STEPS = [
@@ -26,11 +27,14 @@ const STEPS = [
   },
 ];
 
-const MODELS: { id: ImageKey; brand: string; name: string }[] = [
-  { id: "honda_sh", brand: "Honda", name: "SH" },
-  { id: "piaggio_liberty", brand: "Piaggio", name: "Liberty" },
-  { id: "kymco_agility", brand: "Kymco", name: "Agility" },
+const MODELS: { id: ImageKey; brand: string; name: string; panel: string }[] = [
+  { id: "honda_sh", brand: "Honda", name: "SH", panel: "bg-plate text-paper" },
+  { id: "piaggio_liberty", brand: "Piaggio", name: "Liberty", panel: "bg-asphalt text-paper" },
+  { id: "kymco_agility", brand: "Kymco", name: "Agility", panel: "bg-asphalt-soft text-paper" },
 ];
+
+/** Cosa chiediamo nel modulo: composizione tipografica dell'hero finché non c'è la fotografia. */
+const NEEDED = ["Marca e modello", "Anno e chilometri", "Le condizioni del mezzo", "I tuoi contatti", "Qualche foto (facoltativa)"];
 
 const EASY = [
   "Invii la richiesta online, dal telefono o dal computer.",
@@ -98,10 +102,30 @@ export default function Home() {
                 Ci occupiamo soprattutto di scooter da città, ma puoi inviare anche la richiesta per un&apos;altra moto.
               </p>
             </div>
-            <div className="overflow-hidden rounded-3xl ring-1 ring-paper/10 md:order-last">
-              <div className="aspect-[4/3] w-full">
-                <SitePhoto id="hero" priority />
-              </div>
+            <div className="md:order-last">
+              {hasPhoto("hero") ? (
+                <div className="overflow-hidden rounded-3xl ring-1 ring-paper/10">
+                  <div className="aspect-[4/3] w-full">
+                    <SitePhoto id="hero" priority />
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-3xl bg-asphalt-raised p-6 ring-1 ring-paper/10 sm:p-8">
+                  <p className="text-sm font-bold uppercase tracking-wider text-signal">Cosa ci serve</p>
+                  <p className="display mt-2 text-3xl sm:text-4xl">Pochi dati sul tuo mezzo.</p>
+                  <ul className="mt-6 space-y-3">
+                    {NEEDED.map((t) => (
+                      <li key={t} className="flex items-center gap-3 text-lg">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal text-asphalt">
+                          <IconCheck className="h-3.5 w-3.5" />
+                        </span>
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                  <span aria-hidden className="lane-h mt-8 block h-1 w-full" />
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -136,11 +160,24 @@ export default function Home() {
               {MODELS.map((m) => (
                 <li key={m.id} className="overflow-hidden rounded-2xl bg-chalk ring-1 ring-line">
                   <div className="aspect-[4/3] w-full">
-                    <SitePhoto id={m.id} />
+                    {hasPhoto(m.id) ? (
+                      <SitePhoto id={m.id} />
+                    ) : (
+                      <div className={`flex h-full w-full flex-col justify-between p-5 ${m.panel}`}>
+                        <span className="text-sm font-bold uppercase tracking-widest text-signal">{m.brand}</span>
+                        <span className="display text-[clamp(3.5rem,9vw,5rem)] leading-none">{m.name}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-5">
-                    <p className="text-sm font-bold uppercase tracking-wider text-concrete">{m.brand}</p>
-                    <p className="display text-3xl">{m.name}</p>
+                    {hasPhoto(m.id) ? (
+                      <>
+                        <p className="text-sm font-bold uppercase tracking-wider text-concrete">{m.brand}</p>
+                        <p className="display text-3xl">{m.name}</p>
+                      </>
+                    ) : (
+                      <p className="font-semibold text-asphalt-soft">Scooter da città</p>
+                    )}
                   </div>
                 </li>
               ))}
@@ -217,6 +254,15 @@ export default function Home() {
                 <IconArrowRight className="h-5 w-5" />
               </TrackedLink>
               <p className="mt-3 text-sm font-semibold text-paper/80">Gratis e senza impegno · {BRAND.area}</p>
+              {(contactLinks().whatsapp || contactLinks().phone) && (
+                <div className="mt-6 border-t border-paper/20 pt-5">
+                  <p className="mb-3 text-sm font-bold text-paper/85">Preferisci parlare con noi?</p>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <WhatsAppButton from="home-finale" />
+                    <PhoneButton tone="dark" showNumber />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>

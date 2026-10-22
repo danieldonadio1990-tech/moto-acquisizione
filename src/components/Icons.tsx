@@ -52,3 +52,19 @@ export const IconArrowRight = ({ className }: { className?: string }) => (
     <path d="M5 12h14M13 6l6 6-6 6" />
   </svg>
 );
+
+/** Fumetto di chat con cornetta: icona generica del contatto via messaggio (WhatsApp). */
+export const IconChat = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
+    <path d="M4 20l1.3-4.1A8.5 8.5 0 1 1 8.2 18.7L4 20z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path
+      d="M9.2 8.6c.3 2.3 2.3 4.4 4.6 4.8l1.2-1.3-1.9-1-1 .7c-.9-.5-1.5-1.1-2-2l.7-1-.9-1.9z"
+      fill="currentColor"
+    />
+  </svg>
+);
+export const IconCall = ({ className }: { className?: string }) => (
+  <svg {...base} className={className}>
+    <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" />
+  </svg>
+);
