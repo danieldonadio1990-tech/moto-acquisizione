@@ -110,6 +110,7 @@ async function exhaustedLead(set: Record<string, unknown> = {}) {
   });
   return l.id;
 }
+const pick = (r: { outcome: string; error: string | null }) => ({ outcome: r.outcome, error: r.error });
 const eventsOf = async (id: string) => {
   const db = await dbmod.getDb();
   return db.select().from(schema.events).where(orm.and(orm.eq(schema.events.leadId, id), orm.eq(schema.events.name, "notification_manual_retry")));
@@ -136,7 +137,7 @@ describe("1. Retry manuale di una notifica con tentativi automatici esauriti", (
     const id = await exhaustedLead();
     const p = arm();
     const res = await nl.manualRetryNotification(id, ADMIN);
-    assert.deepEqual(res, { outcome: "sent", error: null });
+    assert.deepEqual(pick(res), { outcome: "sent", error: null });
     assert.equal(p.attempts.length, 1);
     const r = await row(id);
     assert.equal(r.notificationStatus, "sent");
@@ -157,7 +158,7 @@ describe("1. Retry manuale di una notifica con tentativi automatici esauriti", (
     assert.equal(p.attempts.length, 0);
 
     const manual = await nl.manualRetryNotification(id, ADMIN);
-    assert.deepEqual(manual, { outcome: "failed", error: "http_503" });
+    assert.deepEqual(pick(manual), { outcome: "failed", error: "http_503" });
     const r = await row(id);
     assert.deepEqual([r.notificationStatus, r.notificationAttempts], ["failed", nl.MAX_ATTEMPTS + 1]);
 
@@ -173,7 +174,7 @@ describe("1. Retry manuale di una notifica con tentativi automatici esauriti", (
     const id = await exhaustedLead();
     arm("throw");
     const res = await nl.manualRetryNotification(id, ADMIN);
-    assert.deepEqual(res, { outcome: "failed", error: "internal" });
+    assert.deepEqual(pick(res), { outcome: "failed", error: "internal" });
     assert.ok(await svc.getLeadDetail(id));
     assert.equal((await row(id)).notificationStatus, "failed");
   });
@@ -303,5 +304,118 @@ describe("4. Traccia e visibilità nel back office", () => {
     assert.equal(nl.canOfferManualRetry({ notificationStatus: "pending", createdAt: new Date() }), false);
     assert.equal(nl.canOfferManualRetry({ notificationStatus: "sent", createdAt: old }), false);
     assert.equal(nl.canOfferManualRetry({ notificationStatus: "skipped", createdAt: old }), false);
+  });
+});
+
+/** Provider con un comportamento deciso chiamata per chiamata (ritardo ed esito), per simulare invii che si accavallano. */
+class Scripted implements EmailTransport {
+  calls = 0;
+  deliveries = 0;
+  seen = new Set<string>();
+  constructor(private plan: { delay: number; ok: boolean }[]) {}
+  async send(msg: EmailMessage): Promise<SendResult> {
+    const step = this.plan[this.calls++] ?? { delay: 0, ok: true };
+    await new Promise((r) => setTimeout(r, step.delay));
+    if (!step.ok) return { ok: false, code: "http_503" };
+    if (!this.seen.has(msg.idempotencyKey)) {
+      this.seen.add(msg.idempotencyKey);
+      this.deliveries++;
+    }
+    return { ok: true };
+  }
+}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+describe("5. Invio appeso rilevato da un altro processo: l'esito vecchio non sovrascrive quello nuovo", () => {
+  for (const [name, plan] of [
+    ["il vecchio fallisce DOPO che il nuovo ha finito", [{ delay: 200, ok: false }, { delay: 0, ok: true }]],
+    ["il vecchio fallisce MENTRE il nuovo è ancora in corso", [{ delay: 60, ok: false }, { delay: 250, ok: true }]],
+    ["il vecchio riesce mentre il nuovo fallisce", [{ delay: 60, ok: true }, { delay: 150, ok: false }]],
+  ] as const) {
+    test(name, async () => {
+      const id = await exhaustedLead();
+      const p = new Scripted([...plan]);
+      tr.setEmailTransport(p);
+      const first = nl.manualRetryNotification(id, ADMIN); // A: prenota (ticket 6) e resta in volo
+      await sleep(20);
+      await patch(id, { notificationClaimedAt: minutesAgo(nl.RETRY_AFTER_MINUTES + 1) }); // A risulta appeso da oltre 5 minuti
+      const second = nl.manualRetryNotification(id, ADMIN); // B: rileva la prenotazione (ticket 7)
+      const [a, b] = await Promise.all([first, second]);
+
+      const r = await row(id);
+      assert.equal(r.notificationAttempts, nl.MAX_ATTEMPTS + 2);
+      if (plan[1].ok) {
+        assert.equal(r.notificationStatus, "sent", "l'esito del nuovo processo (riuscito) non va perso");
+        assert.equal(r.notificationError, null);
+        assert.equal(b.outcome, "sent");
+        assert.equal(a.outcome, "not_claimed", "il vecchio non scrive più nulla");
+      } else {
+        // il nuovo fallisce: lo stato è il suo, e il vecchio (riuscito, ma fuori ticket) non lo trasforma in «sent»
+        assert.equal(r.notificationStatus, "failed");
+        assert.equal(b.outcome, "failed");
+        assert.equal(a.outcome, "not_claimed");
+      }
+      assert.ok(p.deliveries <= 1, "mai più di una consegna per la stessa chiave");
+    });
+  }
+});
+
+describe("6. Casi limite del pulsante", () => {
+  test("richiesta inesistente: nessun invio e nessun evento orfano", async () => {
+    const p = arm();
+    const ghost = randomUUID();
+    const res = await nl.manualRetryNotification(ghost, ADMIN);
+    assert.deepEqual(res, { outcome: "not_claimed", error: null, attempts: null, notFound: true });
+    assert.equal(p.attempts.length, 0);
+    assert.equal((await eventsOf(ghost)).length, 0);
+  });
+
+  test("messaggi: dicono chiaramente se un eventuale fallimento verrà o non verrà ritentato in automatico", () => {
+    const m = statusmod.manualRetryMessage;
+    assert.deepEqual(m({ outcome: "sent", error: null, attempts: 6 }, 5), { ok: true });
+    const exhausted = m({ outcome: "failed", error: "timeout", attempts: 6 }, 5) as { error: string };
+    assert.match(exhausted.error, /timeout.*tentativo manuale.*non verrà ritentato in automatico/);
+    const early = m({ outcome: "failed", error: "http_503", attempts: 2 }, 5) as { error: string };
+    assert.match(early.error, /http_503.*riprova da solo/);
+    assert.match((m({ outcome: "not_claimed", error: null, attempts: 3 }, 5) as { error: string }).error, /già inviata o è in corso/);
+    assert.match((m({ outcome: "disabled", error: null, attempts: null }, 5) as { error: string }).error, /non sono configurate/);
+    assert.deepEqual(m({ outcome: "not_claimed", error: null, attempts: null, notFound: true }, 5), { error: "Richiesta non trovata." });
+  });
+
+  test("stato mostrato con tentativi oltre il tetto: «non verrà ritentata in automatico»; invio appeso con tentativi esauriti", () => {
+    const base = { notificationSentAt: null, notificationError: "timeout" };
+    const failed = statusmod.describeNotification({ ...base, notificationStatus: "failed", notificationAttempts: 6 }, () => "x", 5, true);
+    assert.match(failed.detail ?? "", /esauriti \(6 in tutto\).*Non verrà ritentata in automatico.*riprovare a mano/);
+    const hung = statusmod.describeNotification({ ...base, notificationStatus: "sending", notificationAttempts: 5 }, () => "x", 5, true);
+    assert.match(hung.detail ?? "", /esauriti.*riprovare a mano/);
+    const early = statusmod.describeNotification({ ...base, notificationStatus: "sending", notificationAttempts: 1 }, () => "x", 5, true);
+    assert.match(early.detail ?? "", /riprova da solo/);
+  });
+
+  test("il modulo avvisa che il tentativo è manuale quando i tentativi automatici sono esauriti", () => {
+    const form = readFileSync("src/modules/admin/ui/LeadForms.tsx", "utf8");
+    assert.match(form, /exhausted && \(/);
+    assert.match(form, /questo sarà un tentativo manuale e, se fallisce, non verrà ritentato in automatico/);
+    assert.match(readFileSync("src/app/admin/(app)/lead/[id]/page.tsx", "utf8"), /exhausted=\{lead\.notificationAttempts >= MAX_ATTEMPTS\}/);
+  });
+});
+
+describe("7. Registro eventi e cancellazione dei dati", () => {
+  test("le tracce dei retry manuali (email dell'admin) si cancellano con la richiesta; gli altri eventi restano anonimizzati", async () => {
+    tr.setEmailTransport(null);
+    const l = await svc.createLead(submission()); // crea l'evento lead_created
+    arm("fail");
+    await nl.manualRetryNotification(l.id, ADMIN);
+    await nl.manualRetryNotification(l.id, ADMIN);
+    assert.equal((await eventsOf(l.id)).length, 2);
+
+    const erasure = await import("@/modules/privacy/erasure");
+    const rep = await erasure.eraseLead(l.id);
+    assert.equal(rep.eventsAnonymized, 1, "resta anonimizzato solo l'evento aggregato lead_created");
+    assert.deepEqual(await erasure.remainingReferences([l.id]), { leads: 0, events: 0, photos: 0 });
+    const db = await dbmod.getDb();
+    const all = await db.select().from(schema.events);
+    assert.ok(all.every((e) => !JSON.stringify(e.props ?? {}).includes(ADMIN) || e.leadId !== null || e.name !== "notification_manual_retry"));
+    assert.equal(all.filter((e) => e.name === "notification_manual_retry" && JSON.stringify(e.props).includes(ADMIN) && e.leadId === null).length, 0);
   });
 });

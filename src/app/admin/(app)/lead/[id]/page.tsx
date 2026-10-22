@@ -151,7 +151,7 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
               </span>
               {notification.detail && <span className="ml-2 text-concrete">{notification.detail}</span>}
             </p>
-            {canRetryNotification && <RetryNotificationForm leadId={lead.id} />}
+            {canRetryNotification && <RetryNotificationForm leadId={lead.id} exhausted={lead.notificationAttempts >= MAX_ATTEMPTS} />}
             {manualRetries.length > 0 && (
               <ul className="mt-3 space-y-0.5 text-xs text-concrete">
                 {manualRetries.map((r) => (

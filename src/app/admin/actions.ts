@@ -15,7 +15,8 @@ import {
 } from "@/modules/leads/service";
 import { LEAD_STATUSES } from "@/modules/leads/statuses";
 import { clientIp } from "@/lib/rate-limit";
-import { manualRetryNotification } from "@/modules/notifications/new-lead";
+import { MAX_ATTEMPTS, manualRetryNotification } from "@/modules/notifications/new-lead";
+import { manualRetryMessage } from "@/modules/notifications/status";
 import { logError } from "@/lib/log";
 
 export type ActionState = { ok?: boolean; error?: string; email?: string } | null;
@@ -145,10 +146,7 @@ export async function retryNotificationAction(_: ActionState, form: FormData): P
     const leadId = uuid.parse(form.get("leadId"));
     const res = await manualRetryNotification(leadId, admin.email);
     refresh();
-    if (res.outcome === "sent") return { ok: true };
-    if (res.outcome === "failed") return { error: `Invio non riuscito (${res.error ?? "errore"}). Puoi riprovare più tardi.` };
-    if (res.outcome === "disabled") return { error: "Le notifiche email non sono configurate (RESEND_API_KEY, NOTIFY_EMAIL_TO)." };
-    return { error: "La notifica risulta già inviata o è in corso: ricarica la pagina." };
+    return manualRetryMessage(res, MAX_ATTEMPTS);
   } catch (err) {
     return fail(err);
   }

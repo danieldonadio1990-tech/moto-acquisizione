@@ -78,6 +78,21 @@ solo se le notifiche sono configurate.
   producono un solo invio. Il retry manuale ignora il tetto e l'attesa dei tentativi automatici, nient'altro.
 - **Contatore:** ogni tentativo, anche manuale, incrementa `notification_attempts` (può quindi superare 5: «6 in tutto»).
   Il recupero automatico continua a ignorare le richieste che hanno raggiunto il tetto, anche dopo un retry manuale fallito.
+- **Cosa vede l'admin:** con i tentativi automatici esauriti il riquadro dice «Non verrà ritentata in automatico» e il modulo
+  avverte che il nuovo sarà un **tentativo manuale** e, se fallisce, non verrà ritentato da solo; dopo il clic il messaggio
+  ripete se un eventuale fallimento verrà o non verrà ritentato in automatico. Con meno di 5 tentativi dice invece che il
+  sistema riprova da solo. Se la richiesta non esiste, risulta già inviata o ha un invio appena partito (anche da un altro
+  admin) il messaggio lo dice e non parte nulla.
+- **Invio appeso rilevato da un altro processo:** ogni prenotazione assegna un «ticket» (il numero del tentativo) e ogni
+  scrittura finale dell'esito richiede il proprio ticket. Se un invio resta appeso oltre 5 minuti e un altro processo (o un
+  clic manuale) lo rileva, l'esito in ritardo del vecchio processo **non può più sovrascrivere** quello del nuovo. I test
+  simulano i tre ordini di arrivo (verificato che senza il ticket due su tre fallivano).
+- **Registro eventi e dati personali:** l'evento `notification_manual_retry` contiene solo `{by, outcome}` e l'id della
+  richiesta: nessun dato del cliente (verificato da un test). `by` è l'**email dell'amministratore**, trattata come le altre
+  tracce amministrative (`changed_by` nello storico stati, `created_by` nelle offerte): visibile solo nel back office e
+  **cancellata insieme alla richiesta** da `privacy:erase` (gli eventi aggregati `lead_created` restano invece
+  anonimizzati). Gli eventi non hanno una scadenza automatica: l'email dell'admin resta finché esiste la richiesta; se un
+  admin lascia il team, le sue tracce restano associate alle richieste esistenti (da valutare nella revisione privacy).
 - **Duplicati:** se l'email precedente era in realtà stata consegnata (risposta persa), entro 24 ore la chiave impedisce un
   secondo invio; **oltre le 24 ore potrebbe arrivarne una seconda identica**. Il pulsante lo ricorda.
 - **Nessun intervento sul database** è più necessario per questo caso.

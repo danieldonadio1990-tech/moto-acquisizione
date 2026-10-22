@@ -189,7 +189,7 @@ npm run privacy:erase -- --email mario@example.com --yes     # cancella
 ```
 Criteri combinabili: `--email`, `--phone`, `--code` (codice richiesta), `--lead`.
 Cancella cliente, moto, richiesta, offerte, storico, dati di acquisto, foto (righe e file nello storage).
-Gli eventi statistici vengono **anonimizzati**, non cancellati (restano solo i conteggi).
+Gli eventi statistici vengono **anonimizzati**, non cancellati (restano solo i conteggi); le tracce dei retry manuali delle notifiche (`notification_manual_retry`, con l'email dell'admin) vengono **cancellate** con la richiesta.
 In produzione va eseguito con le stesse variabili del server. Annotare data e codice richiesta in un registro
 delle richieste privacy (senza dati personali).
 

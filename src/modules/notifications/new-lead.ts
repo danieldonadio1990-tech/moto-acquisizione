@@ -160,8 +160,13 @@ export async function notifyNewLead(leadId: string, opts: { manual?: boolean } =
               ),
         ),
       )
-      .returning({ id: leads.id });
+      .returning({ id: leads.id, ticket: leads.notificationAttempts });
     if (claimed.length === 0) return "not_claimed";
+    // «ticket»: il contatore dei tentativi assegnato da QUESTA prenotazione. Chi la rileva dopo (invio rimasto appeso oltre
+    // 5 minuti) ottiene un numero più alto: l'esito del vecchio processo, se arrivasse in ritardo, non può più sovrascrivere
+    // quello del nuovo (ogni scrittura finale richiede il proprio ticket).
+    const ticket = claimed[0].ticket;
+    const mine = and(eq(leads.id, leadId), eq(leads.notificationStatus, "sending"), eq(leads.notificationAttempts, ticket));
 
     let result: { ok: boolean; code?: string } = { ok: false, code: "internal" };
     try {
@@ -174,17 +179,20 @@ export async function notifyNewLead(leadId: string, opts: { manual?: boolean } =
     }
 
     if (result.ok) {
-      await db
+      const done = await db
         .update(leads)
         .set({ notificationStatus: "sent", notificationSentAt: sql`now()`, notificationError: null })
-        .where(and(eq(leads.id, leadId), eq(leads.notificationStatus, "sending")));
-      return "sent";
+        .where(mine)
+        .returning({ id: leads.id });
+      // 0 righe = un altro processo ha rilevato la prenotazione e scrive lui l'esito (la chiave di idempotenza evita il doppio invio)
+      return done.length > 0 ? "sent" : "not_claimed";
     }
-    await db
+    const done = await db
       .update(leads)
       .set({ notificationStatus: "failed", notificationError: (result.code ?? "unknown").slice(0, 40) })
-      .where(and(eq(leads.id, leadId), eq(leads.notificationStatus, "sending")));
-    return "failed";
+      .where(mine)
+      .returning({ id: leads.id });
+    return done.length > 0 ? "failed" : "not_claimed";
   } catch (err) {
     // anche un errore del database qui non deve mai arrivare a chi chiama
     logError("notifica email", err);
@@ -204,20 +212,32 @@ export async function notifyNewLead(leadId: string, opts: { manual?: boolean } =
 export async function manualRetryNotification(
   leadId: string,
   adminEmail: string,
-): Promise<{ outcome: NotifyOutcome; error: string | null }> {
+): Promise<{ outcome: NotifyOutcome; error: string | null; attempts: number | null; notFound?: boolean }> {
+  try {
+    const db = await getDb();
+    const [exists] = await db.select({ id: leads.id }).from(leads).where(eq(leads.id, leadId));
+    // un identificativo inesistente non lascia nessuna traccia (e non si crea un evento orfano)
+    if (!exists) return { outcome: "not_claimed", error: null, attempts: null, notFound: true };
+  } catch (err) {
+    logError("notifica email (retry manuale)", err);
+    return { outcome: "failed", error: null, attempts: null };
+  }
   const outcome = await notifyNewLead(leadId, { manual: true });
   await recordEvent("notification_manual_retry", { leadId, props: { by: adminEmail.slice(0, 120), outcome } });
   let error: string | null = null;
-  if (outcome === "failed") {
-    try {
-      const db = await getDb();
-      const [r] = await db.select({ e: leads.notificationError }).from(leads).where(eq(leads.id, leadId));
-      error = r?.e ?? null;
-    } catch {
-      error = null;
-    }
+  let attempts: number | null = null;
+  try {
+    const db = await getDb();
+    const [r] = await db
+      .select({ e: leads.notificationError, a: leads.notificationAttempts })
+      .from(leads)
+      .where(eq(leads.id, leadId));
+    attempts = r?.a ?? null;
+    if (outcome === "failed") error = r?.e ?? null;
+  } catch {
+    // lo stato mostrato dopo il ricaricamento della pagina resta comunque quello del database
   }
-  return { outcome, error };
+  return { outcome, error, attempts };
 }
 
 /**
