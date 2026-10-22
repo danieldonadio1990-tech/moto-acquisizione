@@ -32,3 +32,15 @@ aprire le pagine né scaricare i file. Nessuna di queste immagini è nel sito.
 3. L'immagine mostra davvero il modello indicato; qualità, luce e taglio coerenti con le altre tre.
 4. Nessuna persona riconoscibile né targa leggibile senza liberatoria.
 
+
+## Immagini generate (nessuna ancora nel sito)
+
+| Chiave | Strumento | Data | Stato |
+|---|---|---|---|
+| `hero` | Canva «generate-image» (connettore), formato 4:3, prompt: scooter urbano generico grigio scuro, strada italiana con case ocra e acciottolato, luce naturale, nessun logo/testo/targa/persona | 2026-10-22 | **non integrata**: dall'ambiente è disponibile solo un'anteprima di 199 x 149 px, inutilizzabile per una hero da 1600 x 1200. Originale su Canva (media `MAHYutABNEE`): https://www.canva.com/M/MAHYutABNEE |
+
+Regole per le immagini generate: sono **immagini illustrative**, non fotografie documentarie né ritratti di un modello reale
+o di una via di Milano; non si attribuiscono licenze CC di terzi; didascalia sul sito «Immagine illustrativa»; da verificare
+a cura del committente i termini d'uso commerciale di Canva prima della pubblicazione; controllare che non compaiano loghi,
+testi o dettagli riconducibili a un marchio. Le tre card dei modelli restano **tipografiche** finché non si hanno foto
+corrette (la fedeltà al modello Honda SH / Piaggio Liberty / Kymco Agility non è garantibile con un generatore).
