@@ -4,6 +4,7 @@ import { BusinessRuleError, createLead, findExistingLead } from "@/modules/leads
 import { readLimitedBody, BodyTimeout, BodyTooLarge } from "@/lib/body";
 import { clientIp, rateLimit, RULES, tooManyRequests } from "@/lib/rate-limit";
 import { logError } from "@/lib/log";
+import { notifyNewLead } from "@/modules/notifications/new-lead";
 
 /**
  * Crea il lead (dati moto + contatti). Idempotente sul campo submissionId:
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
   try {
     const lead = await createLeadLimited(request, parsed.data);
     if (lead instanceof Response) return lead;
+    // Notifica email DOPO il salvataggio. Non lancia eccezioni e non cambia la risposta: se l'email non parte
+    // il lead è comunque salvato e la notifica viene ritentata (retry del browser o back office).
+    // Un retry dello stesso invio (duplicate) riprova solo se la notifica non risulta già inviata.
+    await notifyNewLead(lead.id).catch(() => {});
     return NextResponse.json(
       { id: lead.id, code: lead.code, uploadToken: lead.uploadToken },
       { status: lead.duplicate ? 200 : 201 },

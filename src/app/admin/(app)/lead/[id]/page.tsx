@@ -6,6 +6,8 @@ import { getLeadDetail } from "@/modules/leads/service";
 import { STATUS_LABELS } from "@/modules/leads/statuses";
 import { PRIORITY_LABELS } from "@/modules/buybox/match";
 import { whatsappLink } from "@/config/business";
+import { emailNotificationsConfigured, MAX_ATTEMPTS } from "@/modules/notifications/new-lead";
+import { describeNotification } from "@/modules/notifications/status";
 import {
   CONTACT_LABELS,
   formatDate,
@@ -77,6 +79,8 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
     customer.phone,
   );
 
+  const notification = describeNotification(lead, formatDateTime, MAX_ATTEMPTS, emailNotificationsConfigured());
+
   return (
     <>
       <Link href="/admin" className="text-sm font-semibold text-concrete hover:text-asphalt">
@@ -119,6 +123,23 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
                 ["Manutenzione regolare", TRI_LABELS[lead.maintenance]],
               ]}
             />
+          </Section>
+
+          <Section title="Notifica email">
+            <p className="text-sm">
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs font-bold ${
+                  notification.tone === "ok"
+                    ? "bg-ok/15 text-ok"
+                    : notification.tone === "bad"
+                      ? "bg-danger/15 text-danger"
+                      : "bg-line text-asphalt"
+                }`}
+              >
+                {notification.label}
+              </span>
+              {notification.detail && <span className="ml-2 text-concrete">{notification.detail}</span>}
+            </p>
           </Section>
 
           <Section title={`Foto (${photos.length})`}>

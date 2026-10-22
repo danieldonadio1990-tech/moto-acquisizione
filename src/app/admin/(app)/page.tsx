@@ -3,6 +3,11 @@ import { Suspense } from "react";
 import { requireAdmin } from "@/modules/admin/auth";
 import { countLeadsByStatus, listLeads } from "@/modules/leads/service";
 import { buildDataset, kpis } from "@/modules/leads/dataset";
+import {
+  countUnsentNotifications,
+  emailNotificationsConfigured,
+  retryPendingNotifications,
+} from "@/modules/notifications/new-lead";
 import { CLOSED_STATUSES, isLeadStatus, LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 import { PRIORITY_LABELS } from "@/modules/buybox/match";
 import { formatDateTime, formatEur, formatKm, StatusBadge } from "@/modules/admin/ui/format";
@@ -21,7 +26,16 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
   const raw = typeof sp.stato === "string" ? sp.stato : "open";
   const filter: LeadStatus | "open" | "all" = raw === "all" || isLeadStatus(raw) ? raw : "open";
 
-  const [rows, counts, dataset] = await Promise.all([listLeads({ status: filter }), countLeadsByStatus(), buildDataset()]);
+  // recupero: riprova le notifiche email rimaste in sospeso (non lancia eccezioni; nessun effetto se non configurate)
+  await retryPendingNotifications();
+
+  const [rows, counts, dataset, unsent] = await Promise.all([
+    listLeads({ status: filter }),
+    countLeadsByStatus(),
+    buildDataset(),
+    countUnsentNotifications(),
+  ]);
+  const notificationsConfigured = emailNotificationsConfigured();
   const k = kpis(dataset);
   const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v * 100)}%`);
   const countOf = (s: LeadStatus) => counts.find((c) => c.status === s)?.count ?? 0;
@@ -45,6 +59,17 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
           Esporta dati (CSV)
         </a>
       </div>
+
+      {!notificationsConfigured ? (
+        <p role="status" className="mt-4 rounded-xl bg-signal/40 px-4 py-3 text-sm font-semibold">
+          Notifiche email non configurate: le nuove richieste si vedono solo qui. Vedi docs/NOTIFICHE.md.
+        </p>
+      ) : unsent > 0 ? (
+        <p role="status" className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
+          {unsent === 1 ? "1 richiesta senza notifica email inviata" : `${unsent} richieste senza notifica email inviata`}: il
+          sistema riprova a ogni apertura di questa pagina. Se resta così, controlla la configurazione (docs/NOTIFICHE.md).
+        </p>
+      ) : null}
 
       {/* Indicatori del soft launch: dalla richiesta all'acquisto */}
       <dl className="mt-6 grid grid-cols-3 gap-x-4 gap-y-4 rounded-2xl bg-paper p-4 text-sm ring-1 ring-line sm:grid-cols-4 lg:grid-cols-7">

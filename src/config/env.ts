@@ -16,6 +16,7 @@
  * Se qualcosa manca, il server NON parte e il log spiega cosa correggere.
  */
 import path from "node:path";
+import { notificationWarnings } from "../modules/notifications/config";
 
 export type AppEnv = "development" | "production" | "test";
 
@@ -218,6 +219,8 @@ export function loadServerConfig(e: NodeJS.ProcessEnv = process.env): ServerConf
   }
 
   // --- Avvisi non bloccanti ---
+  // Le notifiche email non sono obbligatorie: se mancano o sono incomplete il sito funziona lo stesso (vedi docs/NOTIFICHE.md)
+  if (prod) warnings.push(...notificationWarnings(e));
 
   if (problems.length) throw new ConfigError(problems);
   return { env, database, storage, sessionSecret, clientIp, migrateOnStart: e.MIGRATE_ON_START !== "false", warnings };
