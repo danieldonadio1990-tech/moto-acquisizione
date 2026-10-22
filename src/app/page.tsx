@@ -303,7 +303,7 @@ export default function Home() {
         <section className="on-dark bg-plate text-paper">
           <div className="mx-auto flex max-w-6xl flex-col items-start gap-7 px-4 py-14 sm:px-6 md:flex-row md:items-center md:justify-between md:py-16 lg:px-8">
             <p className="display max-w-[20ch] text-4xl sm:text-5xl md:text-6xl">Hai uno scooter da vendere?</p>
-            <div className="w-full md:w-auto">
+            <div id="final-cta" className="w-full md:w-auto">
               <TrackedLink href="/valuta" event="cta_click" label="footer" className={`${btnPrimary} w-full md:w-auto`}>
                 Valuta la tua moto
                 <IconArrowRight className="h-5 w-5" />
@@ -324,7 +324,7 @@ export default function Home() {
       </main>
 
       <SiteFooter />
-      <StickyCta watchId="hero-cta" />
+      <StickyCta watchId="hero-cta" hideId="final-cta" />
     </>
   );
 }
