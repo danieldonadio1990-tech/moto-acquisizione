@@ -4,7 +4,7 @@
 export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   return (
     <html lang="it">
-      <body style={{ fontFamily: "system-ui, sans-serif", background: "#f5f6f3", color: "#1e2328", margin: 0 }}>
+      <body style={{ fontFamily: "system-ui, sans-serif", background: "#f0f1f2", color: "#20252b", margin: 0 }}>
         <title>Errore temporaneo</title>
         <main style={{ maxWidth: 560, margin: "0 auto", padding: "80px 20px" }}>
           <h1 style={{ fontSize: 40, lineHeight: 1.05 }}>Il sito non risponde in questo momento</h1>

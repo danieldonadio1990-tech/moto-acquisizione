@@ -6,15 +6,17 @@
  * il contachilometri. Nessun riferimento a identità di concorrenti.
  */
 @theme {
-  --color-asphalt: #1e2328;
-  --color-asphalt-soft: #3a4048;
-  --color-chalk: #f5f6f3;
+  --color-asphalt: #20252b;
+  --color-asphalt-soft: #3b434c;
+  --color-asphalt-raised: #2b323a;
+  --color-chalk: #f0f1f2;
   --color-paper: #ffffff;
   --color-plate: #1a3fa8;
   --color-plate-deep: #12307f;
-  --color-signal: #ffd23f;
-  --color-concrete: #6b7178;
-  --color-line: #d9dcd7;
+  --color-signal: #f5c928;
+  --color-signal-soft: #ffd84d;
+  --color-concrete: #5b626a;
+  --color-line: #d6d9dc;
   --color-ok: #1f7a52;
   --color-danger: #b3261e;
 
@@ -47,9 +49,14 @@ body {
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-signal);
+  outline: 3px solid var(--color-plate);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+/* Nelle sezioni scure l'anello di focus è giallo, altrove blu targa: sempre visibile */
+.on-dark :focus-visible {
+  outline-color: var(--color-signal);
 }
 
 /* Linea di mezzeria tratteggiata (percorso "come funziona") */
@@ -70,7 +77,7 @@ body {
   }
 }
 .step-in {
-  animation: step-in 320ms var(--ease-out-soft) both;
+  animation: step-in 320ms var(--ease-out-soft) backwards;
 }
 
 @keyframes digit-roll {

@@ -54,7 +54,7 @@ export const initialState: FunnelState = {
     phone: "",
     email: "",
     city: "",
-    preferredContact: "whatsapp",
+    preferredContact: "phone",
     privacyConsent: false,
   },
   photosSent: 0,

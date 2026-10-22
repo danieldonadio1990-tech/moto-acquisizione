@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Compro Moto"><title>Compro Moto</title><rect width="512" height="512" rx="113" fill="#1a3fa8"/><g transform="translate(81.9 174.1) scale(2.7200)"><g class="mark">
-<g fill="#ffd23f"><path d="M3 20.5 26 18v5.2z"/><path d="M11 29.5 29 27.4v4.6z"/><path d="M1 38.5 25 36v5.4z"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Compro Moto"><title>Compro Moto</title><rect width="512" height="512" rx="113" fill="#1A3FA8"/><g transform="translate(81.9 174.1) scale(2.7200)"><g class="mark">
+<g fill="#F5C928"><path d="M3 20.5 26 18v5.2z"/><path d="M11 29.5 29 27.4v4.6z"/><path d="M1 38.5 25 36v5.4z"/></g>
 <g fill="none" stroke="#ffffff" stroke-width="5"><circle cx="36" cy="46" r="11"/><circle cx="104" cy="46" r="11"/></g>
 <g fill="#ffffff" stroke="#ffffff" stroke-linejoin="round" stroke-linecap="round">
 <path stroke-width="2" d="M22 31Q28 27 40 28L60 29 62 35 34 36Z"/>

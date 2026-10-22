@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { StepTitle } from "../ui";
+import { IconCamera } from "@/components/Icons";
 import { MAX_PHOTO_BYTES, MAX_PHOTOS_PER_LEAD } from "@/modules/photos/limits";
 
 const SUGGESTED = ["Davanti", "Dietro", "Lato destro", "Lato sinistro", "Cruscotto con i km", "Eventuali danni"];
@@ -126,12 +127,12 @@ export function PhotoStep({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-asphalt-soft/50 bg-paper font-semibold text-plate transition-colors hover:border-plate disabled:opacity-60"
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-plate/50 bg-plate/5 font-bold text-plate transition-colors hover:bg-plate/10 ${
+              photos.length === 0 ? "col-span-3 min-h-36" : "aspect-square"
+            }`}
           >
-            <span aria-hidden className="text-3xl leading-none">
-              +
-            </span>
-            <span className="text-sm">{busy ? "Preparo…" : "Aggiungi"}</span>
+            <IconCamera className="h-8 w-8" />
+            <span className="text-sm">{busy ? "Preparo…" : photos.length === 0 ? "Aggiungi foto" : "Aggiungi"}</span>
           </button>
         )}
       </div>

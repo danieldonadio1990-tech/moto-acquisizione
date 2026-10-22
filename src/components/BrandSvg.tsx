@@ -1,7 +1,7 @@
 /** Parti grafiche del logo Compro Moto, senza dipendenze dall'interfaccia (usate anche dall'anteprima social). */
-export const ASPHALT = "#1e2328";
-export const BLUE = "#1a3fa8";
-export const YELLOW = "#ffd23f";
+export const ASPHALT = "#20252B";
+export const BLUE = "#1A3FA8";
+export const YELLOW = "#F5C928";
 
 /** Simbolo: moto stilizzata con le linee di velocità. Riquadro 128 x 64. */
 export function MotoSymbol({ body = ASPHALT, lines = YELLOW }: { body?: string; lines?: string }) {

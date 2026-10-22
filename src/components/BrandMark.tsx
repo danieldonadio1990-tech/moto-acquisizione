@@ -15,11 +15,14 @@ export function BrandMark({
   href = "/",
   variant = "horizontal",
   tone = "light",
+  size = "md",
   className = "",
 }: {
   href?: string | null;
   variant?: "horizontal" | "stacked" | "icon";
   tone?: "light" | "dark";
+  /** "sm": intestazioni compatte (226 px di larghezza su telefono) */
+  size?: "sm" | "md";
   className?: string;
 }) {
   const word1 = tone === "dark" ? "#ffffff" : ASPHALT;
@@ -50,7 +53,7 @@ export function BrandMark({
     );
   } else {
     svg = (
-      <svg viewBox="0 0 517 64" className="h-9 w-auto md:h-10" aria-hidden>
+      <svg viewBox="0 0 517 64" className={size === "sm" ? "h-7 w-auto sm:h-8 md:h-9" : "h-9 w-auto md:h-10"} aria-hidden>
         <MotoSymbol body={body} />
         <g transform={`translate(140 47.5) ${skew}`}>
           <path fill={word1} d={WORD.compro} />

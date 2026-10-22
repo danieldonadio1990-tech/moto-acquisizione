@@ -18,7 +18,7 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          background: "#f5f6f3",
+          background: "#f0f1f2",
           padding: "64px 80px",
           color: ASPHALT,
         }}
@@ -31,13 +31,13 @@ export default function OpengraphImage() {
           </g>
         </svg>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 104, fontWeight: 800, lineHeight: 1, letterSpacing: -2 }}>Vuoi vendere la tua moto?</div>
+          <div style={{ fontSize: 92, fontWeight: 800, lineHeight: 1, letterSpacing: -2 }}>Vuoi vendere il tuo scooter senza perdere tempo?</div>
           <div style={{ marginTop: 28, fontSize: 38, color: "#3a4048" }}>
-            Raccontaci che moto hai: la valutiamo e ti facciamo un&apos;offerta.
+            Raccontaci che mezzo hai. Se è interessante per noi, ti faremo un&apos;offerta.
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ height: 14, width: 120, background: "#ffd23f", borderRadius: 7, display: "flex" }} />
+          <div style={{ height: 14, width: 120, background: "#f5c928", borderRadius: 7, display: "flex" }} />
           <div style={{ fontSize: 30, fontWeight: 700 }}>{BRAND.area}</div>
         </div>
       </div>

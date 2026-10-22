@@ -118,3 +118,32 @@ test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con sugger
   const step = readFileSync("src/modules/funnel/steps/MotoStep.tsx", "utf8");
   assert.match(step, /moto\.brand === "Piaggio"[^\n]*Vespa/);
 });
+
+// ---- Redesign: home, immagini segnaposto, footer ------------------------------------------------------------------------
+test("home: messaggio principale, CTA e sezioni previste, senza promesse non verificate", () => {
+  const home = readFileSync("src/app/page.tsx", "utf8");
+  assert.match(home, /Vuoi vendere il tuo scooter senza perdere tempo\?/);
+  assert.match(home, /Raccontaci che mezzo hai\. Se è interessante per noi, ti faremo un&apos;offerta\./);
+  assert.match(home, /Valuta la tua moto/);
+  for (const id of ["come-funziona", "mezzi", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
+  for (const m of ["Honda", "Piaggio", "Liberty", "Agility"]) assert.match(home, new RegExp(m));
+  // niente promesse di tempi, garanzie, recensioni o volumi
+  assert.doesNotMatch(home, /garantit|in giornata|entro \d|24 ?ore|subito il pagamento|recension|testimonianz|clienti soddisfatti|\d+ moto acquistate/i);
+});
+
+test("immagini: senza foto si usano le illustrazioni; ogni foto indicata esiste davvero in public/", () => {
+  const cfg = readFileSync("src/config/images.ts", "utf8");
+  for (const m of cfg.matchAll(/src:\s*"([^"]+)"/g)) assert.ok(statSync(path.join("public", m[1])).isFile(), `manca ${m[1]}`);
+  assert.match(cfg, /src: null/);
+});
+
+test("footer: i dati aziendali segnaposto non vengono mostrati al pubblico", () => {
+  const footer = readFileSync("src/components/SiteFooter.tsx", "utf8");
+  assert.match(footer, /isPlaceholder\(/);
+  assert.doesNotMatch(footer, /DA COMPLETARE/);
+});
+
+test("palette: antracite, giallo segnale, blu targa, grigio chiaro", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  for (const c of ["#20252b", "#f5c928", "#1a3fa8", "#f0f1f2"]) assert.ok(css.toLowerCase().includes(c), c);
+});
