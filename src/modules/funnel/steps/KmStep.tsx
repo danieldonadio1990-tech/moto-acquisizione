@@ -29,7 +29,7 @@ export function KmStep({
       </label>
       <div
         className={`relative mx-auto flex w-full max-w-md cursor-text items-stretch gap-1.5 rounded-2xl bg-asphalt p-3 transition-shadow sm:gap-2 sm:p-4 ${
-          focused ? "ring-4 ring-signal" : ""
+          focused ? "ring-4 ring-plate" : ""
         } ${error ? "ring-4 ring-danger" : ""}`}
         onClick={() => inputRef.current?.focus()}
       >

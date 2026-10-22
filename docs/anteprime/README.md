@@ -3,7 +3,7 @@
 Schermate generate dalla **build di produzione locale** (database e storage temporanei, nessun dato reale, sito non
 pubblicato). Telefono simulato: Pixel 7 (412 px); desktop 1280 x 800.
 
-Tutte le schermate (01–09) documentano la stessa versione: miglioramento visivo (fascia vantaggi, gerarchia titoli, CTA sulle card) e correzioni di contrasto (bordi dei campi, cifre segnaposto del chilometraggio). Il sito **non usa fotografie né illustrazioni**: dove andranno le foto c'è una composizione di colori e tipografia.
+Tutte le schermate (01–09) documentano la stessa versione: miglioramento visivo (fascia vantaggi, gerarchia titoli, CTA sulle card) e correzioni di contrasto (bordi dei campi, cifre segnaposto del chilometraggio). Le schermate a pagina intera sono scattate senza la barra fissa in basso, che altrimenti comparirebbe a metà immagine. Il sito **non usa fotografie né illustrazioni**: dove andranno le foto c'è una composizione di colori e tipografia.
 Foto da procurare: [docs/IMMAGINI-DA-FORNIRE.md](../IMMAGINI-DA-FORNIRE.md).
 
 | File | Cosa mostra |

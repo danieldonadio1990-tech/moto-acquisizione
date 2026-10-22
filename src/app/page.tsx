@@ -244,8 +244,8 @@ export default function Home() {
                     Altre marche e altri modelli: scrivili a mano nel modulo.
                   </p>
                 </div>
-                <TrackedLink href="/valuta" event="cta_click" label="altro-mezzo" className={`${btnOutline} mt-6 w-full`}>
-                  Valuta il tuo mezzo
+                <TrackedLink href="/valuta" event="cta_click" label="altro-mezzo" className={`${btnOutline} mt-6 w-full px-4 text-center`}>
+                  Valuta il mezzo
                 </TrackedLink>
               </li>
             </ul>
