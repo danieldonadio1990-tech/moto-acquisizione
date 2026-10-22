@@ -61,7 +61,7 @@ Come si fa su Netlify Free, per ogni variabile (**Add a variable**):
 3. Compila **soltanto il campo del contesto Production** e lascia vuoti Deploy Previews, Branch deploys e
    Local development.
 4. Per i valori sensibili (`SESSION_SECRET`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, `S3_ACCESS_KEY_ID`,
-   `S3_SECRET_ACCESS_KEY`, `ADMIN_PASSWORD`, `RESEND_API_KEY`) attiva, se compare, **«Contains secret values»**. Attenzione: una volta
+   `S3_SECRET_ACCESS_KEY`, `ADMIN_PASSWORD`, `RESEND_API_KEY`, `NOTIFY_RETRY_TOKEN`) attiva, se compare, **«Contains secret values»**. Attenzione: una volta
    attivata non si può togliere e il valore non si rilegge più dal pannello (si può solo sostituire). Perciò tienine
    una copia in un luogo sicuro tuo.
 5. Le modifiche valgono solo dalla **pubblicazione successiva**: dopo aver cambiato o rimosso una variabile (per esempio
@@ -89,6 +89,7 @@ Branch deploys già disattivati (passo 3.5), le variabili vuote negli altri cont
 | `ADMIN_PASSWORD` | password di almeno 12 caratteri | scegli tu; **rimuovila dopo il primo avvio** |
 | `RESEND_API_KEY` | chiave API di Resend (**segreta**) | Resend → API Keys. Facoltativa: senza, nessuna notifica email (vedi [NOTIFICHE.md](NOTIFICHE.md)) |
 | `NOTIFY_EMAIL_TO` | `compro.moto.support@gmail.com` | destinatario delle notifiche (fino a 3, separati da virgola) |
+| `NOTIFY_RETRY_TOKEN` | token casuale di 64 caratteri (**segreto**) | `openssl rand -hex 32`. Facoltativo: attiva il recupero automatico delle notifiche (workflow GitHub, vedi [NOTIFICHE.md](NOTIFICHE.md)); lo stesso valore va nel secret GitHub omonimo |
 | `NOTIFY_EMAIL_FROM` | facoltativa, es. `Compro Moto <notifiche@tuodominio.it>` | se manca si usa il mittente di prova di Resend: l'account Resend va registrato con l'email del destinatario |
 
 Il build **si ferma con un errore chiaro** (senza stampare valori segreti) se manca una variabile S3 (`S3_ENDPOINT`, `S3_REGION`,

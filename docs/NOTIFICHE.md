@@ -28,26 +28,64 @@ configurate o se alcune non sono andate a buon fine.
 ### Tentativi di recupero
 1. Subito dopo il salvataggio.
 2. Se il browser rimanda lo stesso modulo (retry/doppio invio) e la notifica non risulta inviata.
-3. A ogni apertura dell'elenco nel back office: riprova fino a 3 notifiche in sospeso, ma solo di richieste degli ultimi
+3. Ogni ora dal **recupero automatico** (sotto), anche senza traffico e senza nessuno nel back office.
+4. A ogni apertura dell'elenco nel back office: riprova fino a 3 notifiche in sospeso, ma solo di richieste degli ultimi
    **7 giorni**, con almeno **5 minuti** dall'ultimo tentativo e al massimo **5 tentativi** per richiesta.
 Se le notifiche vengono configurate dopo, le richieste `pending` degli ultimi 7 giorni partono con il primo recupero.
 
-#### LIMITE NOTO: nessun recupero indipendente
-Il recupero parte **solo** da questi eventi: invio dello stesso modulo (retry del browser) e apertura dell'elenco nel back
-office. **Non esiste nessun processo pianificato.** Se una notifica fallisce (provider non raggiungibile, quota esaurita,
-configurazione errata) e poi **nessuno apre il back office e il cliente non reinvia il modulo**, la notifica **non viene
-ritentata** finché qualcuno apre il back office (e comunque solo per richieste degli ultimi 7 giorni). Un nuovo lead non
-recupera i vecchi: notifica solo se stesso. La prima notifica, inoltre, ha un solo tentativo immediato (timeout 4 s).
-Finché non si aggiunge un recupero indipendente, la copertura reale è: «email subito nella maggior parte dei casi; in
-caso di guasto, recupero alla prossima apertura del back office». Il back office mostra sempre quali richieste non hanno
-ancora la notifica.
+#### Recupero automatico (GitHub Actions) — commit separato
+Senza altro, il recupero parte solo dal retry del browser e dall'apertura del back office: se una notifica fallisce e nessuno
+apre il back office, non viene ritentata. Per questo c'è un **recupero pianificato e gratuito**:
 
-**Modifica minima proposta (non implementata, da approvare):** un recupero pianificato **gratuito** con GitHub Actions
-(già usato per i backup): un workflow con `schedule` (ogni ora) che chiama `POST /api/internal/notifications/retry` con un
-segreto (`NOTIFY_RETRY_TOKEN`, confronto a tempo costante, nessun dato personale nella risposta) e fa girare
-`retryPendingNotifications()`. Costi: 1 chiamata all'ora (≈720 al mese) alle funzioni Netlify, nessun servizio a pagamento,
-nessuna nuova infrastruttura. In alternativa, un recupero opportunistico: ogni nuova richiesta riprova anche le notifiche
-vecchie in sospeso (riduce, ma non elimina, il limite).
+- **Workflow** `.github/workflows/notify-retry.yml`: ogni ora (minuto 23) esegue `scripts/notify-retry/call.sh`, che fa una
+  `POST` a `https://<sito>/api/internal/notifications/retry`.
+- **Rotta protetta** `src/app/api/internal/notifications/retry/route.ts`: richiede `Authorization: Bearer <NOTIFY_RETRY_TOKEN>`
+  (mai nell'URL; confronto a tempo costante). Risposte: **404** se `NOTIFY_RETRY_TOKEN` non è configurato o è più corto di
+  32 caratteri (recupero automatico spento, nulla viene elaborato), **401** se il token manca o è errato, **429** dopo 30
+  tentativi dallo stesso IP in 15 minuti, **200** con soli conteggi (`configured, candidates, sent, failed, notClaimed,
+  unsent`: nessun id, codice, indirizzo o dato personale), **503** per un errore imprevisto del database. Sono accettate
+  solo richieste `POST`; il corpo non viene letto; il token non finisce nei log.
+- **Cosa viene riprovato:** solo notifiche recuperabili, con le stesse regole del back office: non `sent`, non `skipped`
+  (richieste precedenti alle notifiche), create negli ultimi **7 giorni**, con meno di **5 tentativi** e ultimo tentativo
+  più vecchio di **5 minuti** (le `pending` dopo almeno 1 minuto). Al massimo **10 richieste** per giro, le più vecchie per
+  prime; il resto al giro successivo.
+- **Esecuzioni sovrapposte:** il workflow usa `concurrency` (due giri non si sovrappongono) e, in ogni caso, il sito è
+  protetto dalla prenotazione atomica: anche rotta, back office e retry del browser insieme non duplicano gli invii
+  (provato con 4 chiamate simultanee + il recupero del back office).
+- **Errori del provider:** la rotta risponde comunque 200 (conteggio `failed`), la richiesta resta recuperabile e viene
+  riprovata ai giri successivi, ognuno con la **stessa chiave di idempotenza**. Lo script esce con errore (workflow rosso,
+  quindi un'email di GitHub) solo se il sito non risponde, il token è rifiutato (401), il recupero è spento (404), c'è un
+  limite (429) o un errore del database; se ci sono invii falliti o richieste ancora senza notifica, esce 0 ma aggiunge
+  un avviso (`::warning::`) nel riepilogo del giro.
+
+**Budget dei tentativi:** i tentativi sono al massimo 5 per richiesta (uno subito, gli altri nei giri successivi). Con un
+giro all'ora, un guasto del provider che duri **più di circa 4 ore** esaurisce i tentativi: la richiesta resta «non
+inviata» nel back office (con l'avviso) e non viene più ritentata da sola. Se capita, dopo aver risolto la causa
+(`npm run notify:test` per verificare) la notifica si può ripristinare a mano riportando `notification_attempts` a 0 sul
+database; un pulsante «Riprova» nel back office sarebbe la modifica successiva, non inclusa qui.
+
+**Costo e limiti di GitHub Actions:** circa 720 chiamate al mese a Netlify (una funzione per giro), nessun servizio a
+pagamento. Le esecuzioni pianificate possono ritardare di qualche minuto, e per i repository pubblici GitHub **disattiva i
+workflow pianificati dopo 60 giorni senza attività** nel repository: se succede, si riattivano dalla scheda Actions.
+Il recupero automatico non sostituisce l'avviso del back office, che resta la fonte di verità.
+
+##### Configurazione (da fare una volta; nulla di questo è nel repository)
+1. **Genera il token** (64 caratteri casuali, per esempio in Git Bash): `openssl rand -hex 32`. Non incollarlo in chat,
+   nei commit o nei messaggi.
+2. **Netlify** (Site configuration → Environment variables, solo contesto **Production**, «Contains secret values»):
+   `NOTIFY_RETRY_TOKEN` = il token. Poi un nuovo deploy.
+3. **GitHub** (Settings → Secrets and variables → Actions):
+   - scheda **Secrets** → *New repository secret* → `NOTIFY_RETRY_TOKEN` = lo **stesso** token;
+   - scheda **Variables** → `NOTIFY_RETRY_URL` = `https://<indirizzo-del-sito>` (solo l'origine, senza «/» né percorso);
+   - scheda **Variables** → `NOTIFY_RETRY_ENABLED` = `true` (accende la pianificazione oraria).
+4. **Prova:** Actions → «Recupero notifiche email» → *Run workflow*. Il lancio manuale funziona anche prima di
+   `NOTIFY_RETRY_ENABLED`. Esito atteso: riga `Notifiche: recuperabili=… inviate=…` e nessun errore. Un errore 401 indica
+   che i due token non coincidono; 404 che su Netlify manca il token o è corto (o non c'è stato il nuovo deploy).
+5. Per **spegnerlo**: `NOTIFY_RETRY_ENABLED` diverso da `true` (o rimuovere il token da Netlify: la rotta risponde 404).
+   Per **cambiare il token**: aggiornare Netlify e il secret GitHub e rifare il deploy.
+
+Non eseguire mai il recupero a mano con `curl` su una riga di comando che contenga il token (resta nella cronologia della
+shell): usare il workflow manuale.
 
 ### Idempotenza e duplicati: cosa è garantito e cosa no
 - **Garantito (nel nostro codice, provato dai test):** la prenotazione atomica impedisce due invii simultanei dello stesso
@@ -79,6 +117,7 @@ produzione l'indirizzo non è determinabile, l'email non contiene un link a `loc
 |---|---|---|
 | `RESEND_API_KEY` | sì, per attivare le notifiche | chiave API di Resend (**segreto**) |
 | `NOTIFY_EMAIL_TO` | sì | `compro.moto.support@gmail.com` (fino a 3 indirizzi separati da virgola) |
+| `NOTIFY_RETRY_TOKEN` | no (senza: nessun recupero automatico) | token della rotta di recupero (**segreto**, ≥ 32 caratteri; `openssl rand -hex 32`). Vedi «Recupero automatico» |
 | `NOTIFY_EMAIL_FROM` | no | mittente, per esempio `Compro Moto <notifiche@tuodominio.it>`. Se manca: `Compro Moto <onboarding@resend.dev>` |
 
 - **Netlify:** pannello → Site configuration → Environment variables, valore **solo per il contesto Production**

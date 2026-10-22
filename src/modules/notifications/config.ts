@@ -41,10 +41,28 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
   return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER };
 }
 
+/** Lunghezza minima del token del recupero automatico (generarlo con `openssl rand -hex 32`: 64 caratteri). */
+export const MIN_RETRY_TOKEN_LENGTH = 32;
+
+/**
+ * Token che protegge la rotta del recupero automatico (NOTIFY_RETRY_TOKEN). null = recupero automatico non attivo:
+ * la rotta risponde 404 e non fa nulla. Un token corto o con spazi/caratteri strani è trattato come assente.
+ */
+export function loadRetryToken(e: NodeJS.ProcessEnv = process.env): string | null {
+  const t = e.NOTIFY_RETRY_TOKEN?.trim();
+  return t && t.length >= MIN_RETRY_TOKEN_LENGTH && /^[\x21-\x7e]+$/.test(t) ? t : null;
+}
+
 /** Avvisi leggibili per log di avvio e check:env (nessun valore, solo nomi di variabili). */
 export function notificationWarnings(e: NodeJS.ProcessEnv = process.env): string[] {
   const cfg = loadNotificationConfig(e);
-  if (cfg.enabled) return [];
+  if (cfg.enabled) {
+    return loadRetryToken(e)
+      ? []
+      : [
+          `Recupero automatico delle notifiche non attivo: NOTIFY_RETRY_TOKEN mancante o più corto di ${MIN_RETRY_TOKEN_LENGTH} caratteri (le notifiche fallite si recuperano solo aprendo il back office).`,
+        ];
+  }
   const nothingSet = !e.RESEND_API_KEY?.trim() && !e.NOTIFY_EMAIL_TO?.trim() && !e.NOTIFY_EMAIL_FROM?.trim();
   return [
     nothingSet

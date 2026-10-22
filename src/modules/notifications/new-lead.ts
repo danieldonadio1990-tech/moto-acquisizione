@@ -182,13 +182,32 @@ export async function notifyNewLead(leadId: string): Promise<NotifyOutcome> {
   }
 }
 
+export type RetryBatchResult = {
+  configured: boolean;
+  /** richieste recuperabili trovate in questo giro (al massimo `limit`) */
+  candidates: number;
+  sent: number;
+  failed: number;
+  /** già prese da un altro processo, già inviate nel frattempo o tentativi esauriti: nessuna email */
+  notClaimed: number;
+  /** errore imprevisto (database): il chiamante può segnalarlo */
+  error: boolean;
+};
+
 /**
- * Recupero: riprova le notifiche in sospeso (richieste recenti, non ancora inviate, con tentativi residui).
- * Chiamata all'apertura dell'elenco nel back office. Non lancia eccezioni.
+ * Recupero: riprova le notifiche recuperabili. Sono tali SOLO le richieste che
+ *  - non sono già `sent` né `skipped` (precedenti alle notifiche);
+ *  - hanno meno di MAX_ATTEMPTS tentativi;
+ *  - sono state create negli ultimi RETRY_WINDOW_DAYS giorni;
+ *  - sono `pending` da almeno 1 minuto, oppure `failed`/`sending` con ultimo tentativo più vecchio di RETRY_AFTER_MINUTES.
+ * Usato dal back office e dal recupero automatico (rotta protetta chiamata da GitHub Actions). Non lancia eccezioni.
+ * Ogni richiesta passa dalla prenotazione atomica di notifyNewLead: esecuzioni sovrapposte non duplicano gli invii.
  */
-export async function retryPendingNotifications(limit = 3): Promise<number> {
+export async function retryNotificationsBatch(limit = 3): Promise<RetryBatchResult> {
+  const result: RetryBatchResult = { configured: false, candidates: 0, sent: 0, failed: 0, notClaimed: 0, error: false };
   try {
-    if (!getEmailTransport()) return 0;
+    if (!getEmailTransport()) return result;
+    result.configured = true;
     const db = await getDb();
     const rows = await db
       .select({ id: leads.id })
@@ -206,14 +225,22 @@ export async function retryPendingNotifications(limit = 3): Promise<number> {
       )
       .orderBy(asc(leads.createdAt))
       .limit(limit);
-    // in parallelo: il tempo massimo resta quello di un solo invio (4 s), non la somma (la pagina del back office non deve
-    // superare il limite di tempo delle funzioni). Ogni prenotazione è atomica, quindi nessun rischio di doppio invio.
+    result.candidates = rows.length;
+    // in parallelo: il tempo massimo resta quello di un solo invio (4 s), non la somma (le funzioni hanno un limite di tempo)
     const outcomes = await Promise.all(rows.map((r) => notifyNewLead(r.id)));
-    return outcomes.filter((o) => o === "sent").length;
+    result.sent = outcomes.filter((o) => o === "sent").length;
+    result.failed = outcomes.filter((o) => o === "failed").length;
+    result.notClaimed = outcomes.filter((o) => o === "not_claimed" || o === "disabled").length;
+    return result;
   } catch (err) {
     logError("notifica email (recupero)", err);
-    return 0;
+    return { ...result, error: true };
   }
+}
+
+/** Recupero dal back office (a ogni apertura dell'elenco). Restituisce quante notifiche sono partite. */
+export async function retryPendingNotifications(limit = 3): Promise<number> {
+  return (await retryNotificationsBatch(limit)).sent;
 }
 
 /** Vero se le notifiche sono configurate (per il back office). */

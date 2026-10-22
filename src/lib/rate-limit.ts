@@ -55,6 +55,8 @@ export const RULES = {
   photoUploadPerLead: { name: "photo-lead", limit: 20, windowMs: 60 * 60 * 1000 },
   eventsPerIp: { name: "events-ip", limit: 120, windowMs: 60 * 1000 },
   loginPerIp: { name: "login-ip", limit: 30, windowMs: 15 * 60 * 1000 },
+  /** rotta del recupero automatico delle notifiche: protegge dai tentativi a vuoto sul token */
+  notifyRetryPerIp: { name: "notify-retry-ip", limit: 30, windowMs: 15 * 60 * 1000 },
   loginPerIpEmail: { name: "login-ip-email", limit: 8, windowMs: 15 * 60 * 1000 },
 } satisfies Record<string, Rule>;
 

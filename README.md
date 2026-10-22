@@ -96,7 +96,7 @@ Il server **non parte** (fail fast) se manca qualcosa di obbligatorio, e il log 
 | `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | con `s3` | + `S3_ENDPOINT`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `S3_PREFIX` |
 | `CLIENT_IP_SOURCE`, `CLIENT_IP_HEADER` | sì (su Netlify: `header` + `x-nf-client-connection-ip`) | Vedi [Sicurezza](#sicurezza) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | solo primo avvio | poi rimuovere `ADMIN_PASSWORD` (il log lo ricorda) |
-| `RESEND_API_KEY`, `NOTIFY_EMAIL_TO`, `NOTIFY_EMAIL_FROM` | no (senza: nessuna notifica email) | Notifiche email per le nuove richieste (Resend). `NOTIFY_EMAIL_TO` previsto: `compro.moto.support@gmail.com`. Vedi [docs/NOTIFICHE.md](docs/NOTIFICHE.md) |
+| `RESEND_API_KEY`, `NOTIFY_EMAIL_TO`, `NOTIFY_EMAIL_FROM`, `NOTIFY_RETRY_TOKEN` | no (senza: nessuna notifica email) | Notifiche email per le nuove richieste (Resend). `NOTIFY_EMAIL_TO` previsto: `compro.moto.support@gmail.com`. Vedi [docs/NOTIFICHE.md](docs/NOTIFICHE.md) |
 | `SITE_INDEXING` | no | `false` spegne sempre l'indicizzazione |
 
 Tutte le variabili, con esempi: [`.env.example`](.env.example).
