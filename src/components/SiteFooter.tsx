@@ -16,7 +16,7 @@ export function SiteFooter() {
         <div>
           <BrandMark size="sm" />
           <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-concrete">
-            Acquisto di scooter e moto usate da privati. {BRAND.area}.
+            Acquisto di moto usate da privati. {BRAND.area}.
           </p>
           {(company || vat) && (
             <p className="mt-2 text-sm text-concrete">

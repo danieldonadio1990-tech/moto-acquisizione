@@ -1,7 +1,7 @@
 /**
  * Crea un utente admin o ne cambia la password (le sessioni aperte vengono revocate).
  *
- *   npm run admin:user -- nome@azienda.it
+ *   npm run admin:user -- nome@example.com
  *
  * La password viene chiesta nel terminale (non compare a schermo né nella cronologia).
  * In produzione eseguire con le stesse variabili del server (DATABASE_URL…).
@@ -33,7 +33,7 @@ function askHidden(question: string): Promise<string> {
 async function main() {
   const email = process.argv[2]?.trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    console.error("Uso: npm run admin:user -- nome@azienda.it");
+    console.error("Uso: npm run admin:user -- nome@example.com");
     process.exitCode = 2;
     return;
   }

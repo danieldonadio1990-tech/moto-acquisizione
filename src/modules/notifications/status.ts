@@ -1,6 +1,6 @@
 /** Testo dello stato della notifica email per il back office (nessun dato personale). */
 export type NotificationView = {
-  notificationStatus: "pending" | "sending" | "sent" | "failed" | "skipped";
+  notificationStatus: "pending" | "sending" | "sent" | "failed" | "skipped" | "throttled";
   notificationAttempts: number;
   notificationSentAt: Date | null;
   notificationError: string | null;
@@ -38,6 +38,13 @@ export function describeNotification(
             ? `Tentativi automatici esauriti (${n.notificationAttempts} in tutto). Ultimo errore: ${n.notificationError ?? "sconosciuto"}. Non verrà ritentata in automatico: puoi riprovare a mano.`
             : `Tentativo ${n.notificationAttempts}/${maxAttempts} fallito (${n.notificationError ?? "errore sconosciuto"}): il sistema riprova da solo.`,
       };
+    case "throttled":
+      return {
+        tone: "wait",
+        label: "Sospesa: limite giornaliero",
+        detail:
+          "Raggiunto il limite giornaliero di notifiche (protegge la quota di Resend): la richiesta è salva e la notifica riparte da sola dal giorno dopo (UTC). Puoi anche inviarla subito a mano.",
+      };
     case "skipped":
       return { tone: "muted", label: "Non prevista", detail: "Richiesta ricevuta prima dell'attivazione delle notifiche." };
     default:
@@ -49,7 +56,7 @@ export function describeNotification(
 
 /** Messaggio mostrato all'admin dopo il clic su «Riprova invio ora» (esplicito su cosa succede se fallisce). */
 export function manualRetryMessage(
-  res: { outcome: "sent" | "failed" | "not_claimed" | "disabled"; error: string | null; attempts: number | null; notFound?: boolean },
+  res: { outcome: "sent" | "failed" | "not_claimed" | "disabled" | "throttled"; error: string | null; attempts: number | null; notFound?: boolean },
   maxAttempts: number,
 ): { ok: true } | { error: string } {
   if (res.notFound) return { error: "Richiesta non trovata." };

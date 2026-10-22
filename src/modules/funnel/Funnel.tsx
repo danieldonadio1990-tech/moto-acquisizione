@@ -23,6 +23,18 @@ import { ContactStep } from "./steps/ContactStep";
 import { PhotoStep, type PickedPhoto } from "./steps/PhotoStep";
 import { DoneStep } from "./steps/DoneStep";
 
+/** Attesa prima di riprovare con un gettone nuovo: poco più dell'età minima richiesta dal server (3 s) */
+const FORM_TOKEN_WAIT_MS = 3_500;
+
+async function refreshFormToken(ref: { current: string | null }) {
+  try {
+    const res = await fetch("/api/leads/form-token", { cache: "no-store" });
+    if (res.ok) ref.current = ((await res.json()) as { token?: string }).token ?? null;
+  } catch {
+    // senza rete si riprova all'invio: l'invio stesso ha già la gestione degli errori di rete
+  }
+}
+
 type Errors = Record<string, string>;
 
 function zodErrors(err: ZodError): Errors {
@@ -103,6 +115,7 @@ export function Funnel() {
   const inFlight = useRef(false);
   const topRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
+  const formToken = useRef<string | null>(null);
 
   const step = state.step;
   const leadCreated = !!state.lead;
@@ -113,6 +126,14 @@ export function Funnel() {
     captureAttribution();
     if (state.step === 0 && !state.lead) track("valuation_start");
   }, [ready, state.step, state.lead]);
+
+  // gettone anti-bot del modulo: richiesto all'apertura e rinnovato ogni 45 minuti (scade dopo 2 ore)
+  useEffect(() => {
+    if (!ready) return;
+    void refreshFormToken(formToken);
+    const t = window.setInterval(() => void refreshFormToken(formToken), 45 * 60 * 1000);
+    return () => window.clearInterval(t);
+  }, [ready]);
 
   useEffect(() => {
     topRef.current?.scrollIntoView({ block: "start" });
@@ -146,18 +167,30 @@ export function Funnel() {
     const submissionId = state.submissionId ?? crypto.randomUUID();
     if (!state.submissionId) update({ submissionId });
     try {
-      const res = await postWithRetry<{ id: string; code: string; uploadToken: string }>("/api/leads", {
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          submissionId,
-          motorcycle: motoPayload(state.moto),
-          mileage: state.mileage,
-          condition: state.condition,
-          contact: state.contact,
-          attribution: getAttribution(),
-          website: honeypot.current?.value || undefined,
-        }),
-      });
+      const post = async () => {
+        if (!formToken.current) await refreshFormToken(formToken);
+        return postWithRetry<{ id: string; code: string; uploadToken: string }>("/api/leads", {
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            submissionId,
+            motorcycle: motoPayload(state.moto),
+            mileage: state.mileage,
+            condition: state.condition,
+            contact: state.contact,
+            attribution: getAttribution(),
+            formToken: formToken.current ?? undefined,
+            website: honeypot.current?.value || undefined,
+          }),
+        });
+      };
+      let res = await post();
+      // gettone scaduto, non valido o troppo recente: se ne chiede uno nuovo e si riprova UNA volta dopo l'attesa minima
+      if (!res.ok && res.status === 422 && res.data?.reason?.startsWith("form_token")) {
+        if (res.data.reason !== "form_token_too_fast") formToken.current = null;
+        if (!formToken.current) await refreshFormToken(formToken);
+        await new Promise((r) => setTimeout(r, FORM_TOKEN_WAIT_MS));
+        res = await post();
+      }
       if (!res.ok) {
         setSubmitError(
           res.network

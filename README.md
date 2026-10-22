@@ -96,7 +96,7 @@ Il server **non parte** (fail fast) se manca qualcosa di obbligatorio, e il log 
 | `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | con `s3` | + `S3_ENDPOINT`, `S3_REGION`, `S3_FORCE_PATH_STYLE`, `S3_PREFIX` |
 | `CLIENT_IP_SOURCE`, `CLIENT_IP_HEADER` | sì (su Netlify: `header` + `x-nf-client-connection-ip`) | Vedi [Sicurezza](#sicurezza) |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | solo primo avvio | poi rimuovere `ADMIN_PASSWORD` (il log lo ricorda) |
-| `RESEND_API_KEY`, `NOTIFY_EMAIL_TO`, `NOTIFY_EMAIL_FROM`, `NOTIFY_RETRY_TOKEN` | no (senza: nessuna notifica email) | Notifiche email per le nuove richieste (Resend). `NOTIFY_EMAIL_TO` previsto: `compro.moto.support@gmail.com`. Vedi [docs/NOTIFICHE.md](docs/NOTIFICHE.md) |
+| `RESEND_API_KEY`, `NOTIFY_EMAIL_TO`, `NOTIFY_EMAIL_FROM`, `NOTIFY_RETRY_TOKEN`, `NOTIFY_DAILY_LIMIT` | no (senza: nessuna notifica email) | Notifiche email per le nuove richieste (Resend). `NOTIFY_EMAIL_TO`: indirizzo di ricezione (nel repository solo esempi fittizi). Vedi [docs/NOTIFICHE.md](docs/NOTIFICHE.md) |
 | `SITE_INDEXING` | no | `false` spegne sempre l'indicizzazione |
 
 Tutte le variabili, con esempi: [`.env.example`](.env.example).
@@ -168,7 +168,7 @@ ricodifica l'immagine ed elimina i metadati EXIF/GPS.
 **Primo account**, due modi:
 - **Consigliato:** dal terminale, con le variabili di produzione:
   ```bash
-  DATABASE_URL=postgres://… npm run admin:user -- nome@azienda.it
+  DATABASE_URL=postgres://… npm run admin:user -- nome@example.com
   ```
   La password viene chiesta senza mostrarla (min 12 caratteri). Lo stesso comando **cambia la password**
   di un admin esistente e chiude le sue sessioni aperte.
@@ -189,7 +189,7 @@ npm run privacy:erase -- --email mario@example.com --yes     # cancella
 ```
 Criteri combinabili: `--email`, `--phone`, `--code` (codice richiesta), `--lead`.
 Cancella cliente, moto, richiesta, offerte, storico, dati di acquisto, foto (righe e file nello storage).
-Gli eventi statistici vengono **anonimizzati**, non cancellati (restano solo i conteggi); le tracce dei retry manuali delle notifiche (`notification_manual_retry`, con l'email dell'admin) vengono **cancellate** con la richiesta.
+Gli eventi statistici vengono **anonimizzati**, non cancellati (restano solo i conteggi); le tracce dei retry manuali delle notifiche (`notification_manual_retry`, che contengono l'id dell'admin e non la sua email) vengono **cancellate** con la richiesta. Una cancellazione concorrente con un retry manuale non lascia eventi orfani. I contatori anti-abuso contengono solo hash e scadono da soli; i backup non sono toccati (la cancellazione vi si applica alla loro scadenza). Decisioni di conservazione: [docs/NOTIFICHE.md](docs/NOTIFICHE.md#privacy-cosa-viene-conservato-decisioni-tecniche-non-una-dichiarazione-di-conformità); non sono una dichiarazione di conformità normativa.
 In produzione va eseguito con le stesse variabili del server. Annotare data e codice richiesta in un registro
 delle richieste privacy (senza dati personali).
 

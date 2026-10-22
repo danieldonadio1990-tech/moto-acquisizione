@@ -102,7 +102,7 @@ export function MotoStep({
               <TextField
                 label="Cilindrata (cc)"
                 inputMode="numeric"
-                placeholder="es. 125"
+                placeholder="es. 650"
                 value={moto.displacement}
                 onChange={(e) => onChange({ displacement: e.target.value.replace(/\D/g, "").slice(0, 4) })}
                 error={errors.displacement}

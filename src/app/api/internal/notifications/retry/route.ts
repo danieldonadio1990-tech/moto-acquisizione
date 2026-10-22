@@ -48,8 +48,8 @@ export async function POST(request: Request) {
     const batch = await retryNotificationsBatch(BATCH_LIMIT);
     if (batch.error) return NextResponse.json({ error: "Recupero non riuscito" }, { status: 503, headers: noStore });
     const unsent = await countUnsentNotifications();
-    const { configured, candidates, sent, failed, notClaimed } = batch;
-    return NextResponse.json({ configured, candidates, sent, failed, notClaimed, unsent }, { headers: noStore });
+    const { configured, candidates, sent, failed, throttled, notClaimed } = batch;
+    return NextResponse.json({ configured, candidates, sent, failed, throttled, notClaimed, unsent }, { headers: noStore });
   } catch (err) {
     logError("api/notifications/retry", err);
     return NextResponse.json({ error: "Recupero non riuscito" }, { status: 503, headers: noStore });

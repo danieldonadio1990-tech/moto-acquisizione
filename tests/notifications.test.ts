@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import type { EmailMessage, EmailTransport } from "@/modules/notifications/transport";
 
 const TMP = mkdtempSync(path.join(tmpdir(), "moto-notify-test-"));
-const TO = "compro.moto.support@gmail.com";
+const TO = "notifiche@example.invalid";
 Object.assign(process.env, {
   NODE_ENV: "test",
   PGLITE_DIR: path.join(TMP, "db"),
@@ -421,7 +421,7 @@ const env = (o: Record<string, string | undefined>) => o as unknown as NodeJS.Pr
 describe("6. Configurazione", () => {
   test("valida: destinatario da NOTIFY_EMAIL_TO, mittente di prova se manca NOTIFY_EMAIL_FROM", () => {
     const c = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: ` ${TO} ` }));
-    assert.deepEqual(c, { enabled: true, apiKey: "k", to: [TO], from: cfgmod.RESEND_TEST_SENDER });
+    assert.deepEqual(c, { enabled: true, apiKey: "k", to: [TO], from: cfgmod.RESEND_TEST_SENDER, dailyLimit: cfgmod.DEFAULT_DAILY_LIMIT });
     const d = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: `${TO}, altra@example.com`, NOTIFY_EMAIL_FROM: "Compro Moto <notifiche@example.com>" }));
     assert.ok(d.enabled && d.to.length === 2 && d.from === "Compro Moto <notifiche@example.com>");
   });
@@ -433,7 +433,7 @@ describe("6. Configurazione", () => {
       { RESEND_API_KEY: "k" },
       { NOTIFY_EMAIL_TO: TO },
       { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: "non-una-email" },
-      { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: "a@b.it,c@d.it,e@f.it,g@h.it" },
+      { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: "a@example.invalid,c@example.invalid,e@example.invalid,g@example.invalid" },
       { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_FROM: "senza-forma" },
     ]) {
       assert.equal(cfgmod.loadNotificationConfig(e(env)).enabled, false, JSON.stringify(env));

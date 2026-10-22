@@ -134,8 +134,8 @@ test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con sugger
 // ---- Redesign: home, immagini segnaposto, footer ------------------------------------------------------------------------
 test("home: messaggio principale, CTA e sezioni previste, senza promesse non verificate", () => {
   const home = readFileSync("src/app/page.tsx", "utf8");
-  assert.match(home, /Vuoi vendere il tuo scooter[\s\S]{0,60}senza perdere tempo\?/);
-  assert.match(home, /Raccontaci che mezzo hai\. Se è interessante per noi, ti faremo un&apos;offerta\./);
+  assert.match(home, /La compriamo noi,[\s\S]{0,80}la gestione successiva è affar nostro\./);
+  assert.match(home, /Acquistiamo la tua moto direttamente da te/);
   assert.match(home, /Valuta la tua moto/);
   for (const id of ["come-funziona", "mezzi", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
   for (const m of ["Honda", "Piaggio", "Liberty", "Agility"]) assert.match(home, new RegExp(m));
@@ -217,7 +217,7 @@ test("contatti configurati (numeri di prova): link corretti e indipendenti", () 
   const both = buildContactLinks({ whatsapp: "393001234567", phone: "02 1234 5678" });
   assert.equal(both.whatsapp, `https://wa.me/393001234567?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`);
   assert.deepEqual(both.phone, { href: "tel:+390212345678", label: "02 1234 5678" });
-  assert.equal(decodeURIComponent(both.whatsapp!.split("?text=")[1]), "Ciao, vorrei informazioni per vendere il mio scooter");
+  assert.equal(decodeURIComponent(both.whatsapp!.split("?text=")[1]), "Ciao, vorrei informazioni per vendere la mia moto");
   // numeri diversi e configurabili separatamente
   assert.deepEqual(buildContactLinks({ whatsapp: "[DA COMPLETARE: numero WhatsApp, es. 393331234567]", phone: "02 1234 5678" }).whatsapp, null);
   assert.equal(buildContactLinks({ whatsapp: "393001234567", phone: "[DA COMPLETARE: telefono]" }).phone, null);
@@ -238,4 +238,33 @@ test("contatti: i pulsanti dell'interfaccia dipendono dai numeri e mantengono il
   }
   // il modulo non dipende da nessun contatto: i pulsanti di contatto non sono nella barra del modulo
   assert.doesNotMatch(readFileSync("src/modules/funnel/Funnel.tsx", "utf8"), /PhoneButton|WhatsAppButton/);
+});
+
+// ---- Testi rivolti al cliente: terminologia e ambito del servizio ---------------------------------------------------------
+test("testi per il cliente: «moto» (mai «mezzo») e nessuna limitazione a scooter o a una cilindrata", () => {
+  const files = [
+    "src/app/page.tsx",
+    "src/app/valuta/page.tsx",
+    "src/app/opengraph-image.tsx",
+    "src/components/SiteHeader.tsx",
+    "src/components/SiteFooter.tsx",
+    "src/modules/funnel/steps/DoneStep.tsx",
+    "src/modules/funnel/steps/MotoStep.tsx",
+    "src/modules/funnel/Funnel.tsx",
+    "src/app/api/leads/route.ts",
+  ];
+  for (const f of files) {
+    // si ignorano commenti, identificatori tecnici (#mezzi, label analytics) e valori CSS
+    const txt = readFileSync(f, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "")
+      .replace(/#mezzi|id="mezzi"|label="altro-mezzo"/g, "");
+    assert.doesNotMatch(txt, /\bmezz[oi]\b/i, `${f}: usare «moto», «motocicletta» o «la tua moto»`);
+    assert.doesNotMatch(txt, /\bscooter\b|soprattutto scooter|solo scooter|\b125 ?cc\b(?!")/i, `${f}: il servizio riguarda tutte le moto`);
+  }
+  const home = readFileSync("src/app/page.tsx", "utf8");
+  assert.match(home, /gestione successiva/);
+  assert.match(home, /della rivendita non devi occuparti tu/);
+  const biz = readFileSync("src/config/business.ts", "utf8");
+  assert.doesNotMatch(biz.replace(/\/\*[\s\S]*?\*\//g, ""), /scooter|\bmezz[oi]\b/i);
 });

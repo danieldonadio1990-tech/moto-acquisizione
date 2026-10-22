@@ -1,0 +1,7 @@
+# Origini a cui il workflow «Recupero notifiche email» può inviare il token (NOTIFY_RETRY_TOKEN).
+# Una per riga, https://<host> senza percorso, confronto ESATTO (nessun carattere jolly). Le righe che iniziano con # sono commenti.
+# Il file è nel repository: una modifica passa da una revisione (PR), a differenza della variabile NOTIFY_RETRY_URL
+# che si cambia dal pannello di GitHub. Se NOTIFY_RETRY_URL non coincide con una di queste righe, lo script si ferma
+# PRIMA di inviare qualsiasi cosa: il token non può essere mandato a un indirizzo arbitrario.
+# Quando il sito avrà un dominio proprio, aggiungere qui la sua origine.
+https://papaya-taffy-ba2f1a.netlify.app

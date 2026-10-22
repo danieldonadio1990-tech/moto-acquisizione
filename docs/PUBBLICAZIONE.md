@@ -88,7 +88,8 @@ Branch deploys già disattivati (passo 3.5), le variabili vuote negli altri cont
 | `ADMIN_EMAIL` | la tua email da amministratore | scegli tu |
 | `ADMIN_PASSWORD` | password di almeno 12 caratteri | scegli tu; **rimuovila dopo il primo avvio** |
 | `RESEND_API_KEY` | chiave API di Resend (**segreta**) | Resend → API Keys. Facoltativa: senza, nessuna notifica email (vedi [NOTIFICHE.md](NOTIFICHE.md)) |
-| `NOTIFY_EMAIL_TO` | `compro.moto.support@gmail.com` | destinatario delle notifiche (fino a 3, separati da virgola) |
+| `NOTIFY_EMAIL_TO` | es. `notifiche@example.invalid` (indirizzo reale solo qui, su Netlify) | destinatario delle notifiche (fino a 3, separati da virgola) |
+| `NOTIFY_DAILY_LIMIT` | `50` | (facoltativa) massimo di email di notifica al giorno, per non esaurire la quota gratuita di Resend (100/giorno); `0` = nessun limite. Oltre il limite le richieste restano salvate. Vedi [NOTIFICHE.md](NOTIFICHE.md) |
 | `NOTIFY_RETRY_TOKEN` | token casuale di 64 caratteri (**segreto**) | `openssl rand -hex 32`. Facoltativo: attiva il recupero automatico delle notifiche (workflow GitHub, vedi [NOTIFICHE.md](NOTIFICHE.md)); lo stesso valore va nel secret GitHub omonimo |
 | `NOTIFY_EMAIL_FROM` | facoltativa, es. `Compro Moto <notifiche@tuodominio.it>` | se manca si usa il mittente di prova di Resend: l'account Resend va registrato con l'email del destinatario |
 

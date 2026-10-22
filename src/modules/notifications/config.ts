@@ -2,7 +2,7 @@
  * Configurazione delle notifiche email (Resend). Nessun valore è nel codice: tutto arriva dalle variabili d'ambiente.
  *
  *   RESEND_API_KEY      chiave API (segreto: solo nel pannello Netlify o nel proprio .env.local, mai nel repository)
- *   NOTIFY_EMAIL_TO     destinatario/i, separati da virgola (previsto: compro.moto.support@gmail.com)
+ *   NOTIFY_EMAIL_TO     destinatario/i, separati da virgola (indirizzo reale solo nella variabile, mai nel codice)
  *   NOTIFY_EMAIL_FROM   mittente; se manca si usa il mittente di prova di Resend (vedi docs/NOTIFICHE.md)
  *
  * Una configurazione incompleta o non valida DISATTIVA le notifiche e produce un avviso: non ferma mai il sito
@@ -10,7 +10,7 @@
  */
 export type NotificationConfig =
   | { enabled: false; reasons: string[] }
-  | { enabled: true; apiKey: string; to: string[]; from: string };
+  | { enabled: true; apiKey: string; to: string[]; from: string; dailyLimit: number };
 
 /** Mittente di prova di Resend: consegna SOLO all'indirizzo dell'account Resend (vedi docs/NOTIFICHE.md). */
 export const RESEND_TEST_SENDER = "Compro Moto <onboarding@resend.dev>";
@@ -18,6 +18,20 @@ export const RESEND_TEST_SENDER = "Compro Moto <onboarding@resend.dev>";
 const EMAIL_RE = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
 const FROM_RE = /^(?:[^<>@\r\n]{1,80}<[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+>|[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+)$/;
 const MAX_RECIPIENTS = 3;
+
+/**
+ * Limite giornaliero (giorno UTC, come la quota di Resend) di email di notifica inviate da questo sito.
+ * Il piano gratuito di Resend consente 100 email al giorno: il valore predefinito lascia margine per
+ * retry manuali, prove e un eventuale abuso. 0 = nessun limite.
+ */
+export const DEFAULT_DAILY_LIMIT = 50;
+
+export function parseDailyLimit(e: NodeJS.ProcessEnv = process.env): { value: number; invalid: boolean } {
+  const raw = e.NOTIFY_DAILY_LIMIT?.trim();
+  if (!raw) return { value: DEFAULT_DAILY_LIMIT, invalid: false };
+  if (!/^\d{1,4}$/.test(raw)) return { value: DEFAULT_DAILY_LIMIT, invalid: true };
+  return { value: Number(raw), invalid: false };
+}
 
 export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): NotificationConfig {
   const reasons: string[] = [];
@@ -38,7 +52,7 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
   if (fromRaw && !FROM_RE.test(fromRaw)) reasons.push('NOTIFY_EMAIL_FROM non valido (es. "Compro Moto <notifiche@tuodominio.it>")');
 
   if (reasons.length) return { enabled: false, reasons };
-  return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER };
+  return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, dailyLimit: parseDailyLimit(e).value };
 }
 
 /** Lunghezza minima del token del recupero automatico (generarlo con `openssl rand -hex 32`: 64 caratteri). */
@@ -57,9 +71,14 @@ export function loadRetryToken(e: NodeJS.ProcessEnv = process.env): string | nul
 export function notificationWarnings(e: NodeJS.ProcessEnv = process.env): string[] {
   const cfg = loadNotificationConfig(e);
   if (cfg.enabled) {
+    const warnings: string[] = [];
+    if (parseDailyLimit(e).invalid) {
+      warnings.push(`NOTIFY_DAILY_LIMIT non valido (numero intero da 0 a 9999): si usa il valore predefinito ${DEFAULT_DAILY_LIMIT}.`);
+    }
     return loadRetryToken(e)
-      ? []
+      ? warnings
       : [
+          ...warnings,
           `Recupero automatico delle notifiche non attivo: NOTIFY_RETRY_TOKEN mancante o più corto di ${MIN_RETRY_TOKEN_LENGTH} caratteri (le notifiche fallite si recuperano solo aprendo il back office).`,
         ];
   }

@@ -166,7 +166,7 @@ test("log: niente dati personali dagli errori del database", () => {
   );
   const s = JSON.stringify(safeError(err));
   assert.ok(!s.includes("Mario") && !s.includes("3331234567") && !s.includes("mario@example.com"), s);
-  assert.equal(redact("scrivi a luigi@example.it o al 347 123 4567"), "scrivi a [email] o al [numero]");
+  assert.equal(redact("scrivi a luigi@example.invalid o al 347 123 4567"), "scrivi a [email] o al [numero]");
 });
 
 test("log: le stringhe di connessione con password non compaiono mai", () => {

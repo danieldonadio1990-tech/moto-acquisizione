@@ -1,4 +1,4 @@
-import { loadNotificationConfig } from "./config";
+import { DEFAULT_DAILY_LIMIT, loadNotificationConfig } from "./config";
 
 /**
  * Invio email. Un'interfaccia sola (EmailTransport) così i test usano un trasporto finto e non toccano mai la rete.
@@ -67,12 +67,17 @@ export function setEmailTransport(t: EmailTransport | null | undefined) {
  * Trasporto in uso, o null se le notifiche non sono configurate.
  * In ambiente di test il trasporto reale NON viene mai creato, nemmeno se la chiave fosse presente nell'ambiente.
  */
-export function getEmailTransport(): { transport: EmailTransport; to: string[]; from: string } | null {
+export function getEmailTransport(): { transport: EmailTransport; to: string[]; from: string; dailyLimit: number } | null {
   const cfg = loadNotificationConfig();
   const override = g.__emailTransport;
   if (override) {
-    return { transport: override, to: cfg.enabled ? cfg.to : ["notifiche@example.invalid"], from: cfg.enabled ? cfg.from : "Test <test@example.invalid>" };
+    return {
+      transport: override,
+      to: cfg.enabled ? cfg.to : ["notifiche@example.invalid"],
+      from: cfg.enabled ? cfg.from : "Test <test@example.invalid>",
+      dailyLimit: cfg.enabled ? cfg.dailyLimit : DEFAULT_DAILY_LIMIT,
+    };
   }
   if (process.env.NODE_ENV === "test" || !cfg.enabled) return null;
-  return { transport: new ResendTransport(cfg.apiKey), to: cfg.to, from: cfg.from };
+  return { transport: new ResendTransport(cfg.apiKey), to: cfg.to, from: cfg.from, dailyLimit: cfg.dailyLimit };
 }

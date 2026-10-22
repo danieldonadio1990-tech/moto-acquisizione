@@ -11,18 +11,18 @@ import { isGenerated, type ImageKey } from "@/config/images";
 
 const STEPS = [
   {
-    title: "Ci racconti che mezzo hai",
+    title: "Ci racconti che moto hai",
     body: "Marca, modello, anno e chilometri. Le foto sono facoltative.",
     Icon: IconClipboard,
   },
   {
     title: "Valutiamo la richiesta e ti ricontattiamo",
-    body: "Guardiamo i dati e, se il mezzo è interessante per noi, ti facciamo un'offerta.",
+    body: "Guardiamo i dati e, se la moto è interessante per noi, ti facciamo un'offerta.",
     Icon: IconSearch,
   },
   {
     title: "Se troviamo un accordo, concludiamo l'acquisto",
-    body: "Fissiamo un appuntamento a Milano o in provincia per vedere il mezzo.",
+    body: "Fissiamo un appuntamento a Milano o in provincia per vedere la moto. Dopo l'acquisto, la gestione successiva è a nostro carico.",
     Icon: IconKey,
   },
 ];
@@ -34,7 +34,7 @@ const MODELS: { id: ImageKey; brand: string; name: string; panel: string }[] = [
 ];
 
 /** Cosa chiediamo nel modulo: composizione tipografica dell'hero finché non c'è la fotografia. */
-const NEEDED = ["Marca e modello", "Anno e chilometri", "Le condizioni del mezzo", "I tuoi contatti", "Qualche foto (facoltativa)"];
+const NEEDED = ["Marca e modello", "Anno e chilometri", "Le condizioni della moto", "I tuoi contatti", "Qualche foto (facoltativa)"];
 
 const HERO_POINTS = ["Richiesta online in pochi minuti", "Foto facoltative", "Decidi tu se vendere"];
 
@@ -46,7 +46,7 @@ const BENEFITS = [
 
 const EASY = [
   "Invii la richiesta online, dal telefono o dal computer.",
-  "Ci dai solo le informazioni principali del mezzo.",
+  "Ci dai solo le informazioni principali della moto.",
   "Le foto sono facoltative: puoi inviare la richiesta anche senza.",
   "Non serve WhatsApp per inviare la richiesta.",
 ];
@@ -54,15 +54,19 @@ const EASY = [
 const FAQ = [
   {
     q: "Quanto costa la valutazione?",
-    a: "Niente. Ci mandi i dati, noi ti diciamo se il mezzo ci interessa. Non ti impegni a vendere.",
+    a: "Niente. Ci mandi i dati, noi ti diciamo se la moto ci interessa. Non ti impegni a vendere.",
   },
   {
     q: "Mi date subito un prezzo?",
     a: "No: prima controlliamo dati e foto, poi ti contattiamo con un'offerta reale. Preferiamo non darti un numero che poi cambia.",
   },
   {
-    q: "Comprate solo scooter?",
-    a: "Soprattutto scooter da città, ma valutiamo anche altre moto. Se hai un modello diverso, mandacelo lo stesso.",
+    q: "Quali moto acquistate?",
+    a: "Valutiamo moto di ogni marca e modello. Se la tua non compare nell'elenco del modulo, puoi indicarla a mano.",
+  },
+  {
+    q: "Chi si occupa della rivendita?",
+    a: "Noi. Acquistiamo la moto direttamente da te: dopo la vendita la gestione successiva è a nostro carico e non devi occupartene.",
   },
   {
     q: "Le foto sono obbligatorie?",
@@ -91,14 +95,14 @@ export default function Home() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-asphalt-raised px-3.5 py-1.5 text-sm font-bold text-paper/90 ring-1 ring-paper/15">
                 <span aria-hidden className="h-2 w-2 rounded-full bg-signal" />
-                Scooter e moto usate da privati · {BRAND.area}
+                Acquisto di moto usate da privati · {BRAND.area}
               </p>
               <h1 className="display mt-5 text-[clamp(2.7rem,9.5vw,5.4rem)]">
-                Vuoi vendere il tuo scooter{" "}
-                <span className="text-signal">senza perdere tempo?</span>
+                La compriamo noi,{" "}
+                <span className="text-signal">la gestione successiva è affar nostro.</span>
               </h1>
               <p className="mt-5 max-w-[40ch] text-lg leading-snug text-paper/80 md:text-xl">
-                Raccontaci che mezzo hai. Se è interessante per noi, ti faremo un&apos;offerta.
+                Acquistiamo la tua moto direttamente da te. Ti guidiamo in una procedura chiara e, dopo la vendita, della rivendita non devi occuparti tu.
               </p>
               <div id="hero-cta" className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
                 <TrackedLink href="/valuta" event="cta_click" label="hero" className={`${btnPrimary} w-full sm:w-auto`}>
@@ -116,7 +120,7 @@ export default function Home() {
                 ))}
               </ul>
               <p className="mt-5 max-w-[48ch] text-sm leading-relaxed text-paper/70">
-                Ci occupiamo soprattutto di scooter da città, ma puoi inviare anche la richiesta per un&apos;altra moto.
+                Valutiamo richieste per moto di ogni marca e modello.
               </p>
             </div>
             <div className="md:order-last">
@@ -136,7 +140,7 @@ export default function Home() {
                   <span aria-hidden className="block h-2 w-full bg-signal" />
                   <div className="p-6 sm:p-8">
                   <p className="text-sm font-bold uppercase tracking-wider text-signal">Cosa ci serve</p>
-                  <p className="display mt-2 text-3xl sm:text-4xl">Pochi dati sul tuo mezzo.</p>
+                  <p className="display mt-2 text-3xl sm:text-4xl">Pochi dati sulla tua moto.</p>
                   <ul className="mt-6 space-y-3">
                     {NEEDED.map((t) => (
                       <li key={t} className="flex items-center gap-3 text-lg">
@@ -192,13 +196,13 @@ export default function Home() {
           </div>
         </section>
 
-        {/* QUALE MEZZO */}
+        {/* QUALE MOTO */}
         <section id="mezzi" className="scroll-mt-20 bg-paper">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20 lg:px-8">
             <p className="text-sm font-bold uppercase tracking-widest text-plate">Modelli</p>
-            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Quale mezzo vuoi vendere?</h2>
+            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Quale moto vuoi vendere?</h2>
             <p className="mt-4 max-w-[54ch] text-lg leading-snug text-asphalt-soft">
-              Qualche esempio di scooter da città. Se il tuo è diverso, mandacelo lo stesso.
+              Alcuni esempi di modelli. Se la tua moto è diversa, puoi inviare la richiesta lo stesso.
             </p>
             <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {MODELS.map((m) => (
@@ -220,7 +224,7 @@ export default function Home() {
                         <p className="display text-3xl">{m.name}</p>
                       </>
                     ) : (
-                      <p className="font-semibold text-asphalt-soft">Scooter da città</p>
+                      <p className="font-semibold text-asphalt-soft">Esempio di modello</p>
                     )}
                     <TrackedLink
                       href="/valuta"
@@ -239,13 +243,13 @@ export default function Home() {
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-asphalt text-signal">
                     <IconPlus className="h-6 w-6" />
                   </span>
-                  <p className="display mt-4 text-3xl">Un altro mezzo?</p>
+                  <p className="display mt-4 text-3xl">Un&apos;altra moto?</p>
                   <p className="mt-2 leading-relaxed text-asphalt-soft">
                     Altre marche e altri modelli: scrivili a mano nel modulo.
                   </p>
                 </div>
                 <TrackedLink href="/valuta" event="cta_click" label="altro-mezzo" className={`${btnOutline} mt-6 w-full px-4 text-center`}>
-                  Valuta il mezzo
+                  Valuta la tua moto
                 </TrackedLink>
               </li>
             </ul>
@@ -257,9 +261,9 @@ export default function Home() {
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-20 lg:px-8">
             <div>
               <p className="text-sm font-bold uppercase tracking-widest text-signal">Per chi vende</p>
-              <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Niente annunci, niente giri a vuoto.</h2>
+              <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Niente annunci da gestire, nessuna rivendita a tuo carico.</h2>
               <p className="mt-5 max-w-[42ch] text-lg leading-snug text-paper/75">
-                Una richiesta semplice, fatta con calma quando vuoi tu.
+                Una richiesta semplice, da inviare quando preferisci.
               </p>
             </div>
             <ul className="space-y-4">
@@ -302,7 +306,7 @@ export default function Home() {
         {/* CTA FINALE */}
         <section className="on-dark bg-plate text-paper">
           <div className="mx-auto flex max-w-6xl flex-col items-start gap-7 px-4 py-14 sm:px-6 md:flex-row md:items-center md:justify-between md:py-16 lg:px-8">
-            <p className="display max-w-[20ch] text-4xl sm:text-5xl md:text-6xl">Hai uno scooter da vendere?</p>
+            <p className="display max-w-[20ch] text-4xl sm:text-5xl md:text-6xl">Hai una moto da vendere?</p>
             <div id="final-cta" className="w-full md:w-auto">
               <TrackedLink href="/valuta" event="cta_click" label="footer" className={`${btnPrimary} w-full md:w-auto`}>
                 Valuta la tua moto

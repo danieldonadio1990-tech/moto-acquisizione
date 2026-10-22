@@ -4,8 +4,11 @@ import { requireAdmin } from "@/modules/admin/auth";
 import { countLeadsByStatus, listLeads } from "@/modules/leads/service";
 import { buildDataset, kpis } from "@/modules/leads/dataset";
 import {
+  countThrottledNotifications,
   countUnsentNotifications,
+  emailLinkOrigin,
   emailNotificationsConfigured,
+  notificationDailyLimit,
   retryPendingNotifications,
 } from "@/modules/notifications/new-lead";
 import { CLOSED_STATUSES, isLeadStatus, LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
@@ -29,11 +32,12 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
   // recupero: riprova le notifiche email rimaste in sospeso (non lancia eccezioni; nessun effetto se non configurate)
   await retryPendingNotifications();
 
-  const [rows, counts, dataset, unsent] = await Promise.all([
+  const [rows, counts, dataset, unsent, throttled] = await Promise.all([
     listLeads({ status: filter }),
     countLeadsByStatus(),
     buildDataset(),
     countUnsentNotifications(),
+    countThrottledNotifications(),
   ]);
   const notificationsConfigured = emailNotificationsConfigured();
   const k = kpis(dataset);
@@ -64,12 +68,29 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
         <p role="status" className="mt-4 rounded-xl bg-signal/40 px-4 py-3 text-sm font-semibold">
           Notifiche email non configurate: le nuove richieste si vedono solo qui. Vedi docs/NOTIFICHE.md.
         </p>
-      ) : unsent > 0 ? (
-        <p role="status" className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
-          {unsent === 1 ? "1 richiesta senza notifica email inviata" : `${unsent} richieste senza notifica email inviata`}: il
-          sistema riprova a ogni apertura di questa pagina. Se resta così, controlla la configurazione (docs/NOTIFICHE.md).
-        </p>
-      ) : null}
+      ) : (
+        <>
+          {throttled > 0 && (
+            <p role="status" className="mt-4 rounded-xl bg-signal/40 px-4 py-3 text-sm font-semibold">
+              {throttled === 1 ? "1 notifica sospesa" : `${throttled} notifiche sospese`}: raggiunto il limite giornaliero (
+              {notificationDailyLimit()} email al giorno, giorno UTC). Le richieste sono salve e le notifiche ripartono da sole dal giorno
+              dopo. Se succede spesso, controlla se ci sono richieste anomale.
+            </p>
+          )}
+          {unsent - throttled > 0 && (
+            <p role="status" className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm font-semibold text-danger">
+              {unsent - throttled === 1
+                ? "1 richiesta senza notifica email inviata"
+                : `${unsent - throttled} richieste senza notifica email inviata`}
+              : il sistema riprova a ogni apertura di questa pagina. Se resta così, controlla la configurazione (docs/NOTIFICHE.md).
+            </p>
+          )}
+          <p className="mt-3 text-xs text-concrete">
+            Notifiche email attive · indirizzo usato nei link delle email: <span className="font-semibold">{emailLinkOrigin()}</span>
+            {emailLinkOrigin().includes("localhost") && " (non è l'indirizzo del sito: imposta SITE.domain)"}
+          </p>
+        </>
+      )}
 
       {/* Indicatori del soft launch: dalla richiesta all'acquisto */}
       <dl className="mt-6 grid grid-cols-3 gap-x-4 gap-y-4 rounded-2xl bg-paper p-4 text-sm ring-1 ring-line sm:grid-cols-4 lg:grid-cols-7">

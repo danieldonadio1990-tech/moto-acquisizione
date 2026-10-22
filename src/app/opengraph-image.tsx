@@ -31,9 +31,9 @@ export default function OpengraphImage() {
           </g>
         </svg>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 92, fontWeight: 800, lineHeight: 1, letterSpacing: -2 }}>Vuoi vendere il tuo scooter senza perdere tempo?</div>
+          <div style={{ fontSize: 80, fontWeight: 800, lineHeight: 1.02, letterSpacing: -2 }}>La compriamo noi, la gestione successiva è affar nostro.</div>
           <div style={{ marginTop: 28, fontSize: 38, color: "#3a4048" }}>
-            Raccontaci che mezzo hai. Se è interessante per noi, ti faremo un&apos;offerta.
+            Acquistiamo la tua moto direttamente da te, con una procedura chiara.
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>

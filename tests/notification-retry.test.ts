@@ -7,7 +7,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { createServer, type IncomingMessage, type Server } from "node:http";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -15,7 +15,7 @@ import type { EmailMessage, EmailTransport, SendResult } from "@/modules/notific
 
 const TMP = mkdtempSync(path.join(tmpdir(), "moto-retry-test-"));
 const TOKEN = randomBytes(24).toString("hex"); // generato a ogni esecuzione: nessun valore fisso nel repository
-const TO = "compro.moto.support@gmail.com";
+const TO = "notifiche@example.invalid";
 Object.assign(process.env, {
   NODE_ENV: "test",
   PGLITE_DIR: path.join(TMP, "db"),
@@ -199,7 +199,7 @@ describe("1. Autenticazione della rotta", () => {
     assert.equal(res.headers.get("cache-control"), "private, no-store");
     const text = await res.text();
     const body = JSON.parse(text) as Record<string, unknown>;
-    assert.deepEqual(Object.keys(body).sort(), ["candidates", "configured", "failed", "notClaimed", "sent", "unsent"]);
+    assert.deepEqual(Object.keys(body).sort(), ["candidates", "configured", "failed", "notClaimed", "sent", "throttled", "unsent"]);
     assert.ok(Object.values(body).every((v) => typeof v === "number" || typeof v === "boolean"));
     const lead = await row(id);
     for (const secret of [id, lead.code, TOKEN, TO, "Mario", "Verdi", "3331234567"]) assert.ok(!text.includes(secret));
@@ -275,7 +275,7 @@ describe("3. Errori del provider: i tentativi successivi non si interrompono", (
       const p = arm(mode);
       const first = await authed();
       assert.equal(first.status, 200, mode);
-      assert.deepEqual(await first.json(), { configured: true, candidates: 1, sent: 0, failed: 1, notClaimed: 0, unsent: 1 });
+      assert.deepEqual(await first.json(), { configured: true, candidates: 1, sent: 0, failed: 1, throttled: 0, notClaimed: 0, unsent: 1 });
       const r1 = await row(id);
       assert.equal(r1.notificationStatus, "failed");
       assert.equal(r1.notificationAttempts, 1);
@@ -392,6 +392,7 @@ describe("6. Script scripts/notify-retry/call.sh (server HTTP locale, nessuna re
   let server: Server;
   let port = 0;
   const seen: Seen[] = [];
+  let allowedFile = "";
   let reply: { status: number; body: string } = { status: 200, body: "" };
   const JSON_OK = '{"configured":true,"candidates":2,"sent":2,"failed":0,"notClaimed":0,"unsent":0}';
 
@@ -403,6 +404,8 @@ describe("6. Script scripts/notify-retry/call.sh (server HTTP locale, nessuna re
     });
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     port = (server.address() as { port: number }).port;
+    allowedFile = path.join(TMP, "allowed-origins.txt");
+    writeFileSync(allowedFile, `# origini di prova\nhttp://127.0.0.1:${port}\n`);
   });
   after(() => new Promise<void>((r) => server.close(() => r())));
 
@@ -411,7 +414,9 @@ describe("6. Script scripts/notify-retry/call.sh (server HTTP locale, nessuna re
       const clean = { ...process.env };
       delete clean.NOTIFY_RETRY_URL;
       delete clean.NOTIFY_RETRY_TOKEN;
-      execFile("bash", ["scripts/notify-retry/call.sh"], { env: { ...clean, ...env } as NodeJS.ProcessEnv, timeout: 30_000 }, (err, stdout, stderr) =>
+      delete clean.NOTIFY_RETRY_ALLOWED_ORIGINS_FILE;
+      const withAllow = { NOTIFY_RETRY_ALLOWED_ORIGINS_FILE: allowedFile, ...env };
+      execFile("bash", ["scripts/notify-retry/call.sh"], { env: { ...clean, ...withAllow } as NodeJS.ProcessEnv, timeout: 30_000 }, (err, stdout, stderr) =>
         resolve({ code: err ? ((err as { code?: number }).code ?? 1) : 0, out: stdout + stderr }),
       );
     });
@@ -427,7 +432,7 @@ describe("6. Script scripts/notify-retry/call.sh (server HTTP locale, nessuna re
     assert.equal(seen[0].url, "/api/internal/notifications/retry");
     assert.equal(seen[0].headers.authorization, `Bearer ${TOKEN}`);
     assert.ok(!seen[0].url.includes(TOKEN));
-    assert.match(r.out, /recuperabili=2 inviate=2 fallite=0 ancora senza notifica=0/);
+    assert.match(r.out, /recuperabili=2 inviate=2 fallite=0 sospese=0 ancora senza notifica=0/);
     assert.ok(!r.out.includes(TOKEN), "il token non compare nell'output");
     assert.doesNotMatch(r.out, /::(warning|error)::/);
   });
@@ -468,6 +473,64 @@ describe("6. Script scripts/notify-retry/call.sh (server HTTP locale, nessuna re
       assert.ok(!r.out.includes(TOKEN));
     }
     assert.equal(seen.length, 0);
+  });
+
+  test("origine NON autorizzata (anche se https valido o con host simile): il token non viene inviato, nessuna richiesta", async () => {
+    seen.length = 0;
+    for (const evil of ["https://sito-estraneo.example", `http://127.0.0.1:${port + 1}`, `http://127.0.0.1:${port}.evil.example`, "https://papaya-taffy-ba2f1a.netlify.app.evil.example"]) {
+      const r = await run({ NOTIFY_RETRY_URL: evil, NOTIFY_RETRY_TOKEN: TOKEN });
+      assert.equal(r.code, 1, evil);
+      assert.match(r.out, /non è tra le origini autorizzate.*il token NON è stato inviato|non valido/, evil);
+      assert.ok(!r.out.includes(TOKEN));
+    }
+    // il file di origini non è leggibile o è vuoto: stesso risultato
+    const empty = path.join(TMP, "vuoto.txt");
+    writeFileSync(empty, "# nessuna origine\n");
+    for (const f of [empty, path.join(TMP, "non-esiste.txt")]) {
+      const r = await run({ NOTIFY_RETRY_URL: url(), NOTIFY_RETRY_TOKEN: TOKEN, NOTIFY_RETRY_ALLOWED_ORIGINS_FILE: f });
+      assert.equal(r.code, 1);
+    }
+    assert.equal(seen.length, 0, "nessuna richiesta di rete verso nessuno");
+  });
+
+  test("i reindirizzamenti non vengono seguiti: il token non può finire altrove", async () => {
+    const other: Seen[] = [];
+    const second = createServer((req, res) => {
+      other.push({ method: req.method ?? "", url: req.url ?? "", headers: req.headers });
+      res.writeHead(200).end("{}");
+    });
+    await new Promise<void>((r) => second.listen(0, "127.0.0.1", r));
+    const p2 = (second.address() as { port: number }).port;
+    server.removeAllListeners("request");
+    server.on("request", (req, res) => {
+      seen.push({ method: req.method ?? "", url: req.url ?? "", headers: req.headers });
+      res.writeHead(302, { location: `http://127.0.0.1:${p2}/rubato` }).end();
+    });
+    try {
+      const r = await run({ NOTIFY_RETRY_URL: url(), NOTIFY_RETRY_TOKEN: TOKEN });
+      assert.equal(r.code, 1);
+      assert.match(r.out, /HTTP 302/);
+      assert.equal(other.length, 0, "il secondo server non ha ricevuto nulla");
+    } finally {
+      await new Promise<void>((r) => second.close(() => r()));
+      server.removeAllListeners("request");
+      server.on("request", (req, res) => {
+        seen.push({ method: req.method ?? "", url: req.url ?? "", headers: req.headers });
+        res.writeHead(reply.status, { "content-type": "application/json" });
+        res.end(reply.body);
+      });
+    }
+  });
+
+  test("il file di origini autorizzate nel repository: solo https, senza jolly, con il sito atteso", () => {
+    const lines = readFileSync("scripts/notify-retry/allowed-origins.txt", "utf8")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
+    assert.ok(lines.length >= 1);
+    for (const l of lines) assert.match(l, /^https:\/\/[a-z0-9.-]+$/, l);
+    assert.ok(lines.every((l) => !l.includes("*")));
+    assert.ok(lines.includes("https://papaya-taffy-ba2f1a.netlify.app"));
   });
 
   test("il workflow è disattivato finché non si imposta NOTIFY_RETRY_ENABLED, non si sovrappone e non contiene segreti", () => {

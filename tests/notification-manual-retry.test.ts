@@ -21,7 +21,7 @@ Object.assign(process.env, {
   ADMIN_PASSWORD: "",
   RATE_LIMIT_DISABLED: "true",
   RESEND_API_KEY: "dummy-key-not-real",
-  NOTIFY_EMAIL_TO: "compro.moto.support@gmail.com",
+  NOTIFY_EMAIL_TO: "notifiche@example.invalid",
 });
 
 type Mode = "ok" | "fail" | "throw";
@@ -79,6 +79,14 @@ const submission = () => ({
   },
 });
 const ADMIN = "admin-prova@example.invalid";
+/** Crea (una sola volta) un admin di prova nel database del test e ne restituisce l'id. */
+async function adminId(email: string) {
+  const db = await dbmod.getDb();
+  const [found] = await db.select({ id: schema.adminUsers.id }).from(schema.adminUsers).where(orm.eq(schema.adminUsers.email, email));
+  if (found) return found.id;
+  const [row] = await db.insert(schema.adminUsers).values({ email, passwordHash: "x" }).returning({ id: schema.adminUsers.id });
+  return row.id;
+}
 
 async function row(id: string) {
   const db = await dbmod.getDb();
@@ -136,6 +144,7 @@ describe("1. Retry manuale di una notifica con tentativi automatici esauriti", (
     assert.equal(nl.MAX_ATTEMPTS, 5, "il tetto dei tentativi automatici non cambia");
     const id = await exhaustedLead();
     const p = arm();
+    const adm = await adminId(ADMIN);
     const res = await nl.manualRetryNotification(id, ADMIN);
     assert.deepEqual(pick(res), { outcome: "sent", error: null });
     assert.equal(p.attempts.length, 1);
@@ -147,7 +156,8 @@ describe("1. Retry manuale di una notifica con tentativi automatici esauriti", (
 
     const ev = await eventsOf(id);
     assert.equal(ev.length, 1);
-    assert.deepEqual(ev[0].props, { by: ADMIN, outcome: "sent" });
+    assert.deepEqual(ev[0].props, { adminId: adm, outcome: "sent" });
+    assert.ok(!JSON.stringify(ev[0].props).includes("@"), "nell'evento non c'è l'email dell'admin");
     assert.equal(ev[0].sessionId, null);
   });
 
@@ -212,7 +222,7 @@ describe("3. Prenotazione atomica e casi non consentiti", () => {
     assert.equal(p.attempts.length, 0);
     assert.equal((await row(sent)).notificationAttempts, 1);
     assert.equal((await row(inFlight)).notificationStatus, "sending");
-    assert.deepEqual((await eventsOf(sent))[0].props, { by: ADMIN, outcome: "not_claimed" });
+    assert.deepEqual((await eventsOf(sent))[0].props, { adminId: await adminId(ADMIN), outcome: "not_claimed" });
   });
 
   test("invio rimasto appeso da oltre 5 minuti o richiesta ancora «pending»: si può riprovare", async () => {
@@ -257,12 +267,20 @@ describe("3. Prenotazione atomica e casi non consentiti", () => {
 describe("4. Traccia e visibilità nel back office", () => {
   test("la cronologia mostra data, admin ed esito, senza dati del cliente", async () => {
     const id = await exhaustedLead();
+    const first = `uno-${randomUUID().slice(0, 6)}@example.invalid`;
+    const second = `due-${randomUUID().slice(0, 6)}@example.invalid`;
     arm("fail");
-    await nl.manualRetryNotification(id, ADMIN);
+    await nl.manualRetryNotification(id, first);
     provider.mode = "ok";
-    await nl.manualRetryNotification(id, "altro-admin@example.invalid");
+    await nl.manualRetryNotification(id, second);
     const hist = await nl.recentManualRetries(id);
-    assert.deepEqual(hist.map((h) => [h.by, h.outcome]), [["altro-admin@example.invalid", "sent"], [ADMIN, "failed"]]);
+    assert.deepEqual(hist.map((h) => [h.by, h.outcome]), [["admin rimosso", "sent"], ["admin rimosso", "failed"]], "senza utente admin si legge «admin rimosso»");
+    // con l'utente admin presente, l'email si legge solo in lettura, risolta dall'id: l'evento non la contiene
+    await adminId(second);
+    await nl.manualRetryNotification(id, second);
+    const hist2 = await nl.recentManualRetries(id);
+    assert.equal(hist2[0].by, second);
+    assert.ok(!JSON.stringify(await eventsOf(id)).includes("@"), "nessuna email negli eventi");
     const raw = JSON.stringify(await eventsOf(id));
     for (const pii of ["Mario", "Verdi", "3331234567", "mario.", "Pavia"]) assert.ok(!raw.includes(pii), pii);
   });

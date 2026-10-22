@@ -22,7 +22,7 @@ export const BRAND = {
   /** Testo usato in titolo e descrizione per i motori di ricerca e la condivisione */
   tagline: "Vendi la tua moto a Milano",
   description:
-    "Hai una moto o uno scooter da vendere a Milano? Raccontaci che moto hai: la valutiamo e, se ci interessa, ti facciamo un'offerta.",
+    "Vendi la tua moto a Milano: la compriamo direttamente da te, ti guidiamo in una procedura chiara e, dopo la vendita, della rivendita non devi occuparti tu.",
 } as const;
 
 export const CONTACTS = {
@@ -129,7 +129,7 @@ export function whatsappLink(message?: string, toNumber?: string): string | null
 }
 
 /** Primo messaggio precompilato nella conversazione WhatsApp dal sito. */
-export const WHATSAPP_MESSAGE = "Ciao, vorrei informazioni per vendere il mio scooter";
+export const WHATSAPP_MESSAGE = "Ciao, vorrei informazioni per vendere la mia moto";
 
 /**
  * Link "tel:" in formato internazionale ricavato dal numero indicato (mostrato così com'è). Restituisce null se il numero

@@ -22,7 +22,9 @@ concurrency:
 jobs:
   retry:
     # Le esecuzioni pianificate partono solo con NOTIFY_RETRY_ENABLED=true; il lancio manuale funziona sempre.
-    if: github.event_name == 'workflow_dispatch' || vars.NOTIFY_RETRY_ENABLED == 'true'
+    # Solo dal ramo principale: l'elenco delle origini autorizzate (scripts/notify-retry/allowed-origins.txt) è quello rivisto
+    # e approvato con la PR, non quello di un ramo qualsiasi.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.NOTIFY_RETRY_ENABLED == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
