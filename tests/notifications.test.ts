@@ -509,3 +509,160 @@ describe("8. Comando notify:test", () => {
     assert.doesNotMatch(script, /--to\b/);
   });
 });
+
+/** Provider finto che si comporta come Resend con l'idempotenza: stessa chiave + stesso contenuto = nessun secondo invio. */
+class IdempotentProvider implements EmailTransport {
+  seen = new Map<string, string>();
+  deliveries = 0;
+  attempts: Sent[] = [];
+  /** simula «email accettata dal provider ma risposta persa» (timeout) per le prossime N chiamate */
+  loseReplies = 0;
+  async send(msg: Sent) {
+    this.attempts.push(msg);
+    const body = JSON.stringify({ from: msg.from, to: msg.to, subject: msg.subject, text: msg.text });
+    const prev = this.seen.get(msg.idempotencyKey);
+    let result: { ok: true; id: string } | { ok: false; code: string };
+    if (prev === undefined) {
+      this.seen.set(msg.idempotencyKey, body);
+      this.deliveries++;
+      result = { ok: true, id: "idem-1" };
+    } else if (prev === body) {
+      result = { ok: true, id: "idem-1" }; // stessa risposta, nessun nuovo invio
+    } else {
+      result = { ok: false, code: "http_409" }; // stessa chiave con contenuto diverso
+    }
+    if (this.loseReplies > 0) {
+      this.loseReplies--;
+      return { ok: false as const, code: "timeout" };
+    }
+    return result;
+  }
+}
+
+describe("9. Email accettata dal provider ma esito non registrato (interruzione, timeout)", () => {
+  test("processo interrotto dopo l'invio: il recupero riusa la stessa chiave e non produce una seconda email (entro 24 ore)", async () => {
+    const provider = new IdempotentProvider();
+    tr.setEmailTransport(provider);
+    const lead = await svc.createLead(submission());
+    assert.equal(await nl.notifyNewLead(lead.id), "sent");
+    // simulazione: il processo si ferma prima di scrivere «sent»
+    await patch(lead.id, { notificationStatus: "sending", notificationSentAt: null, notificationClaimedAt: minutesAgo(nl.RETRY_AFTER_MINUTES + 1) });
+    assert.equal(await nl.notifyNewLead(lead.id), "sent");
+    assert.equal(provider.attempts.length, 2);
+    assert.equal(provider.deliveries, 1, "una sola consegna reale");
+    assert.equal((await row(lead.id)).notificationStatus, "sent");
+  });
+
+  test("timeout lato nostro con email in realtà accettata: il retry successivo non duplica", async () => {
+    const provider = new IdempotentProvider();
+    provider.loseReplies = 1;
+    tr.setEmailTransport(provider);
+    const lead = await svc.createLead(submission());
+    assert.equal(await nl.notifyNewLead(lead.id), "failed");
+    assert.equal((await row(lead.id)).notificationError, "timeout");
+    await patch(lead.id, { notificationClaimedAt: minutesAgo(nl.RETRY_AFTER_MINUTES + 1) });
+    assert.equal(await nl.notifyNewLead(lead.id), "sent");
+    assert.equal(provider.deliveries, 1);
+  });
+
+  test("ogni tentativo usa la stessa chiave e lo stesso identico contenuto (mittente, destinatari, oggetto, testo)", async () => {
+    const provider = new IdempotentProvider();
+    provider.loseReplies = 2;
+    tr.setEmailTransport(provider);
+    const lead = await svc.createLead(submission());
+    for (let i = 0; i < 3; i++) {
+      await nl.notifyNewLead(lead.id);
+      await patch(lead.id, { notificationClaimedAt: minutesAgo(nl.RETRY_AFTER_MINUTES + 1) });
+    }
+    assert.equal(provider.attempts.length, 3);
+    for (const a of provider.attempts) assert.deepEqual(a, provider.attempts[0]);
+    assert.equal(provider.attempts[0].idempotencyKey, `lead-notify-${lead.id}`);
+    assert.equal(provider.deliveries, 1);
+  });
+
+  test("se il contenuto cambia tra due tentativi (es. cambia l'indirizzo del sito) il provider rifiuta con 409: nessun doppione, stato «failed»", async () => {
+    const provider = new IdempotentProvider();
+    provider.loseReplies = 1;
+    tr.setEmailTransport(provider);
+    const before = { URL: process.env.URL, SITE_NAME: process.env.SITE_NAME };
+    try {
+      delete process.env.URL;
+      process.env.SITE_NAME = "sito-a";
+      const lead = await svc.createLead(submission());
+      assert.equal(await nl.notifyNewLead(lead.id), "failed"); // risposta persa, email consegnata
+      process.env.SITE_NAME = "sito-b";
+      await patch(lead.id, { notificationClaimedAt: minutesAgo(nl.RETRY_AFTER_MINUTES + 1) });
+      assert.equal(await nl.notifyNewLead(lead.id), "failed");
+      assert.equal((await row(lead.id)).notificationError, "http_409");
+      assert.equal(provider.deliveries, 1);
+    } finally {
+      for (const [k, v] of Object.entries(before)) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+});
+
+describe("10. Indirizzo del sito nelle email (a runtime su Netlify esistono solo SITE_NAME e SITE_ID)", () => {
+  const KEYS = ["URL", "SITE_NAME", "VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL"] as const;
+  const withEnv = async (env: Record<string, string | undefined>, fn: () => void | Promise<void>) => {
+    const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+    try {
+      for (const k of KEYS) delete process.env[k];
+      for (const [k, v] of Object.entries(env)) if (v !== undefined) process.env[k] = v;
+      await fn();
+    } finally {
+      for (const k of KEYS) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    }
+  };
+
+  test("priorità: URL (build) → <SITE_NAME>.netlify.app (runtime) → locale; un SITE_NAME anomalo viene ignorato", async () => {
+    const { siteUrl } = await import("@/config/business");
+    await withEnv({ URL: "https://esempio.netlify.app", SITE_NAME: "altro" }, () => assert.equal(siteUrl().origin, "https://esempio.netlify.app"));
+    await withEnv({ SITE_NAME: "Papaya-Taffy-123" }, () => assert.equal(siteUrl().origin, "https://papaya-taffy-123.netlify.app"));
+    await withEnv({ SITE_NAME: "evil.example.com/x" }, () => assert.equal(siteUrl().hostname, "localhost"));
+    await withEnv({}, () => assert.equal(siteUrl().hostname, "localhost"));
+  });
+
+  test("la notifica usa l'indirizzo del sito; se in produzione non è determinabile indica il percorso invece di un link a localhost", async () => {
+    const lead = await leadForEmail((await svc.createLead(submission())).id);
+    const ok = nl.buildLeadEmail(lead, new URL("https://sito.example"));
+    assert.ok(ok.text.includes(`https://sito.example/admin/lead/${lead.id}`));
+
+    const env = process.env as Record<string, string | undefined>;
+    const prev = env.NODE_ENV;
+    try {
+      env.NODE_ENV = "production";
+      const local = nl.buildLeadEmail(lead, new URL("http://localhost:3000"));
+      assert.ok(!local.text.includes("localhost"), "nessun link a localhost nelle email di produzione");
+      assert.ok(local.text.includes(`/admin/lead/${lead.id}`));
+    } finally {
+      env.NODE_ENV = prev;
+    }
+  });
+});
+
+describe("11. Recupero dal back office: tempo limitato", () => {
+  test("3 notifiche in sospeso con provider lento: il tempo è quello di un invio, non la somma", async () => {
+    tr.setEmailTransport(null);
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const l = await svc.createLead(submission());
+      await patch(l.id, { createdAt: minutesAgo(5) });
+      ids.push(l.id);
+    }
+    const slow = new FakeTransport();
+    slow.delayMs = 150;
+    tr.setEmailTransport(slow);
+    const t0 = Date.now();
+    const sent = await nl.retryPendingNotifications(3);
+    const ms = Date.now() - t0;
+    assert.equal(sent, 3);
+    assert.ok(ms < 400, `servito in parallelo (${ms} ms; in sequenza sarebbero ≥ 450 ms)`);
+    for (const id of ids) assert.equal((await row(id)).notificationStatus, "sent");
+  });
+});

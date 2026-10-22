@@ -32,12 +32,46 @@ configurate o se alcune non sono andate a buon fine.
    **7 giorni**, con almeno **5 minuti** dall'ultimo tentativo e al massimo **5 tentativi** per richiesta.
 Se le notifiche vengono configurate dopo, le richieste `pending` degli ultimi 7 giorni partono con il primo recupero.
 
-### Rischio residuo (duplicazione)
-Se il server si ferma **dopo** l'invio e **prima** di scrivere `sent`, la richiesta resta `sending`; dopo 5 minuti viene
-riprovata. Entro 24 ore la chiave di idempotenza di Resend impedisce il doppio invio; oltre le 24 ore (o se il provider
-non applicasse la chiave) potrebbe arrivare **una seconda email identica**. È un caso raro e a basso impatto; la scelta
-opposta (non riprovare mai) rischierebbe di perdere una notifica. Se il provider dovesse restituire un errore *409* per
-chiave già in uso, la richiesta resta `failed` e viene riprovata più tardi.
+#### LIMITE NOTO: nessun recupero indipendente
+Il recupero parte **solo** da questi eventi: invio dello stesso modulo (retry del browser) e apertura dell'elenco nel back
+office. **Non esiste nessun processo pianificato.** Se una notifica fallisce (provider non raggiungibile, quota esaurita,
+configurazione errata) e poi **nessuno apre il back office e il cliente non reinvia il modulo**, la notifica **non viene
+ritentata** finché qualcuno apre il back office (e comunque solo per richieste degli ultimi 7 giorni). Un nuovo lead non
+recupera i vecchi: notifica solo se stesso. La prima notifica, inoltre, ha un solo tentativo immediato (timeout 4 s).
+Finché non si aggiunge un recupero indipendente, la copertura reale è: «email subito nella maggior parte dei casi; in
+caso di guasto, recupero alla prossima apertura del back office». Il back office mostra sempre quali richieste non hanno
+ancora la notifica.
+
+**Modifica minima proposta (non implementata, da approvare):** un recupero pianificato **gratuito** con GitHub Actions
+(già usato per i backup): un workflow con `schedule` (ogni ora) che chiama `POST /api/internal/notifications/retry` con un
+segreto (`NOTIFY_RETRY_TOKEN`, confronto a tempo costante, nessun dato personale nella risposta) e fa girare
+`retryPendingNotifications()`. Costi: 1 chiamata all'ora (≈720 al mese) alle funzioni Netlify, nessun servizio a pagamento,
+nessuna nuova infrastruttura. In alternativa, un recupero opportunistico: ogni nuova richiesta riprova anche le notifiche
+vecchie in sospeso (riduce, ma non elimina, il limite).
+
+### Idempotenza e duplicati: cosa è garantito e cosa no
+- **Garantito (nel nostro codice, provato dai test):** la prenotazione atomica impedisce due invii simultanei dello stesso
+  lead; un lead `sent` non viene più prenotato; ogni tentativo usa **la stessa chiave** (`lead-notify-<id>`) e **lo stesso
+  identico contenuto** (mittente, destinatari, oggetto, testo: costruiti dai dati salvati, senza orari «adesso»).
+- **Caso «Resend accetta l'email ma il processo si ferma (o la risposta va persa/in timeout) prima di scrivere `sent`»:**
+  il lead resta `sending` (o `failed` con `timeout`); dopo 5 minuti viene riprovato con la stessa chiave e lo stesso
+  contenuto. **Entro 24 ore** Resend riconosce la chiave e non invia una seconda email. **Oltre le 24 ore** la chiave
+  scade: un recupero tardivo (per esempio nessuno apre il back office per più di un giorno) **può inviare una seconda
+  email identica**. L'assenza di duplicati oltre quella finestra **non è garantita**. È un caso raro e di basso impatto
+  (una notifica doppia a una casella interna); la scelta opposta, non riprovare mai, rischierebbe di perdere una notifica.
+- **Contenuto cambiato tra due tentativi** (per esempio cambia l'indirizzo del sito o `NOTIFY_EMAIL_TO/FROM`): con la
+  stessa chiave Resend risponde 409 `invalid_idempotent_request`. La notifica resta `failed` (`http_409`), **senza
+  duplicati**, ma non viene consegnata se la prima email non era partita: va gestita a mano (vedi il back office).
+  Un 409 `concurrent_idempotent_requests` (richiesta ancora in corso) è un «riprova più tardi».
+- Un lead creato dopo l'eventuale cambio di configurazione usa il contenuto nuovo: il problema riguarda solo i tentativi
+  ripetuti sullo stesso lead a cavallo di un cambio.
+
+### Indirizzo del sito nel link
+Su Netlify la variabile `URL` esiste durante il build ma **non è tra quelle disponibili alle funzioni a runtime**
+(secondo la documentazione di Netlify lì ci sono solo `SITE_NAME` e `SITE_ID`). Il link al back office si ricava quindi,
+in ordine: `SITE.domain` (dominio proprio, in `business.ts`) → `URL` → `https://<SITE_NAME>.netlify.app` → locale. Se in
+produzione l'indirizzo non è determinabile, l'email non contiene un link a `localhost` ma il percorso
+`/admin/lead/<id>`, e il log di avvio lo segnala. **Da controllare nella prima email reale** che il link sia quello giusto.
 
 ## Configurazione (variabili d'ambiente)
 
@@ -62,6 +96,20 @@ chiave già in uso, la richiesta resta `failed` e viene riprovata più tardi.
 - Può finire nello spam e non è adatto a un uso definitivo. Per un mittente proprio: aggiungere e **verificare un dominio**
   nella pagina Domains di Resend, poi impostare `NOTIFY_EMAIL_FROM` con quel dominio. Da quel momento si può scrivere a
   qualunque destinatario.
+- **Cosa è VERIFICATO sulla documentazione ufficiale** (pagine consultate via ricerca, 22/10/2026) e cosa **resta da
+  confermare**:
+
+  | Punto | Stato |
+  |---|---|
+  | `onboarding@resend.dev` è un mittente di prova e consegna solo all'indirizzo dell'account Resend; altrimenti 403 | verificato |
+  | Per scrivere ad altri destinatari serve un dominio verificato | verificato |
+  | Verifica del dominio: record DNS (SPF e DKIM, di norma su un sottodominio `send`), tempi tipici ~15 minuti, fino a 72 ore | verificato (dettagli dei record da copiare dal pannello Resend) |
+  | Quali indirizzi mittente sono ammessi su un dominio verificato (radice o sottodominio) | **da confermare** al momento della verifica |
+  | Piano gratuito 100/giorno e 3.000/mese, 10 richieste/secondo; 429 con `daily_quota_exceeded`, `monthly_quota_exceeded`, `rate_limit_exceeded` | verificato (da rileggere prima del lancio: prezzi e limiti possono cambiare) |
+  | `Idempotency-Key` 1–256 caratteri, conservata 24 ore; stessa chiave con contenuto diverso → 409 `invalid_idempotent_request`; richiesta ancora in corso → 409 `concurrent_idempotent_requests` | verificato |
+  | Se una chiave già usata con **errore** del provider (non successo) restituisce l'errore memorizzato o permette un nuovo tentativo | **da confermare** |
+  | Sede dei server, DPA e trasferimenti extra-UE di Resend | **da verificare** (revisione privacy) |
+
 - **Limiti** (piano gratuito): 100 email al giorno e 3.000 al mese (il giorno è UTC), 10 richieste al secondo per team.
   Oltre il limite l'API risponde 429 (`daily_quota_exceeded` / `monthly_quota_exceeded` / `rate_limit_exceeded`): la
   notifica risulta `failed` e viene riprovata. Un bot che invia molte richieste potrebbe esaurire la quota giornaliera:
@@ -85,6 +133,31 @@ cambiarlo); con configurazione incompleta termina con errore. Le variabili si le
 prova end-to-end sul sito reale si invia una richiesta di prova (poi si cancella con `npm run privacy:erase`).
 Codici di errore: `http_403` = destinatario diverso dall'account con il mittente di prova (vedi sopra);
 `http_401` = chiave non valida.
+
+## Migrazione del database: sicurezza all'avvio (verificata su un database temporaneo)
+Le migrazioni partono all'avvio (`MIGRATE_ON_START`, predefinito attivo) con questo comportamento, **provato** con PostgreSQL
+reale (non con Neon):
+- **Due o più istanze insieme:** prendono un *advisory lock* di sessione; una applica, le altre attendono e poi trovano
+  tutto già applicato. Prova con 4 processi simultanei: tutti riusciti, 4 migrazioni registrate (nessun doppione),
+  5 colonne create una sola volta. Prova con il lock tenuto da un'altra sessione per 6 s: la migrazione ha atteso 6 s.
+- **Errore a metà migrazione:** le migrazioni pendenti girano in **una transazione** (DDL transazionale di PostgreSQL):
+  con uno statement finale che falliva, nessuna colonna è rimasta, nessuna migrazione risulta registrata, il lead
+  preesistente è intatto; il rilancio con la versione corretta ha applicato tutto.
+- **Processo ucciso (`kill -9`) durante la migrazione:** transazione annullata alla chiusura della connessione, lock
+  rilasciato, nessuna sessione residua; il rilancio ha applicato la migrazione normalmente.
+- **Database non raggiungibile:** errore chiaro (exit 1); all'avvio del server il processo si ferma (fail fast) invece di
+  servire richieste con uno schema incerto.
+- **Su Netlify** (dedotto dal codice e dalla documentazione, non provato lì): serve `DATABASE_URL_DIRECT` (connessione
+  diretta, non il pooler) perché il lock è di sessione: il controllo di configurazione la richiede. La migrazione parte
+  al primo avvio di una funzione dopo il deploy. È rapida: `ADD COLUMN` con valore predefinito non riscrive la tabella,
+  l'`UPDATE` iniziale riguarda poche righe. Le istanze del deploy precedente ancora attive non sono toccate (le colonne
+  sono nuove e opzionali per il codice vecchio).
+- **Limiti noti:** l'attesa del lock non ha un timeout (un'istanza resta in attesa finché il lock non viene rilasciato; su
+  Netlify la funzione scade comunque al limite di tempo e riprova al richiamo successivo); `ALTER TABLE` prende per un
+  istante un blocco esclusivo su `leads`: va applicata in un momento di poco traffico, cosa che con 10–20 persone è
+  irrilevante.
+- Consigliato per il primo deploy: applicare la migrazione **prima** con `npm run db:migrate` (con `DATABASE_URL_DIRECT`),
+  per vederne l'esito, poi fare il deploy.
 
 ## Migrazione del database
 File: `drizzle/0003_lead_notifications.sql` (additiva). Aggiunge a `leads`: `notification_status` (predefinito `pending`),

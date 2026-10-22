@@ -64,7 +64,13 @@ export type LeadForEmail = {
 /** Costruisce il messaggio. Deterministico (stesso lead → stesso testo): serve all'idempotenza presso il provider. */
 export function buildLeadEmail(lead: LeadForEmail, base: URL = siteUrl()): Omit<EmailMessage, "from" | "to"> {
   const moto = [safeText(lead.brand, 40), safeText(lead.model, 60)].filter(Boolean).join(" ");
-  const link = new URL(`/admin/lead/${lead.id}`, base).toString();
+  // Se l'indirizzo del sito non è noto (solo "localhost") in produzione, un link assoluto sarebbe inutile: si indica il percorso
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(base.hostname);
+  const path = `/admin/lead/${lead.id}`;
+  const openLine =
+    local && process.env.NODE_ENV === "production"
+      ? `Apri la richiesta dal back office del sito (serve il login), percorso: ${path}`
+      : `Apri la richiesta (serve il login): ${new URL(path, base).toString()}`;
   const lines = [
     `Nuova richiesta di valutazione ${lead.code}`,
     "",
@@ -77,7 +83,7 @@ export function buildLeadEmail(lead: LeadForEmail, base: URL = siteUrl()): Omit<
     "",
     "Le foto, se il cliente le aggiunge, arrivano dopo e si vedono nel back office.",
     "",
-    `Apri la richiesta (serve il login): ${link}`,
+    openLine,
     "",
     "I dati di contatto del cliente non sono inclusi in questa email: si vedono solo nel back office.",
   ];
@@ -200,9 +206,10 @@ export async function retryPendingNotifications(limit = 3): Promise<number> {
       )
       .orderBy(asc(leads.createdAt))
       .limit(limit);
-    let sent = 0;
-    for (const r of rows) if ((await notifyNewLead(r.id)) === "sent") sent++;
-    return sent;
+    // in parallelo: il tempo massimo resta quello di un solo invio (4 s), non la somma (la pagina del back office non deve
+    // superare il limite di tempo delle funzioni). Ogni prenotazione è atomica, quindi nessun rischio di doppio invio.
+    const outcomes = await Promise.all(rows.map((r) => notifyNewLead(r.id)));
+    return outcomes.filter((o) => o === "sent").length;
   } catch (err) {
     logError("notifica email (recupero)", err);
     return 0;
