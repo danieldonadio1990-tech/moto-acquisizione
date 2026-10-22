@@ -6,6 +6,8 @@ import { getLeadDetail } from "@/modules/leads/service";
 import { STATUS_LABELS } from "@/modules/leads/statuses";
 import { PRIORITY_LABELS } from "@/modules/buybox/match";
 import { whatsappLink } from "@/config/business";
+import { canOfferManualRetry, emailNotificationsConfigured, MAX_ATTEMPTS, recentManualRetries } from "@/modules/notifications/new-lead";
+import { describeNotification } from "@/modules/notifications/status";
 import {
   CONTACT_LABELS,
   formatDate,
@@ -20,9 +22,17 @@ import {
   OfferForm,
   OfferOutcomeButtons,
   PurchaseForm,
+  RetryNotificationForm,
   StatusForm,
   UndoPurchaseButton,
 } from "@/modules/admin/ui/LeadForms";
+
+const MANUAL_OUTCOME: Record<string, string> = {
+  sent: "inviata",
+  failed: "non riuscita",
+  not_claimed: "già inviata o in corso",
+  disabled: "notifiche non configurate",
+};
 
 export default function LeadPage({ params }: PageProps<"/admin/lead/[id]">) {
   return (
@@ -77,6 +87,11 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
     customer.phone,
   );
 
+  const notificationsConfigured = emailNotificationsConfigured();
+  const notification = describeNotification(lead, formatDateTime, MAX_ATTEMPTS, notificationsConfigured);
+  const canRetryNotification = canOfferManualRetry(lead);
+  const manualRetries = await recentManualRetries(lead.id);
+
   return (
     <>
       <Link href="/admin" className="text-sm font-semibold text-concrete hover:text-asphalt">
@@ -119,6 +134,33 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
                 ["Manutenzione regolare", TRI_LABELS[lead.maintenance]],
               ]}
             />
+          </Section>
+
+          <Section title="Notifica email">
+            <p className="text-sm">
+              <span
+                className={`rounded px-1.5 py-0.5 text-xs font-bold ${
+                  notification.tone === "ok"
+                    ? "bg-ok/15 text-ok"
+                    : notification.tone === "bad"
+                      ? "bg-danger/15 text-danger"
+                      : "bg-line text-asphalt"
+                }`}
+              >
+                {notification.label}
+              </span>
+              {notification.detail && <span className="ml-2 text-concrete">{notification.detail}</span>}
+            </p>
+            {canRetryNotification && <RetryNotificationForm leadId={lead.id} exhausted={lead.notificationAttempts >= MAX_ATTEMPTS} />}
+            {manualRetries.length > 0 && (
+              <ul className="mt-3 space-y-0.5 text-xs text-concrete">
+                {manualRetries.map((r) => (
+                  <li key={r.at.toISOString()}>
+                    Riprovata a mano il {formatDateTime(r.at)} da {r.by}: {MANUAL_OUTCOME[r.outcome] ?? r.outcome}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Section>
 
           <Section title={`Foto (${photos.length})`}>

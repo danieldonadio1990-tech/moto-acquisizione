@@ -4,6 +4,7 @@ import {
   addOfferAction,
   changeStatusAction,
   recordPurchaseAction,
+  retryNotificationAction,
   saveNotesAction,
   setOfferStatusAction,
   undoPurchaseAction,
@@ -192,6 +193,29 @@ export function UndoPurchaseButton({ leadId }: { leadId: string }) {
         Annulla acquisto
       </button>
       {state?.error && <span className="ml-2 text-sm text-danger">{state.error}</span>}
+    </form>
+  );
+}
+
+/** Retry manuale della notifica email (vedi manualRetryNotification): esplicito, solo admin, tracciato. */
+export function RetryNotificationForm({ leadId, exhausted }: { leadId: string; exhausted: boolean }) {
+  const [state, action, pending] = useActionState(retryNotificationAction, null);
+  return (
+    <form action={action} className="mt-3">
+      <input type="hidden" name="leadId" value={leadId} />
+      <button className={btnGhost} disabled={pending}>
+        {pending ? "Invio in corso…" : "Riprova invio ora"}
+      </button>
+      {exhausted && (
+        <p className="mt-1.5 text-xs font-semibold text-asphalt">
+          I tentativi automatici sono esauriti: questo sarà un tentativo manuale e, se fallisce, non verrà ritentato in automatico.
+        </p>
+      )}
+      <p className="mt-1.5 text-xs text-concrete">
+        Usa la stessa chiave di idempotenza: se l&apos;email precedente era già stata consegnata, entro 24 ore non ne parte una
+        seconda; oltre le 24 ore potrebbe arrivarne un&apos;altra identica.
+      </p>
+      <Feedback state={state} okText="Email inviata" />
     </form>
   );
 }

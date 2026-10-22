@@ -4,6 +4,8 @@ import { BusinessRuleError, createLead, findExistingLead } from "@/modules/leads
 import { readLimitedBody, BodyTimeout, BodyTooLarge } from "@/lib/body";
 import { clientIp, rateLimit, RULES, tooManyRequests } from "@/lib/rate-limit";
 import { logError } from "@/lib/log";
+import { notifyNewLead } from "@/modules/notifications/new-lead";
+import { checkFormToken, formTokenRequired } from "@/modules/leads/form-token";
 
 /**
  * Crea il lead (dati moto + contatti). Idempotente sul campo submissionId:
@@ -32,6 +34,10 @@ export async function POST(request: Request) {
   try {
     const lead = await createLeadLimited(request, parsed.data);
     if (lead instanceof Response) return lead;
+    // Notifica email DOPO il salvataggio. Non lancia eccezioni e non cambia la risposta: se l'email non parte
+    // il lead è comunque salvato e la notifica viene ritentata (retry del browser o back office).
+    // Un retry dello stesso invio (duplicate) riprova solo se la notifica non risulta già inviata.
+    await notifyNewLead(lead.id).catch(() => {});
     return NextResponse.json(
       { id: lead.id, code: lead.code, uploadToken: lead.uploadToken },
       { status: lead.duplicate ? 200 : 201 },
@@ -43,10 +49,47 @@ export async function POST(request: Request) {
   }
 }
 
+const TOKEN_MESSAGES: Record<string, string> = {
+  missing: "Richiesta non valida. Ricarica la pagina e riprova.",
+  invalid: "Richiesta non valida. Ricarica la pagina e riprova.",
+  expired: "La pagina è rimasta aperta a lungo. Riprova: la richiesta viene rinnovata.",
+  too_fast: "Un attimo di pazienza, riprova tra qualche secondo.",
+};
+
+/**
+ * Controlli anti-abuso, in ordine dal più economico. Un retry dello stesso invio non viene mai bloccato.
+ * I limiti stretti riguardano il CONTATTO (stesso telefono o stessa email), non la rete: dietro lo stesso IP
+ * (ufficio, rete mobile condivisa) i clienti veri non si danneggiano a vicenda.
+ * Tutti i contatori sono condivisi tra le istanze (database), con ripiego in memoria se il database non risponde.
+ */
 async function createLeadLimited(request: Request, data: Parameters<typeof createLead>[0]) {
   const existing = await findExistingLead(data.submissionId);
   if (existing) return existing; // retry: mai bloccato dal rate limit
-  const rl = await rateLimit(RULES.leadCreatePerIp, clientIp(request.headers));
-  if (!rl.ok) return tooManyRequests(rl.retryAfterSec, "Hai inviato troppe richieste. Riprova più tardi o scrivici su WhatsApp.");
+
+  if (formTokenRequired()) {
+    const check = checkFormToken(data.formToken);
+    if (!check.ok) {
+      return NextResponse.json({ error: TOKEN_MESSAGES[check.reason], reason: `form_token_${check.reason}` }, { status: 422 });
+    }
+    const byToken = await rateLimit(RULES.leadCreatePerFormToken, check.nonce);
+    if (!byToken.ok) {
+      return NextResponse.json(
+        { error: "Richiesta non valida. Ricarica la pagina e riprova.", reason: "form_token_invalid" },
+        { status: 422 },
+      );
+    }
+  }
+
+  const byIp = await rateLimit(RULES.leadCreatePerIp, clientIp(request.headers));
+  if (!byIp.ok) return tooManyRequests(byIp.retryAfterSec, "Hai inviato troppe richieste. Riprova più tardi.");
+
+  const byPhone = await rateLimit(RULES.leadCreatePerPhone, data.contact.phone);
+  const byEmail = await rateLimit(RULES.leadCreatePerEmail, data.contact.email);
+  if (!byPhone.ok || !byEmail.ok) {
+    return tooManyRequests(
+      Math.max(byPhone.ok ? 0 : byPhone.retryAfterSec, byEmail.ok ? 0 : byEmail.retryAfterSec),
+      "Abbiamo già ricevuto alcune richieste con questi contatti. Ti ricontatteremo: se hai un'altra moto, riprova domani.",
+    );
+  }
   return createLead(data);
 }

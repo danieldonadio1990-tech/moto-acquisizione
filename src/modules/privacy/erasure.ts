@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { customers, events, leadPhotos, leads, motorcycles } from "@/db/schema";
 import { getPhotoStorage } from "@/modules/photos/storage";
@@ -92,6 +92,13 @@ export async function eraseLead(leadId: string): Promise<ErasureReport> {
 
   // 2) database, in un'unica transazione
   const anonymized = await db.transaction(async (tx) => {
+    // Blocca la riga della richiesta PRIMA di toccare gli eventi: un retry manuale concorrente (che inserisce il proprio
+    // evento con FOR SHARE sulla stessa riga) o attende la fine della cancellazione e non trova più la richiesta, oppure ha
+    // già inserito l'evento, che qui sotto viene cancellato. In nessun caso resta un evento orfano con dati dell'admin.
+    const locked = await tx.select({ id: leads.id }).from(leads).where(eq(leads.id, leadId)).for("update");
+    if (locked.length === 0) return 0; // già cancellata da un altro processo
+    // le tracce dei retry manuali contengono l'email dell'admin: seguono la sorte della richiesta e si cancellano
+    await tx.delete(events).where(and(eq(events.leadId, leadId), eq(events.name, "notification_manual_retry")));
     const ev = await tx.update(events).set({ leadId: null }).where(eq(events.leadId, leadId)).returning({ id: events.id });
     await tx.delete(leads).where(eq(leads.id, leadId)); // cascade: foto, offerte, storico stati
     await tx.delete(motorcycles).where(eq(motorcycles.id, lead.motorcycleId));

@@ -88,6 +88,8 @@ export const leadSubmissionSchema = z.object({
       utmCampaign: z.string().max(150).optional(),
     })
     .optional(),
+  /** gettone anti-bot del modulo (src/modules/leads/form-token.ts): obbligatorio in produzione */
+  formToken: z.string().max(200).optional(),
   /** honeypot anti-bot: deve restare vuoto */
   website: z.string().max(0).optional(),
 });

@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "privacy:erase": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/privacy-erase.ts",
     "check:env": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/check-env.ts",
+    "notify:test": "tsx --env-file-if-exists=.env.local scripts/notify-test.ts",
     "check:storage": "tsx --env-file-if-exists=.env.local scripts/check-storage.ts",
     "build:production": "npm run check:env && next build",
     "db:migrate": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/db-migrate.ts",

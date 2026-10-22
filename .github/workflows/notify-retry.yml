@@ -1,0 +1,37 @@
+name: Recupero notifiche email
+
+# Riprova le notifiche email delle nuove richieste rimaste in sospeso (provider non raggiungibile, errori temporanei),
+# anche quando nessuno apre il back office. Chiama la rotta protetta del sito: vedi docs/NOTIFICHE.md → "Recupero automatico".
+#
+# Disattivato finché non si configura (nessun segreto è nel repository):
+#   Variabili di repository: NOTIFY_RETRY_ENABLED=true (accende la pianificazione) e NOTIFY_RETRY_URL=https://<sito>
+#   Secret di repository:    NOTIFY_RETRY_TOKEN (lo stesso valore della variabile NOTIFY_RETRY_TOKEN su Netlify)
+on:
+  schedule:
+    - cron: "23 * * * *" # ogni ora, al minuto 23 (evita l'ora esatta, quando GitHub è più carico)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Due esecuzioni non si sovrappongono (il sito è comunque protetto da duplicati: ogni notifica è prenotata in modo atomico)
+concurrency:
+  group: notify-retry
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    # Le esecuzioni pianificate partono solo con NOTIFY_RETRY_ENABLED=true; il lancio manuale funziona sempre.
+    # Solo dal ramo principale: l'elenco delle origini autorizzate (scripts/notify-retry/allowed-origins.txt) è quello rivisto
+    # e approvato con la PR, non quello di un ramo qualsiasi.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.NOTIFY_RETRY_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chiama la rotta di recupero
+        env:
+          NOTIFY_RETRY_URL: ${{ vars.NOTIFY_RETRY_URL }}
+          NOTIFY_RETRY_TOKEN: ${{ secrets.NOTIFY_RETRY_TOKEN }}
+        run: bash scripts/notify-retry/call.sh

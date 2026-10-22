@@ -1,6 +1,7 @@
 import { ConfigError, loadServerConfig } from "./config/env";
-import { missingBusinessData, PRIVACY_POLICY_IS_DRAFT } from "./config/business";
+import { missingBusinessData, PRIVACY_POLICY_IS_DRAFT, siteUrl } from "./config/business";
 import { logError } from "./lib/log";
+import { loadNotificationConfig } from "./modules/notifications/config";
 
 /**
  * FAIL FAST: se la configurazione non è valida (es. manca DATABASE_URL in produzione)
@@ -18,6 +19,9 @@ export async function startup() {
     if (cfg.env === "production") {
       const missing = missingBusinessData();
       if (missing.length) console.warn(`[dati aziendali] da completare in src/config/business.ts: ${missing.join(", ")}`);
+      if (loadNotificationConfig().enabled && ["localhost", "127.0.0.1"].includes(siteUrl().hostname)) {
+        console.warn("[notifiche] indirizzo del sito non determinabile a runtime: le email non conterranno il link assoluto al back office. Imposta SITE.domain in src/config/business.ts.");
+      }
       if (PRIVACY_POLICY_IS_DRAFT) console.warn("[privacy] informativa in BOZZA: non pubblicizzare il sito");
     }
     const { getDb } = await import("./db/client");

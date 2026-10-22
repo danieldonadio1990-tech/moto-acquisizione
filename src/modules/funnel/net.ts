@@ -7,7 +7,7 @@
  */
 export type NetResult<T> =
   | { ok: true; status: number; data: T }
-  | { ok: false; status: number; data: { error?: string; retryAfterSec?: number } | null; network: boolean };
+  | { ok: false; status: number; data: { error?: string; retryAfterSec?: number; reason?: string } | null; network: boolean };
 
 export async function postWithRetry<T>(
   url: string,

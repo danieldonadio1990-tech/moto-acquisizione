@@ -14,7 +14,7 @@ export function SiteHeader() {
             Come funziona
           </a>
           <a href="#mezzi" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline 2xl:inline">
-            Quali mezzi
+            Quali moto
           </a>
           {/* contatti diretti: solo da schermi larghi e solo se i numeri sono configurati */}
           <div className="hidden items-center gap-2 lg:flex">

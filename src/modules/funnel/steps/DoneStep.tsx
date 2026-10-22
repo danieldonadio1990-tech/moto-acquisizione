@@ -25,9 +25,9 @@ export function DoneStep({
   );
 
   const NEXT = [
-    "Controlliamo i dati del tuo mezzo.",
+    "Controlliamo i dati della tua moto.",
     "Se è interessante per noi, ti ricontattiamo con un'offerta.",
-    "Se troviamo un accordo, fissiamo un appuntamento per vedere il mezzo.",
+    "Se troviamo un accordo, fissiamo un appuntamento per vedere la moto.",
   ];
 
   return (
@@ -37,7 +37,7 @@ export function DoneStep({
       </div>
       <h1 className="display text-4xl leading-[0.98] sm:text-5xl">Richiesta ricevuta</h1>
       <p className="mt-4 max-w-[44ch] text-lg leading-snug">
-        Abbiamo ricevuto i dati del tuo mezzo{motoLabel ? `: ${motoLabel}` : ""}.
+        Abbiamo ricevuto i dati della tua moto{motoLabel ? `: ${motoLabel}` : ""}.
       </p>
 
       <div className="on-dark mt-7 rounded-2xl bg-asphalt p-5 text-paper">

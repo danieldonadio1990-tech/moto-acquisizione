@@ -4,7 +4,7 @@
  * FINCHÉ `src` È null il sito NON mostra nessuna immagine e usa una composizione pulita di colori e tipografia
  * (nessuna illustrazione, nessuna immagine sintetica). Per usare una fotografia vera:
  *   1. copia il file in `public/photos/` (JPG o WebP, sotto i 250 KB);
- *   2. scrivi il percorso in `src` (es. "/photos/hero-scooter-milano.jpg") e le dimensioni reali;
+ *   2. scrivi il percorso in `src` (es. "/photos/hero-moto-milano.jpg") e le dimensioni reali;
  *      HERO sostitutiva generata: usa un file ad alta risoluzione (min. 1600 px di larghezza, mai l'anteprima di Canva),
  *      imposta `generated: true`, alt descrittivo e generico (non «una strada di Milano») e nessun `credit`.
  *   3. per le foto vere compila `credit` (autore, licenza, link alla pagina della licenza) e aggiungi la riga a docs/CREDITI-FOTO.md.
@@ -33,9 +33,9 @@ export type SiteImage = {
 };
 
 export const IMAGES = {
-  /** Hero: scooter in una strada di Milano, luce naturale. Consigliato 1600 x 1200 px (4:3). */
-  hero: { src: null, alt: "Scooter parcheggiato in una strada di Milano", width: 1600, height: 1200 },
-  /** Card dei mezzi: scooter ben visibile di lato. Consigliato 1200 x 900 px (4:3). */
+  /** Hero: moto in una strada di Milano, luce naturale. Consigliato 1600 x 1200 px (4:3). */
+  hero: { src: null, alt: "Moto parcheggiata in una strada di Milano", width: 1600, height: 1200 },
+  /** Card dei modelli: moto ben visibile di lato. Consigliato 1200 x 900 px (4:3). */
   honda_sh: { src: null, alt: "Honda SH", width: 1200, height: 900 },
   piaggio_liberty: { src: null, alt: "Piaggio Liberty", width: 1200, height: 900 },
   kymco_agility: { src: null, alt: "Kymco Agility", width: 1200, height: 900 },

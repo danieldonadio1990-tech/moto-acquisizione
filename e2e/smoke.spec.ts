@@ -17,7 +17,7 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
 
   // Landing
   await page.goto("/?utm_source=smoke&utm_medium=test&utm_campaign=e2e");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Vuoi vendere il tuo scooter");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("La compriamo noi");
   await page.getByRole("link", { name: "Valuta la tua moto" }).first().click();
   await expect(page).toHaveURL(/\/valuta$/);
 
@@ -103,8 +103,8 @@ test("pagine di servizio: 404, robots, sitemap, privacy", async ({ page, request
 
 test("home pubblica: contenuti, nessun segnaposto in pagina, nessun link WhatsApp, nessuno scroll orizzontale", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Vuoi vendere il tuo scooter senza perdere tempo?");
-  for (const h of ["Come funziona", "Quale mezzo vuoi vendere?", "Domande"]) {
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("La compriamo noi, la gestione successiva è affar nostro.");
+  for (const h of ["Come funziona", "Quale moto vuoi vendere?", "Domande"]) {
     await expect(page.getByRole("heading", { name: h })).toBeVisible();
   }
   const text = await page.locator("body").innerText();

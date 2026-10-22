@@ -55,6 +55,9 @@ export const customers = pgTable("customers", {
   createdAt: createdAt(),
 });
 
+export const NOTIFICATION_STATUSES = ["pending", "sending", "sent", "failed", "skipped", "throttled"] as const;
+export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
+
 export const leads = pgTable(
   "leads",
   {
@@ -83,6 +86,18 @@ export const leads = pgTable(
     /** Hash del token monouso per caricare le foto dopo la creazione */
     photoUploadTokenHash: text("photo_upload_token_hash"),
     photoUploadTokenExpiresAt: timestamp("photo_upload_token_expires_at", { withTimezone: true }),
+    /**
+     * Notifica email al titolare per la nuova richiesta (src/modules/notifications).
+     * pending → sending (prenotata) → sent | failed; "skipped" = richieste precedenti alle notifiche;
+     * "throttled" = sospesa perché raggiunto il limite giornaliero di notifiche (riparte da sola il giorno dopo).
+     * La prenotazione è un UPDATE condizionale: due richieste parallele non inviano due email.
+     */
+    notificationStatus: text("notification_status", { enum: NOTIFICATION_STATUSES }).notNull().default("pending"),
+    notificationAttempts: integer("notification_attempts").notNull().default(0),
+    notificationClaimedAt: timestamp("notification_claimed_at", { withTimezone: true }),
+    notificationSentAt: timestamp("notification_sent_at", { withTimezone: true }),
+    /** Solo un codice sintetico (timeout, http_403…): mai il contenuto della risposta del provider */
+    notificationError: text("notification_error"),
     /** Attribuzione marketing (per costo per lead / CAC per canale) */
     utmSource: text("utm_source"),
     utmMedium: text("utm_medium"),
@@ -95,6 +110,10 @@ export const leads = pgTable(
     index("leads_created_idx").on(t.createdAt),
     check("leads_photo_count_range", sql`${t.photoCount} between 0 and 12`),
     check("leads_mileage_range", sql`${t.mileage} between 0 and 400000`),
+    check(
+      "leads_notification_status_valid",
+      sql`${t.notificationStatus} in ('pending','sending','sent','failed','skipped','throttled')`,
+    ),
     // prezzo e data di acquisto esistono se e solo se il lead è "Acquistata"
     check(
       "leads_purchase_coherent",
@@ -185,4 +204,15 @@ export const adminUsers = pgTable("admin_users", {
   /** Incrementato al logout: invalida tutte le sessioni già emesse */
   sessionVersion: integer("session_version").notNull().default(1),
   createdAt: createdAt(),
+});
+
+/**
+ * Contatori condivisi del rate limit e del limite giornaliero delle notifiche (src/lib/rate-limit.ts, store su database).
+ * La chiave è un HASH (HMAC con il segreto del server) di ciò che si conta (IP, telefono, email…): nel database non
+ * finiscono mai indirizzi IP, numeri o email in chiaro. Le righe scadute vengono ripulite periodicamente.
+ */
+export const rateLimitBuckets = pgTable("rate_limit_buckets", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });

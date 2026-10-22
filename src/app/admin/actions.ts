@@ -15,6 +15,8 @@ import {
 } from "@/modules/leads/service";
 import { LEAD_STATUSES } from "@/modules/leads/statuses";
 import { clientIp } from "@/lib/rate-limit";
+import { MAX_ATTEMPTS, manualRetryNotification } from "@/modules/notifications/new-lead";
+import { manualRetryMessage } from "@/modules/notifications/status";
 import { logError } from "@/lib/log";
 
 export type ActionState = { ok?: boolean; error?: string; email?: string } | null;
@@ -129,6 +131,22 @@ export async function undoPurchaseAction(_: ActionState, form: FormData): Promis
     await undoPurchase(leadId, admin.email);
     refresh();
     return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/**
+ * Riprova a mano la notifica email di una richiesta (anche dopo i tentativi automatici esauriti).
+ * Solo admin (requireAdmin come per ogni azione); prenotazione atomica e idempotenza gestite in manualRetryNotification.
+ */
+export async function retryNotificationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const leadId = uuid.parse(form.get("leadId"));
+    const res = await manualRetryNotification(leadId, admin.email);
+    refresh();
+    return manualRetryMessage(res, MAX_ATTEMPTS);
   } catch (err) {
     return fail(err);
   }

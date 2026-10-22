@@ -22,7 +22,7 @@ export const BRAND = {
   /** Testo usato in titolo e descrizione per i motori di ricerca e la condivisione */
   tagline: "Vendi la tua moto a Milano",
   description:
-    "Hai una moto o uno scooter da vendere a Milano? Raccontaci che moto hai: la valutiamo e, se ci interessa, ti facciamo un'offerta.",
+    "Vendi la tua moto a Milano: la compriamo direttamente da te, ti guidiamo in una procedura chiara e, dopo la vendita, della rivendita non devi occuparti tu.",
 } as const;
 
 export const CONTACTS = {
@@ -87,11 +87,18 @@ export function missingBusinessData(): string[] {
   return out;
 }
 
-/** URL pubblico del sito: dominio configurato, altrimenti indirizzo del sito su Netlify (variabile URL) o Vercel, altrimenti locale. */
+/**
+ * URL pubblico del sito: dominio configurato, altrimenti indirizzo del sito su Netlify, altrimenti Vercel, altrimenti locale.
+ * Su Netlify la variabile URL esiste durante il build ma NON è tra quelle disponibili nelle funzioni a runtime
+ * (lì ci sono solo SITE_NAME e SITE_ID): per i link generati a runtime (es. email di notifica) si ricava
+ * l'indirizzo predefinito <SITE_NAME>.netlify.app. Un dominio proprio va indicato in SITE.domain.
+ */
 export function siteUrl(): URL {
   if (!isPlaceholder(SITE.domain)) return new URL(SITE.domain);
   const netlify = process.env.URL;
   if (netlify && /^https:\/\//.test(netlify)) return new URL(netlify);
+  const netlifyName = process.env.SITE_NAME;
+  if (netlifyName && /^[a-z0-9-]{1,63}$/i.test(netlifyName)) return new URL(`https://${netlifyName.toLowerCase()}.netlify.app`);
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
   if (vercel) return new URL(`https://${vercel}`);
   return new URL(`http://localhost:${process.env.PORT || 3000}`);
@@ -122,7 +129,7 @@ export function whatsappLink(message?: string, toNumber?: string): string | null
 }
 
 /** Primo messaggio precompilato nella conversazione WhatsApp dal sito. */
-export const WHATSAPP_MESSAGE = "Ciao, vorrei informazioni per vendere il mio scooter";
+export const WHATSAPP_MESSAGE = "Ciao, vorrei informazioni per vendere la mia moto";
 
 /**
  * Link "tel:" in formato internazionale ricavato dal numero indicato (mostrato così com'è). Restituisce null se il numero
