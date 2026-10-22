@@ -36,3 +36,6 @@ urbano semplice, mezzo in buone condizioni.
 1. Copia il file in `public/photos/` (es. `public/photos/hero-scooter-milano.jpg`).
 2. In `src/config/images.ts` imposta `src`, le dimensioni reali e `credit` (autore, licenza, link alla pagina).
 3. Aggiungi la riga a `docs/CREDITI-FOTO.md`. I crediti compaiono da soli nel footer.
+
+## Hero sostitutiva generata (opzionale, finché non c'è una foto vera)
+L'originale generato con Canva (media `MAHYutABNEE`) **non è scaricabile dall'ambiente di sviluppo** (canva.com non raggiungibile; il connettore restituisce solo un'anteprima di 199 x 149 px, che non viene usata). Per usarlo serve un file ad alta risoluzione (almeno 1600 x 1200 px, JPG/WebP sotto i 250 KB) in `public/photos/`, poi in `src/config/images.ts`: `hero.src`, dimensioni reali, `generated: true`, alt generico (non cita luoghi reali), nessun `credit`. Il sito mostra «Immagine illustrativa» sotto la hero e una nota nel footer; un test controlla queste condizioni. Le card dei modelli restano tipografiche e non possono usare immagini generate.

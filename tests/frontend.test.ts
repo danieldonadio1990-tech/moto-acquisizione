@@ -134,7 +134,7 @@ test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con sugger
 // ---- Redesign: home, immagini segnaposto, footer ------------------------------------------------------------------------
 test("home: messaggio principale, CTA e sezioni previste, senza promesse non verificate", () => {
   const home = readFileSync("src/app/page.tsx", "utf8");
-  assert.match(home, /Vuoi vendere il tuo scooter senza perdere tempo\?/);
+  assert.match(home, /Vuoi vendere il tuo scooter[\s\S]{0,60}senza perdere tempo\?/);
   assert.match(home, /Raccontaci che mezzo hai\. Se è interessante per noi, ti faremo un&apos;offerta\./);
   assert.match(home, /Valuta la tua moto/);
   for (const id of ["come-funziona", "mezzi", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
@@ -153,6 +153,23 @@ test("immagini: nessuna illustrazione o immagine sintetica; foto solo se vere, e
   // nessun file immagine di scooter stilizzati in public/ (solo logo, icone e foto)
   const pub = readdirSync("public", { recursive: true }).map(String);
   assert.deepEqual(pub.filter((f) => /scooter|segnaposto|illustraz/i.test(f)), []);
+});
+
+test("immagini: una hero generata richiede file ad alta risoluzione, flag generated, nessun credito CC e alt non documentario", () => {
+  const cfg = readFileSync("src/config/images.ts", "utf8");
+  const hero = cfg.match(/hero:\s*\{([^}]*)\}/)![1];
+  const src = hero.match(/src:\s*"([^"]+)"/);
+  if (src) {
+    assert.match(hero, /generated:\s*true/, "hero con src: se non è una foto vera deve essere generated: true");
+    assert.ok(statSync(path.join("public", src[1])).size > 30_000, "file troppo piccolo: non usare anteprime");
+    assert.ok(Number(hero.match(/width:\s*(\d+)/)![1]) >= 1600);
+    assert.doesNotMatch(hero, /Milano/, "l'alt di un'immagine generata non deve citare un luogo reale");
+  }
+  // i modelli specifici non usano mai immagini generate
+  for (const id of ["honda_sh", "piaggio_liberty", "kymco_agility"]) {
+    const line = cfg.match(new RegExp(`${id}:\\s*\\{([^}]*)\\}`))![1];
+    assert.doesNotMatch(line, /generated:\s*true/, id);
+  }
 });
 
 test("footer: i dati aziendali segnaposto non vengono mostrati al pubblico", () => {

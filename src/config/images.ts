@@ -5,7 +5,9 @@
  * (nessuna illustrazione, nessuna immagine sintetica). Per usare una fotografia vera:
  *   1. copia il file in `public/photos/` (JPG o WebP, sotto i 250 KB);
  *   2. scrivi il percorso in `src` (es. "/photos/hero-scooter-milano.jpg") e le dimensioni reali;
- *   3. compila `credit` (autore, licenza, link alla pagina della licenza) e aggiungi la riga a docs/CREDITI-FOTO.md.
+ *      HERO sostitutiva generata: usa un file ad alta risoluzione (min. 1600 px di larghezza, mai l'anteprima di Canva),
+ *      imposta `generated: true`, alt descrittivo e generico (non «una strada di Milano») e nessun `credit`.
+ *   3. per le foto vere compila `credit` (autore, licenza, link alla pagina della licenza) e aggiungi la riga a docs/CREDITI-FOTO.md.
  * Il crediti compaiono nel footer ("Crediti fotografici"). Servono solo foto reali con diritti d'uso verificati.
  */
 export type PhotoCredit = {
@@ -23,6 +25,11 @@ export type SiteImage = {
   width: number;
   height: number;
   credit?: PhotoCredit;
+  /**
+   * true per un'immagine generata (non una fotografia): niente credito CC di terzi, ma il sito la dichiara
+   * «Immagine illustrativa» e il footer indica che è generata. Mai per rappresentare un modello specifico.
+   */
+  generated?: boolean;
 };
 
 export const IMAGES = {
@@ -35,6 +42,14 @@ export const IMAGES = {
 } as const satisfies Record<string, SiteImage>;
 
 export type ImageKey = keyof typeof IMAGES;
+
+/** true se l'immagine è generata (da dichiarare come «Immagine illustrativa»). */
+export const isGenerated = (id: ImageKey): boolean => Boolean((IMAGES[id] as SiteImage).generated);
+
+/** true se almeno un'immagine in uso è generata (per la nota nel footer). */
+export function hasGeneratedImages(): boolean {
+  return (Object.values(IMAGES) as SiteImage[]).some((i) => i.src && i.generated);
+}
 
 /** Crediti delle foto effettivamente in uso (per il footer). */
 export function photoCredits(): { id: ImageKey; credit: PhotoCredit }[] {

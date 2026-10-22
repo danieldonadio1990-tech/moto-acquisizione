@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BrandMark } from "./BrandMark";
 import { BRAND, CONTACTS, LEGAL, contactLinks, isPlaceholder } from "@/config/business";
-import { photoCredits } from "@/config/images";
+import { hasGeneratedImages, photoCredits } from "@/config/images";
 
 /** Footer: mostra solo i dati aziendali già compilati; i segnaposto non compaiono mai in pagina. */
 export function SiteFooter() {
@@ -58,9 +58,10 @@ export function SiteFooter() {
           </Link>
         </nav>
       </div>
-      {credits.length > 0 && (
+      {(credits.length > 0 || hasGeneratedImages()) && (
         <div className="mx-auto max-w-6xl px-4 pb-6 text-xs text-concrete sm:px-6 lg:px-8">
-          <p className="font-bold">Crediti fotografici</p>
+          {credits.length > 0 && <p className="font-bold">Crediti fotografici</p>}
+          {hasGeneratedImages() && <p>Immagini illustrative generate digitalmente: non sono fotografie di luoghi o modelli reali.</p>}
           <ul className="mt-1 space-y-0.5">
             {credits.map(({ id, credit }) => (
               <li key={id}>

@@ -7,7 +7,7 @@ import { TrackedLink, TrackOnMount } from "@/components/Track";
 import { IconArrowRight, IconCheck, IconClipboard, IconKey, IconPlus, IconSearch } from "@/components/Icons";
 import { btnOutline, btnPrimary } from "@/components/buttons";
 import { BRAND, contactLinks } from "@/config/business";
-import type { ImageKey } from "@/config/images";
+import { isGenerated, type ImageKey } from "@/config/images";
 
 const STEPS = [
   {
@@ -35,6 +35,14 @@ const MODELS: { id: ImageKey; brand: string; name: string; panel: string }[] = [
 
 /** Cosa chiediamo nel modulo: composizione tipografica dell'hero finché non c'è la fotografia. */
 const NEEDED = ["Marca e modello", "Anno e chilometri", "Le condizioni del mezzo", "I tuoi contatti", "Qualche foto (facoltativa)"];
+
+const HERO_POINTS = ["Richiesta online in pochi minuti", "Foto facoltative", "Decidi tu se vendere"];
+
+const BENEFITS = [
+  { title: "Gratis", body: "Inviare la richiesta non costa nulla." },
+  { title: "Senza impegno", body: "Nessun obbligo di vendere, anche dopo la nostra offerta." },
+  { title: "Semplice", body: "Compili un modulo: ti ricontattiamo noi come preferisci." },
+];
 
 const EASY = [
   "Invii la richiesta online, dal telefono o dal computer.",
@@ -86,7 +94,8 @@ export default function Home() {
                 Scooter e moto usate da privati · {BRAND.area}
               </p>
               <h1 className="display mt-5 text-[clamp(2.7rem,9.5vw,5.4rem)]">
-                Vuoi vendere il tuo scooter senza perdere tempo?
+                Vuoi vendere il tuo scooter{" "}
+                <span className="text-signal">senza perdere tempo?</span>
               </h1>
               <p className="mt-5 max-w-[40ch] text-lg leading-snug text-paper/80 md:text-xl">
                 Raccontaci che mezzo hai. Se è interessante per noi, ti faremo un&apos;offerta.
@@ -96,21 +105,36 @@ export default function Home() {
                   Valuta la tua moto
                   <IconArrowRight className="h-5 w-5" />
                 </TrackedLink>
-                <p className="text-sm font-semibold text-paper/75">Gratis e senza impegno</p>
+                <p className="text-base font-bold text-paper">Gratis e senza impegno</p>
               </div>
-              <p className="mt-6 max-w-[48ch] text-sm leading-relaxed text-paper/60">
+              <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-paper/85">
+                {HERO_POINTS.map((t) => (
+                  <li key={t} className="flex items-center gap-2">
+                    <IconCheck className="h-4 w-4 shrink-0 text-signal" />
+                    {t}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-5 max-w-[48ch] text-sm leading-relaxed text-paper/70">
                 Ci occupiamo soprattutto di scooter da città, ma puoi inviare anche la richiesta per un&apos;altra moto.
               </p>
             </div>
             <div className="md:order-last">
               {hasPhoto("hero") ? (
-                <div className="overflow-hidden rounded-3xl ring-1 ring-paper/10">
+                <figure className="overflow-hidden rounded-3xl ring-1 ring-paper/10">
                   <div className="aspect-[4/3] w-full">
                     <SitePhoto id="hero" priority />
                   </div>
-                </div>
+                  {isGenerated("hero") && (
+                    <figcaption className="bg-asphalt-raised px-4 py-2 text-xs font-semibold text-paper/75">
+                      Immagine illustrativa
+                    </figcaption>
+                  )}
+                </figure>
               ) : (
-                <div className="rounded-3xl bg-asphalt-raised p-6 ring-1 ring-paper/10 sm:p-8">
+                <div className="overflow-hidden rounded-3xl bg-asphalt-raised ring-1 ring-paper/10">
+                  <span aria-hidden className="block h-2 w-full bg-signal" />
+                  <div className="p-6 sm:p-8">
                   <p className="text-sm font-bold uppercase tracking-wider text-signal">Cosa ci serve</p>
                   <p className="display mt-2 text-3xl sm:text-4xl">Pochi dati sul tuo mezzo.</p>
                   <ul className="mt-6 space-y-3">
@@ -124,20 +148,39 @@ export default function Home() {
                     ))}
                   </ul>
                   <span aria-hidden className="lane-h mt-8 block h-1 w-full" />
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </section>
 
+        {/* VANTAGGI */}
+        <section aria-label="Vantaggi" className="bg-signal text-asphalt">
+          <ul className="mx-auto grid max-w-6xl gap-4 px-4 py-6 sm:px-6 md:grid-cols-3 md:gap-8 md:py-7 lg:px-8">
+            {BENEFITS.map((b) => (
+              <li key={b.title} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-asphalt text-signal">
+                  <IconCheck className="h-3.5 w-3.5" />
+                </span>
+                <p className="leading-snug">
+                  <span className="display block text-2xl">{b.title}</span>
+                  <span className="font-semibold">{b.body}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         {/* COME FUNZIONA */}
         <section id="come-funziona" className="scroll-mt-20 bg-chalk">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20 lg:px-8">
-            <h2 className="display text-4xl sm:text-5xl md:text-6xl">Come funziona</h2>
-            <ol className="mt-10 grid gap-4 md:grid-cols-3 md:gap-6">
+            <p className="text-sm font-bold uppercase tracking-widest text-plate">Tre passaggi</p>
+            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Come funziona</h2>
+            <ol className="mt-12 grid gap-8 md:grid-cols-3 md:gap-6">
               {STEPS.map(({ title, body, Icon }, i) => (
-                <li key={title} className="relative rounded-2xl bg-paper p-6 shadow-sm ring-1 ring-line">
-                  <span className="display absolute -top-4 left-6 flex h-10 min-w-10 items-center justify-center rounded-full bg-signal px-3 text-2xl text-asphalt">
+                <li key={title} className="relative rounded-2xl border-t-4 border-signal bg-paper p-6 pt-8 shadow-sm ring-1 ring-line">
+                  <span className="display absolute -top-5 left-6 flex h-11 min-w-11 items-center justify-center rounded-full bg-signal px-3 text-2xl text-asphalt">
                     {i + 1}
                   </span>
                   <Icon className="mt-3 h-9 w-9 text-plate" />
@@ -152,7 +195,8 @@ export default function Home() {
         {/* QUALE MEZZO */}
         <section id="mezzi" className="scroll-mt-20 bg-paper">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20 lg:px-8">
-            <h2 className="display text-4xl sm:text-5xl md:text-6xl">Quale mezzo vuoi vendere?</h2>
+            <p className="text-sm font-bold uppercase tracking-widest text-plate">Modelli</p>
+            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Quale mezzo vuoi vendere?</h2>
             <p className="mt-4 max-w-[54ch] text-lg leading-snug text-asphalt-soft">
               Qualche esempio di scooter da città. Se il tuo è diverso, mandacelo lo stesso.
             </p>
@@ -163,7 +207,7 @@ export default function Home() {
                     {hasPhoto(m.id) ? (
                       <SitePhoto id={m.id} />
                     ) : (
-                      <div className={`flex h-full w-full flex-col justify-between p-5 ${m.panel}`}>
+                      <div className={`flex h-full w-full flex-col justify-between border-b-4 border-signal p-5 ${m.panel}`}>
                         <span className="text-sm font-bold uppercase tracking-widest text-signal">{m.brand}</span>
                         <span className="display text-[clamp(3.5rem,9vw,5rem)] leading-none">{m.name}</span>
                       </div>
@@ -178,6 +222,15 @@ export default function Home() {
                     ) : (
                       <p className="font-semibold text-asphalt-soft">Scooter da città</p>
                     )}
+                    <TrackedLink
+                      href="/valuta"
+                      event="cta_click"
+                      label={`modello-${m.id}`}
+                      className="mt-3 inline-flex min-h-11 items-center gap-2 font-extrabold text-plate underline-offset-4 hover:underline"
+                    >
+                      Valuta il tuo {m.name}
+                      <IconArrowRight className="h-4 w-4" />
+                    </TrackedLink>
                   </div>
                 </li>
               ))}
@@ -203,7 +256,8 @@ export default function Home() {
         <section className="on-dark bg-asphalt text-paper">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-20 lg:px-8">
             <div>
-              <h2 className="display text-4xl sm:text-5xl md:text-6xl">Niente annunci, niente giri a vuoto.</h2>
+              <p className="text-sm font-bold uppercase tracking-widest text-signal">Per chi vende</p>
+              <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Niente annunci, niente giri a vuoto.</h2>
               <p className="mt-5 max-w-[42ch] text-lg leading-snug text-paper/75">
                 Una richiesta semplice, fatta con calma quando vuoi tu.
               </p>
@@ -224,7 +278,8 @@ export default function Home() {
         {/* FAQ */}
         <section id="domande" className="scroll-mt-20 bg-chalk">
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 md:py-20 lg:px-8">
-            <h2 className="display text-4xl sm:text-5xl md:text-6xl">Domande</h2>
+            <p className="text-sm font-bold uppercase tracking-widest text-plate">FAQ</p>
+            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Domande</h2>
             <div className="mt-10 max-w-3xl space-y-3">
               {FAQ.map((f) => (
                 <details key={f.q} className="group rounded-2xl bg-paper ring-1 ring-line open:shadow-sm">
