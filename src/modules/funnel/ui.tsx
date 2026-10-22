@@ -39,7 +39,7 @@ export function Choices<T extends string>({
               className="peer sr-only"
             />
             <span
-              className={`flex items-center justify-center rounded-xl border-2 border-line bg-paper px-3 text-center font-bold transition-colors duration-150 hover:border-asphalt-soft peer-checked:border-plate peer-checked:bg-plate peer-checked:text-paper peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-plate ${
+              className={`flex items-center justify-center rounded-xl border-2 border-field bg-paper px-3 text-center font-bold transition-colors duration-150 hover:border-asphalt-soft peer-checked:border-plate peer-checked:bg-plate peer-checked:text-paper peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-plate ${
                 size === "lg" ? "min-h-16 text-lg" : "min-h-14 text-base"
               }`}
             >
@@ -84,8 +84,8 @@ export function TextField({
         id={id}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
-        className={`h-14 w-full rounded-xl border-2 bg-paper px-4 text-lg outline-none transition-colors placeholder:text-concrete/70 focus:border-plate focus:ring-4 focus:ring-plate/20 ${
-          error ? "border-danger bg-danger/5" : "border-line"
+        className={`h-14 w-full rounded-xl border-2 bg-paper px-4 text-lg outline-none transition-colors placeholder:text-concrete focus:border-plate focus:ring-4 focus:ring-plate/20 ${
+          error ? "border-danger bg-danger/5" : "border-field"
         }`}
         {...props}
       />
@@ -115,7 +115,7 @@ export function SelectField({
         id={id}
         aria-invalid={!!error}
         className={`h-14 w-full appearance-none rounded-xl border-2 bg-paper bg-[length:14px] bg-[right_1rem_center] bg-no-repeat px-4 pr-10 text-lg outline-none focus:border-plate focus:ring-4 focus:ring-plate/20 ${
-          error ? "border-danger bg-danger/5" : "border-line"
+          error ? "border-danger bg-danger/5" : "border-field"
         }`}
         style={{
           backgroundImage:

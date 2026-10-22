@@ -127,7 +127,7 @@ export function PhotoStep({
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-plate/50 bg-plate/5 font-bold text-plate transition-colors hover:bg-plate/10 ${
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-plate bg-plate/5 font-bold text-plate transition-colors hover:bg-plate/10 ${
               photos.length === 0 ? "col-span-3 min-h-36" : "aspect-square"
             }`}
           >

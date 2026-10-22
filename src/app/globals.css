@@ -17,6 +17,8 @@
   --color-signal-soft: #ffd84d;
   --color-concrete: #5b626a;
   --color-line: #d6d9dc;
+  /* bordo dei campi e dei controlli: almeno 3:1 su bianco e su grigio chiaro (WCAG 1.4.11) */
+  --color-field: #737a82;
   --color-ok: #1f7a52;
   --color-danger: #b3261e;
 

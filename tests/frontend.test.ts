@@ -183,6 +183,19 @@ test("palette: antracite, giallo segnale, blu targa, grigio chiaro", () => {
   for (const c of ["#20252b", "#f5c928", "#1a3fa8", "#f0f1f2"]) assert.ok(css.toLowerCase().includes(c), c);
 });
 
+test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei controlli 3:1)", () => {
+  const css = readFileSync("src/app/globals.css", "utf8");
+  const tok = (n: string) => css.match(new RegExp(`--color-${n}:\\s*(#[0-9a-fA-F]{6})`))![1];
+  const lum = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
+  const text: [string, string][] = [["plate", "chalk"], ["plate", "paper"], ["signal", "asphalt"], ["signal", "asphalt-raised"], ["asphalt", "signal"], ["paper", "plate"], ["signal", "plate"], ["concrete", "paper"], ["asphalt-soft", "chalk"], ["asphalt", "chalk"]];
+  for (const [fg, bg] of text) assert.ok(ratio(tok(fg), tok(bg)) >= 4.5, `${fg} su ${bg}: ${ratio(tok(fg), tok(bg)).toFixed(2)}`);
+  for (const bg of ["paper", "chalk"]) assert.ok(ratio(tok("field"), tok(bg)) >= 3, `bordo campi su ${bg}`);
+});
+
 // ---- Contatti: WhatsApp e telefono separati ----------------------------------------------------------------------------
 test("contatti: con i segnaposto non c'è nessun pulsante né link (WhatsApp e telefono)", () => {
   assert.equal(hasPhone(), false);

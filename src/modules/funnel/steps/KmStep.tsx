@@ -42,7 +42,7 @@ export function KmStep({
               className="tabular relative flex h-20 flex-1 items-center justify-center overflow-hidden rounded-lg bg-[#2b3138] sm:h-24"
             >
               <span
-                className={`display text-[2.6rem] sm:text-6xl ${real ? "digit-roll text-paper" : "text-paper/15"}`}
+                className={`display text-[2.6rem] sm:text-6xl ${real ? "digit-roll text-paper" : "text-paper/45"}`}
               >
                 {d}
               </span>

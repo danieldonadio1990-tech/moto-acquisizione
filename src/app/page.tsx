@@ -234,7 +234,7 @@ export default function Home() {
                   </div>
                 </li>
               ))}
-              <li className="flex flex-col justify-between rounded-2xl border-2 border-dashed border-asphalt-soft/40 bg-paper p-5">
+              <li className="flex flex-col justify-between rounded-2xl border-2 border-dashed border-asphalt-soft/70 bg-paper p-5">
                 <div>
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-asphalt text-signal">
                     <IconPlus className="h-6 w-6" />
