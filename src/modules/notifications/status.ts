@@ -28,7 +28,7 @@ export function describeNotification(
         label: "Non inviata",
         detail:
           n.notificationAttempts >= maxAttempts
-            ? `Tentativi esauriti (${n.notificationAttempts}/${maxAttempts}). Ultimo errore: ${n.notificationError ?? "sconosciuto"}.`
+            ? `Tentativi automatici esauriti (${n.notificationAttempts} in tutto). Ultimo errore: ${n.notificationError ?? "sconosciuto"}. Puoi riprovare a mano.`
             : `Tentativo ${n.notificationAttempts}/${maxAttempts} fallito (${n.notificationError ?? "errore sconosciuto"}): il sistema riprova da solo.`,
       };
     case "skipped":

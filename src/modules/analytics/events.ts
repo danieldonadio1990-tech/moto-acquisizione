@@ -23,7 +23,8 @@ export const CLIENT_EVENTS = [
   "whatsapp_click",
 ] as const;
 
-export const SERVER_EVENTS = ["lead_created"] as const;
+/** notification_manual_retry: azione esplicita di un admin per riprovare una notifica email (tracciabilità, nessun dato del cliente) */
+export const SERVER_EVENTS = ["lead_created", "notification_manual_retry"] as const;
 
 export type ClientEventName = (typeof CLIENT_EVENTS)[number];
 export type EventName = ClientEventName | (typeof SERVER_EVENTS)[number];

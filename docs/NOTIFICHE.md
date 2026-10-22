@@ -58,11 +58,29 @@ apre il back office, non viene ritentata. Per questo c'è un **recupero pianific
   limite (429) o un errore del database; se ci sono invii falliti o richieste ancora senza notifica, esce 0 ma aggiunge
   un avviso (`::warning::`) nel riepilogo del giro.
 
-**Budget dei tentativi:** i tentativi sono al massimo 5 per richiesta (uno subito, gli altri nei giri successivi). Con un
-giro all'ora, un guasto del provider che duri **più di circa 4 ore** esaurisce i tentativi: la richiesta resta «non
-inviata» nel back office (con l'avviso) e non viene più ritentata da sola. Se capita, dopo aver risolto la causa
-(`npm run notify:test` per verificare) la notifica si può ripristinare a mano riportando `notification_attempts` a 0 sul
-database; un pulsante «Riprova» nel back office sarebbe la modifica successiva, non inclusa qui.
+**Budget dei tentativi:** i tentativi **automatici** sono al massimo 5 per richiesta (uno subito, gli altri nei giri
+successivi). Con un giro all'ora, un guasto del provider più lungo di circa 4 ore li esaurisce: la richiesta resta «non
+inviata» nel back office (con l'avviso) e **non viene più ritentata da sola**. Il tetto non cambia mai da solo: per
+quei casi c'è il **retry manuale** descritto sotto.
+
+#### Retry manuale (back office)
+Nel dettaglio di una richiesta, nel riquadro «Notifica email», compare il pulsante **«Riprova invio ora»** quando la
+notifica è `failed` (anche con i tentativi automatici esauriti) oppure è ferma da oltre 10 minuti (`pending`/`sending`), e
+solo se le notifiche sono configurate.
+- **Solo admin:** è un'azione del back office (`retryNotificationAction`) che chiama `requireAdmin()` prima di tutto,
+  dietro il login come ogni altra pagina `/admin`. Non esiste nessuna rotta pubblica per il retry manuale.
+- **Esplicito e tracciato:** ogni clic registra un evento `notification_manual_retry` (richiesta, email dell'admin, esito:
+  `sent`, `failed`, `not_claimed`, `disabled`; nessun dato del cliente). Le ultime cinque volte sono elencate nel dettaglio
+  («Riprovata a mano il … da …: non riuscita»).
+- **Prenotazione atomica e idempotenza:** passa dalla stessa prenotazione degli invii automatici e usa la **stessa chiave**
+  `lead-notify-<id>` e lo stesso contenuto. Non si può riprovare una richiesta già `sent`, precedente alle notifiche
+  (`skipped`) o con un invio in corso da meno di 5 minuti; più clic insieme, o un clic insieme al recupero automatico,
+  producono un solo invio. Il retry manuale ignora il tetto e l'attesa dei tentativi automatici, nient'altro.
+- **Contatore:** ogni tentativo, anche manuale, incrementa `notification_attempts` (può quindi superare 5: «6 in tutto»).
+  Il recupero automatico continua a ignorare le richieste che hanno raggiunto il tetto, anche dopo un retry manuale fallito.
+- **Duplicati:** se l'email precedente era in realtà stata consegnata (risposta persa), entro 24 ore la chiave impedisce un
+  secondo invio; **oltre le 24 ore potrebbe arrivarne una seconda identica**. Il pulsante lo ricorda.
+- **Nessun intervento sul database** è più necessario per questo caso.
 
 **Costo e limiti di GitHub Actions:** circa 720 chiamate al mese a Netlify (una funzione per giro), nessun servizio a
 pagamento. Le esecuzioni pianificate possono ritardare di qualche minuto, e per i repository pubblici GitHub **disattiva i

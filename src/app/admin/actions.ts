@@ -15,6 +15,7 @@ import {
 } from "@/modules/leads/service";
 import { LEAD_STATUSES } from "@/modules/leads/statuses";
 import { clientIp } from "@/lib/rate-limit";
+import { manualRetryNotification } from "@/modules/notifications/new-lead";
 import { logError } from "@/lib/log";
 
 export type ActionState = { ok?: boolean; error?: string; email?: string } | null;
@@ -129,6 +130,25 @@ export async function undoPurchaseAction(_: ActionState, form: FormData): Promis
     await undoPurchase(leadId, admin.email);
     refresh();
     return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/**
+ * Riprova a mano la notifica email di una richiesta (anche dopo i tentativi automatici esauriti).
+ * Solo admin (requireAdmin come per ogni azione); prenotazione atomica e idempotenza gestite in manualRetryNotification.
+ */
+export async function retryNotificationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const leadId = uuid.parse(form.get("leadId"));
+    const res = await manualRetryNotification(leadId, admin.email);
+    refresh();
+    if (res.outcome === "sent") return { ok: true };
+    if (res.outcome === "failed") return { error: `Invio non riuscito (${res.error ?? "errore"}). Puoi riprovare più tardi.` };
+    if (res.outcome === "disabled") return { error: "Le notifiche email non sono configurate (RESEND_API_KEY, NOTIFY_EMAIL_TO)." };
+    return { error: "La notifica risulta già inviata o è in corso: ricarica la pagina." };
   } catch (err) {
     return fail(err);
   }

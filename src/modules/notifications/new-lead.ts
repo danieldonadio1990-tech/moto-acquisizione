@@ -1,7 +1,8 @@
 import "server-only";
-import { and, asc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { leads, motorcycles } from "@/db/schema";
+import { events, leads, motorcycles } from "@/db/schema";
+import { recordEvent } from "@/modules/analytics/server";
 import { siteUrl } from "@/config/business";
 import { logError } from "@/lib/log";
 import { getEmailTransport, type EmailMessage } from "./transport";
@@ -127,7 +128,7 @@ const staleClaim = sql`now() - make_interval(mins => ${RETRY_AFTER_MINUTES})`;
  *  - "not_claimed" già inviata, in corso, in attesa del tempo di retry o tentativi esauriti: nessuna email
  *  - "disabled"    notifiche non configurate: il lead resta "pending" e verrà notificato quando si configurano
  */
-export async function notifyNewLead(leadId: string): Promise<NotifyOutcome> {
+export async function notifyNewLead(leadId: string, opts: { manual?: boolean } = {}): Promise<NotifyOutcome> {
   try {
     const target = getEmailTransport();
     if (!target) return "disabled";
@@ -143,11 +144,20 @@ export async function notifyNewLead(leadId: string): Promise<NotifyOutcome> {
       .where(
         and(
           eq(leads.id, leadId),
-          lt(leads.notificationAttempts, MAX_ATTEMPTS),
-          or(
-            eq(leads.notificationStatus, "pending"),
-            and(inArray(leads.notificationStatus, ["failed", "sending"]), lt(leads.notificationClaimedAt, staleClaim)),
-          ),
+          opts.manual
+            ? // richiesta esplicita di un admin: ignora il tetto dei tentativi automatici e il tempo di attesa, ma passa
+              // dalla stessa prenotazione atomica (mai su `sent`/`skipped` né su un invio già in corso)
+              or(
+                inArray(leads.notificationStatus, ["pending", "failed"]),
+                and(eq(leads.notificationStatus, "sending"), lt(leads.notificationClaimedAt, staleClaim)),
+              )
+            : and(
+                lt(leads.notificationAttempts, MAX_ATTEMPTS),
+                or(
+                  eq(leads.notificationStatus, "pending"),
+                  and(inArray(leads.notificationStatus, ["failed", "sending"]), lt(leads.notificationClaimedAt, staleClaim)),
+                ),
+              ),
         ),
       )
       .returning({ id: leads.id });
@@ -179,6 +189,67 @@ export async function notifyNewLead(leadId: string): Promise<NotifyOutcome> {
     // anche un errore del database qui non deve mai arrivare a chi chiama
     logError("notifica email", err);
     return "failed";
+  }
+}
+
+/**
+ * Retry MANUALE di una notifica (azione esplicita di un admin dal back office, anche dopo i tentativi automatici esauriti).
+ *  - Stessa prenotazione atomica e stessa chiave di idempotenza degli invii automatici: due clic (o un clic + il recupero
+ *    automatico) non producono due email; entro 24 ore Resend non ne invia una seconda per la stessa chiave.
+ *  - Non cambia il tetto dei tentativi automatici: il contatore cresce (anche oltre il tetto) ma il recupero automatico
+ *    continua a ignorare le richieste che lo hanno raggiunto. Un invio manuale riuscito porta lo stato a `sent`.
+ *  - Traccia: un evento `notification_manual_retry` con la richiesta, l'admin e l'esito (nessun dato del cliente).
+ * Non lancia eccezioni.
+ */
+export async function manualRetryNotification(
+  leadId: string,
+  adminEmail: string,
+): Promise<{ outcome: NotifyOutcome; error: string | null }> {
+  const outcome = await notifyNewLead(leadId, { manual: true });
+  await recordEvent("notification_manual_retry", { leadId, props: { by: adminEmail.slice(0, 120), outcome } });
+  let error: string | null = null;
+  if (outcome === "failed") {
+    try {
+      const db = await getDb();
+      const [r] = await db.select({ e: leads.notificationError }).from(leads).where(eq(leads.id, leadId));
+      error = r?.e ?? null;
+    } catch {
+      error = null;
+    }
+  }
+  return { outcome, error };
+}
+
+/**
+ * Il retry manuale si offre solo dove serve: notifica fallita, oppure ferma (pending/sending) da oltre 10 minuti;
+ * e solo se le notifiche sono configurate.
+ */
+export function canOfferManualRetry(lead: { notificationStatus: string; createdAt: Date }): boolean {
+  if (!getEmailTransport()) return false;
+  if (lead.notificationStatus === "failed") return true;
+  return (
+    (lead.notificationStatus === "pending" || lead.notificationStatus === "sending") &&
+    Date.now() - lead.createdAt.getTime() > 10 * 60 * 1000
+  );
+}
+
+/** Ultimi retry manuali di una richiesta (per il dettaglio nel back office). */
+export async function recentManualRetries(leadId: string, limit = 5) {
+  try {
+    const db = await getDb();
+    const rows = await db
+      .select({ at: events.createdAt, props: events.props })
+      .from(events)
+      .where(and(eq(events.leadId, leadId), eq(events.name, "notification_manual_retry")))
+      .orderBy(desc(events.createdAt))
+      .limit(limit);
+    return rows.map((r) => {
+      const p = (r.props ?? {}) as { by?: unknown; outcome?: unknown };
+      return { at: r.at, by: typeof p.by === "string" ? p.by : "—", outcome: typeof p.outcome === "string" ? p.outcome : "—" };
+    });
+  } catch (err) {
+    logError("notifica email (cronologia)", err);
+    return [];
   }
 }
 
