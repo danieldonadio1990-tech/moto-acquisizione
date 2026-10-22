@@ -17,13 +17,14 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
 
   // Landing
   await page.goto("/?utm_source=smoke&utm_medium=test&utm_campaign=e2e");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Vuoi vendere la tua moto?");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Vuoi vendere il tuo scooter");
   await page.getByRole("link", { name: "Valuta la tua moto" }).first().click();
   await expect(page).toHaveURL(/\/valuta$/);
 
   // Step 1–3
-  await page.getByText("Honda", { exact: true }).click();
-  await page.getByText("SH", { exact: true }).click();
+  // la home resta (nascosta) nel DOM dopo la navigazione: si cerca dentro i gruppi del modulo
+  await page.locator("fieldset", { hasText: "Marca" }).getByText("Honda", { exact: true }).click();
+  await page.locator("fieldset", { hasText: "Modello" }).getByText("SH", { exact: true }).click();
   await page.getByText("125 cc", { exact: true }).click();
   await page.getByLabel("Anno di immatricolazione").selectOption("2019");
   await page.getByRole("button", { name: "Continua" }).click();
@@ -51,7 +52,7 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
   await expect(page.getByText("2/12 foto")).toBeVisible();
   await page.getByRole("button", { name: "Invia le foto" }).click();
   await expect(page.getByRole("heading", { name: "Richiesta ricevuta" })).toBeVisible({ timeout: 30_000 });
-  const code = (await page.locator(".tracking-widest").innerText()).trim();
+  const code = (await page.getByTestId("request-code").innerText()).trim();
 
   // Admin
   const admin = await context.newPage();
@@ -98,4 +99,25 @@ test("pagine di servizio: 404, robots, sitemap, privacy", async ({ page, request
   expect((await request.get("/sitemap.xml")).status()).toBe(200);
   await page.goto("/privacy");
   await expect(page.getByText(/Versione/)).toBeVisible();
+});
+
+test("home pubblica: contenuti, nessun segnaposto in pagina, nessun link WhatsApp, nessuno scroll orizzontale", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Vuoi vendere il tuo scooter senza perdere tempo?");
+  for (const h of ["Come funziona", "Quale mezzo vuoi vendere?", "Domande"]) {
+    await expect(page.getByRole("heading", { name: h })).toBeVisible();
+  }
+  const text = await page.locator("body").innerText();
+  expect(text).not.toContain("DA COMPLETARE");
+  expect(text).not.toContain("[BRAND]");
+  const hrefs = await page.locator("a").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).href));
+  expect(hrefs.filter((h) => h.includes("wa.me"))).toEqual([]);
+  expect(hrefs.filter((h) => h.startsWith("tel:"))).toEqual([]); // nessun telefono configurato → nessun pulsante «Chiama»
+  await expect(page.getByRole("link", { name: /Chiama|WhatsApp/ })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  // le 10 marche e "Altro" nel modulo
+  await page.goto("/valuta");
+  await expect(page.getByText("Che moto hai?")).toBeVisible(); // il modulo compare dopo l'idratazione
+  const marche = (await page.locator("fieldset", { hasText: "Marca" }).locator("label").allInnerTexts()).map((l) => l.trim());
+  expect(marche).toEqual(["Honda", "Piaggio", "Yamaha", "Kymco", "SYM", "BMW", "Suzuki", "Kawasaki", "Aprilia", "Ducati", "Altro"]);
 });

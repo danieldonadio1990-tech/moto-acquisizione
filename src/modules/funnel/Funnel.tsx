@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { ZodError } from "zod";
 import { BrandMark } from "@/components/BrandMark";
+import { btnOutline, btnPrimary } from "@/components/buttons";
+import { hasWhatsapp } from "@/config/business";
 import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { captureAttribution, getAttribution, track } from "@/modules/analytics/client";
 import { postWithRetry } from "./net";
@@ -269,47 +271,37 @@ export function Funnel() {
     step === 3 ? (submitting ? "Invio…" : "Invia richiesta") : step === 4 ? (submitting ? "Carico le foto…" : "Invia le foto") : "Continua";
 
   return (
-    <div ref={topRef} className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-20 bg-chalk/95 backdrop-blur">
-        <div className="mx-auto flex max-w-xl items-center justify-between gap-4 px-5 pt-4">
-          {canGoBack ? (
-            <button
-              type="button"
-              onClick={() => goTo(step - 1)}
-              className="-ml-2 flex h-10 items-center gap-1 rounded-lg px-2 font-semibold"
-              aria-label="Indietro"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-                <path d="M15 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Indietro
-            </button>
-          ) : (
-            <BrandMark />
-          )}
+    <div ref={topRef} className="flex min-h-dvh flex-col bg-chalk">
+      <header className="sticky top-0 z-20 border-b border-line bg-paper/95 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-xl items-center justify-between gap-4 px-4">
+          <BrandMark size="sm" />
           {!isDone && (
             <Link
               href="/"
               onClick={() => leadCreated && reset()}
-              className="text-sm font-semibold text-concrete underline-offset-4 hover:underline"
+              className="rounded-lg px-2 py-2 text-sm font-bold text-concrete underline-offset-4 hover:text-asphalt hover:underline"
             >
               Esci
             </Link>
           )}
         </div>
         {!isDone && (
-          <div className="mx-auto max-w-xl px-5 pb-3 pt-4">
+          <div className="mx-auto max-w-xl px-4 pb-3">
+            <p className="mb-2 flex items-baseline justify-between text-sm font-bold">
+              <span>
+                Passo {step + 1} di {STEPS.length}
+              </span>
+              <span className="text-concrete">{STEPS[step]}</span>
+            </p>
             <ol className="flex gap-1.5" aria-label={`Passo ${step + 1} di ${STEPS.length}: ${STEPS[step]}`}>
               {STEPS.map((s, i) => (
                 <li key={s} className="flex-1">
                   <span
-                    className={`block h-1.5 rounded-full transition-colors duration-300 ${
+                    className={`block h-2 rounded-full transition-colors duration-300 ${
                       i < step ? "bg-plate" : i === step ? "bg-signal" : "bg-line"
                     }`}
                   />
-                  <span className={`mt-1.5 hidden text-xs font-semibold sm:block ${i === step ? "text-asphalt" : "text-concrete"}`}>
-                    {s}
-                  </span>
+                  <span className="sr-only">{s}</span>
                 </li>
               ))}
             </ol>
@@ -318,7 +310,7 @@ export function Funnel() {
       </header>
 
       <form
-        className="mx-auto w-full max-w-xl flex-1 px-5 pb-40 pt-6"
+        className={`mx-auto w-full max-w-xl flex-1 px-4 pt-6 ${isDone ? "pb-12" : step === 4 ? "pb-56" : "pb-40"}`}
         onSubmit={(e) => {
           e.preventDefault();
           if (!submitting) next();
@@ -328,7 +320,7 @@ export function Funnel() {
         {/* honeypot anti-bot: invisibile agli utenti */}
         <input ref={honeypot} name="website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
 
-        <div key={step} className="step-in">
+        <div key={step} className="step-in rounded-3xl bg-paper p-5 shadow-sm ring-1 ring-line sm:p-8">
           {step === 0 && (
             <MotoStep moto={state.moto} errors={errors} onChange={(p) => update((s) => ({ moto: { ...s.moto, ...p } }))} />
           )}
@@ -355,23 +347,31 @@ export function Funnel() {
         </div>
 
         {!isDone && (
-          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-chalk/95 backdrop-blur">
-            <div className="mx-auto max-w-xl px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-3.5">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex h-14 w-full items-center justify-center rounded-xl bg-plate text-lg font-bold text-paper transition-colors hover:bg-plate-deep active:bg-plate-deep disabled:opacity-70"
-              >
-                {primaryLabel}
-              </button>
+          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 shadow-[0_-6px_20px_rgba(32,37,43,0.10)] backdrop-blur">
+            <div className="mx-auto max-w-xl px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
+              <div className="flex gap-3">
+                {canGoBack && (
+                  <button
+                    type="button"
+                    onClick={() => goTo(step - 1)}
+                    disabled={submitting}
+                    className={btnOutline.replace("px-6", "px-5")}
+                  >
+                    Indietro
+                  </button>
+                )}
+                <button type="submit" disabled={submitting} className={`${btnPrimary} flex-1 disabled:opacity-60`}>
+                  {primaryLabel}
+                </button>
+              </div>
               {step === 4 && (
                 <button
                   type="button"
                   onClick={skipPhotos}
                   disabled={submitting}
-                  className="mt-2 h-11 w-full font-semibold text-plate underline-offset-4 hover:underline"
+                  className="mt-2 h-11 w-full text-sm font-bold text-plate underline underline-offset-4"
                 >
-                  Le mando dopo su WhatsApp
+                  {hasWhatsapp() ? "Le mando dopo su WhatsApp" : "Invia senza foto"}
                 </button>
               )}
             </div>

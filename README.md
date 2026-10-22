@@ -1,4 +1,4 @@
-# [BRAND] — Acquisizione moto da privati
+# Compro Moto — Acquisizione moto da privati
 
 Funnel *"Hai una moto da vendere? Noi possiamo comprartela."* e backoffice per gestire le richieste
 fino all'acquisto. Area: Milano e provincia.

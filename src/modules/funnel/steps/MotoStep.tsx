@@ -3,7 +3,8 @@ import { listBrands, listModels, getModel, maxYear, MIN_YEAR, OTHER_MODEL_ID } f
 import { Choices, SelectField, StepTitle, TextField } from "../ui";
 import { OTHER_BRAND, type FunnelState } from "../state";
 
-const FEATURED = ["Honda", "Piaggio", "Kymco"];
+/** Valore della voce finale "Altro" tra le marche */
+const OTHER_CHOICE = "__other";
 
 type Moto = FunnelState["moto"];
 
@@ -17,15 +18,20 @@ export function MotoStep({
   errors: Record<string, string>;
 }) {
   const brands = listBrands();
-  const otherBrands = brands.filter((b) => !FEATURED.includes(b));
-  const brandIsFeatured = FEATURED.includes(moto.brand);
-  const brandChoice = brandIsFeatured ? moto.brand : moto.brand ? "__more" : "";
   const isFreeBrand = moto.brand === OTHER_BRAND;
+  const brandChoice = isFreeBrand ? OTHER_CHOICE : moto.brand;
   const models = moto.brand && !isFreeBrand ? listModels(moto.brand) : [];
   const catalogModel = getModel(moto.modelId);
   const years = Array.from({ length: maxYear() - MIN_YEAR + 1 }, (_, i) => maxYear() - i);
 
-  const setBrand = (brand: string) => onChange({ brand, modelId: brand === OTHER_BRAND ? OTHER_MODEL_ID : "", displacement: "" });
+  // "Altro" o marca senza modelli in catalogo: marca/modello si scrivono a mano, senza dover scegliere un modello inesistente
+  const setBrand = (brand: string) =>
+    onChange({
+      brand,
+      modelId: brand === OTHER_BRAND || listModels(brand).length === 0 ? OTHER_MODEL_ID : "",
+      modelOther: "",
+      displacement: "",
+    });
 
   return (
     <>
@@ -36,34 +42,24 @@ export function MotoStep({
           name="brand"
           columns={2}
           value={brandChoice}
-          options={[...FEATURED.map((b) => ({ value: b, label: b })), { value: "__more", label: "Altra marca" }]}
-          onChange={(v) => (v === "__more" ? onChange({ brand: otherBrands[0] ?? "", modelId: "", displacement: "" }) : setBrand(v))}
+          options={[...brands.map((b) => ({ value: b, label: b })), { value: OTHER_CHOICE, label: "Altro" }]}
+          onChange={(v) => setBrand(v === OTHER_CHOICE ? OTHER_BRAND : v)}
           error={!moto.brand ? errors.brand : undefined}
         />
 
-        {brandChoice === "__more" && (
-          <div className="step-in space-y-4">
-            <SelectField label="Quale marca?" value={moto.brand} onChange={(e) => setBrand(e.target.value)}>
-              {otherBrands.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-              <option value={OTHER_BRAND}>Non è in elenco</option>
-            </SelectField>
-            {isFreeBrand && (
-              <TextField
-                label="Scrivi la marca"
-                value={moto.brandOther}
-                onChange={(e) => onChange({ brandOther: e.target.value })}
-                error={errors.brandOther}
-                autoComplete="off"
-              />
-            )}
+        {isFreeBrand && (
+          <div className="step-in">
+            <TextField
+              label="Scrivi la marca"
+              value={moto.brandOther}
+              onChange={(e) => onChange({ brandOther: e.target.value })}
+              error={errors.brandOther}
+              autoComplete="off"
+            />
           </div>
         )}
 
-        {moto.brand && !isFreeBrand && (
+        {moto.brand && !isFreeBrand && models.length > 0 && (
           <div className="step-in">
             <Choices
               legend="Modello"
@@ -81,6 +77,7 @@ export function MotoStep({
           <div className="step-in">
             <TextField
               label="Scrivi il modello"
+              hint={moto.brand === "Piaggio" ? "Per una Vespa scrivi il nome completo, es. Vespa Primavera" : undefined}
               value={moto.modelOther}
               onChange={(e) => onChange({ modelOther: e.target.value })}
               error={errors.modelOther}

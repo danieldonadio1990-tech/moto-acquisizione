@@ -19,16 +19,18 @@ export function TrackedLink({
   event,
   label,
   className,
+  ariaLabel,
   children,
 }: {
   href: string;
   event: ClientEventName;
   label: string;
   className?: string;
+  ariaLabel?: string;
   children: React.ReactNode;
 }) {
   return (
-    <Link href={href} className={className} onClick={() => track(event, { label })}>
+    <Link href={href} className={className} aria-label={ariaLabel} onClick={() => track(event, { label })}>
       {children}
     </Link>
   );

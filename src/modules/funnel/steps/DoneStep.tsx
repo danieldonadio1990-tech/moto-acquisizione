@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { whatsappLink } from "@/config/business";
 import { track } from "@/modules/analytics/client";
+import { IconCheck } from "@/components/Icons";
+import { btnOutline, btnPrimary } from "@/components/buttons";
+import { PhoneButton } from "@/components/ContactButtons";
 
 export function DoneStep({
   code,
@@ -14,44 +17,64 @@ export function DoneStep({
   photosSent: number;
   onHome: () => void;
 }) {
-  const message =
+  // senza un numero WhatsApp aziendale configurato il pulsante non compare (mai un link verso un numero di esempio)
+  const waHref = whatsappLink(
     photosSent > 0
       ? `Ciao! Ho appena inviato la richiesta ${code} per la mia ${motoLabel}.`
-      : `Ciao! Ho appena inviato la richiesta ${code} per la mia ${motoLabel}. Vi mando qui le foto.`;
+      : `Ciao! Ho appena inviato la richiesta ${code} per la mia ${motoLabel}. Vi mando qui le foto.`,
+  );
+
+  const NEXT = [
+    "Controlliamo i dati del tuo mezzo.",
+    "Se è interessante per noi, ti ricontattiamo con un'offerta.",
+    "Se troviamo un accordo, fissiamo un appuntamento per vedere il mezzo.",
+  ];
 
   return (
-    <div className="step-in">
-      <div aria-hidden className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-ok text-paper">
-        <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="3">
-          <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+    <div>
+      <div aria-hidden className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-ok text-paper">
+        <IconCheck className="h-8 w-8" />
       </div>
-      <h1 className="display text-[2.75rem] leading-[0.95] sm:text-6xl">Richiesta ricevuta</h1>
-      <p className="mt-5 max-w-[38ch] text-lg leading-snug">Abbiamo ricevuto i dati della tua moto.</p>
-      <p className="mt-2 max-w-[38ch] text-lg leading-snug text-asphalt-soft">
-        Il nostro team verificherà le informazioni e ti ricontatterà per completare la valutazione.
+      <h1 className="display text-4xl leading-[0.98] sm:text-5xl">Richiesta ricevuta</h1>
+      <p className="mt-4 max-w-[44ch] text-lg leading-snug">
+        Abbiamo ricevuto i dati del tuo mezzo{motoLabel ? `: ${motoLabel}` : ""}.
       </p>
 
-      <div className="mt-8 inline-flex items-center gap-3 rounded-xl bg-paper px-4 py-3 ring-1 ring-line">
-        <span className="text-sm text-concrete">Codice richiesta</span>
-        <span className="display tabular text-2xl tracking-widest">{code}</span>
+      <div className="on-dark mt-7 rounded-2xl bg-asphalt p-5 text-paper">
+        <p className="text-sm font-bold uppercase tracking-wider text-paper/70">Codice richiesta</p>
+        <p data-testid="request-code" className="display tabular mt-1 text-5xl tracking-[0.18em] text-signal sm:text-6xl">
+          {code}
+        </p>
+        <p className="mt-2 text-sm text-paper/70">Conservalo: ti serve se vuoi parlare di questa richiesta con noi.</p>
       </div>
 
-      <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-        <a
-          href={whatsappLink(message)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => track("whatsapp_click", { from: "done" })}
-          className="inline-flex h-14 items-center justify-center rounded-xl bg-plate px-8 text-lg font-bold text-paper hover:bg-plate-deep"
-        >
-          Contattaci su WhatsApp
-        </a>
-        <Link
-          href="/"
-          onClick={onHome}
-          className="inline-flex h-14 items-center justify-center rounded-xl border-2 border-asphalt px-8 text-lg font-bold"
-        >
+      <h2 className="mt-8 text-lg font-bold">Cosa succede ora</h2>
+      <ol className="mt-3 space-y-3">
+        {NEXT.map((t, i) => (
+          <li key={t} className="flex items-start gap-3">
+            <span className="display flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-signal text-lg text-asphalt">
+              {i + 1}
+            </span>
+            <span className="pt-1 leading-snug text-asphalt-soft">{t}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-4 text-sm text-concrete">Ti contatteremo ai recapiti che ci hai lasciato.</p>
+
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        {waHref && (
+          <a
+            href={waHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track("whatsapp_click", { from: "done" })}
+            className={btnPrimary}
+          >
+            Contattaci su WhatsApp
+          </a>
+        )}
+        <PhoneButton showNumber />
+        <Link href="/" onClick={onHome} className={btnOutline}>
           Torna alla home
         </Link>
       </div>

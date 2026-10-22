@@ -29,7 +29,7 @@ export function KmStep({
       </label>
       <div
         className={`relative mx-auto flex w-full max-w-md cursor-text items-stretch gap-1.5 rounded-2xl bg-asphalt p-3 transition-shadow sm:gap-2 sm:p-4 ${
-          focused ? "ring-4 ring-signal" : ""
+          focused ? "ring-4 ring-plate" : ""
         } ${error ? "ring-4 ring-danger" : ""}`}
         onClick={() => inputRef.current?.focus()}
       >
@@ -42,7 +42,7 @@ export function KmStep({
               className="tabular relative flex h-20 flex-1 items-center justify-center overflow-hidden rounded-lg bg-[#2b3138] sm:h-24"
             >
               <span
-                className={`display text-[2.6rem] sm:text-6xl ${real ? "digit-roll text-paper" : "text-paper/15"}`}
+                className={`display text-[2.6rem] sm:text-6xl ${real ? "digit-roll text-paper" : "text-paper/45"}`}
               >
                 {d}
               </span>
