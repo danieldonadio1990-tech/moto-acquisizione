@@ -120,7 +120,7 @@ test("WhatsApp: nell'interfaccia il link è sempre generato con whatsappLink() e
 });
 
 test("brand: nome commerciale impostato, nessun segnaposto [BRAND] nei sorgenti pubblici", () => {
-  assert.equal(BRAND.name, "Compro Moto");
+  assert.equal(BRAND.name, "Compriamo Moto");
   const offenders = sources("src").filter((f) => readFileSync(f, "utf8").includes("[BRAND]"));
   assert.deepEqual(offenders, []);
 });
@@ -134,7 +134,8 @@ test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con sugger
 // ---- Redesign: home, immagini segnaposto, footer ------------------------------------------------------------------------
 test("home: messaggio principale, CTA e sezioni previste, senza promesse non verificate", () => {
   const home = readFileSync("src/app/page.tsx", "utf8");
-  assert.match(home, /La compriamo noi,[\s\S]{0,80}la gestione successiva è affar nostro\./);
+  assert.match(home, /Valuta la tua moto[\s\S]{0,80}in pochi passaggi\./);
+  assert.match(home, /la gestione successiva è affar nostro/);
   assert.match(home, /Acquistiamo la tua moto direttamente da te/);
   assert.match(home, /Valuta la tua moto/);
   for (const id of ["come-funziona", "mezzi", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
@@ -178,9 +179,10 @@ test("footer: i dati aziendali segnaposto non vengono mostrati al pubblico", () 
   assert.doesNotMatch(footer, /DA COMPLETARE/);
 });
 
-test("palette: antracite, giallo segnale, blu targa, grigio chiaro", () => {
+test("palette Compriamo Moto: blu notte, blu elettrico, blu hover, sfondo chiaro, testi e bordi", () => {
   const css = readFileSync("src/app/globals.css", "utf8");
-  for (const c of ["#20252b", "#f5c928", "#1a3fa8", "#f0f1f2"]) assert.ok(css.toLowerCase().includes(c), c);
+  for (const c of ["#0b1220", "#2563eb", "#1d4ed8", "#f8fafc", "#0f172a", "#64748b", "#e2e8f0", "#ffffff"]) assert.ok(css.toLowerCase().includes(c), c);
+  assert.doesNotMatch(css, /--color-signal|#f5c928|#1a3fa8/i, "residui della vecchia palette");
 });
 
 test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei controlli 3:1)", () => {
@@ -191,7 +193,11 @@ test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei control
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
-  const text: [string, string][] = [["plate", "chalk"], ["plate", "paper"], ["signal", "asphalt"], ["signal", "asphalt-raised"], ["asphalt", "signal"], ["paper", "plate"], ["signal", "plate"], ["concrete", "paper"], ["asphalt-soft", "chalk"], ["asphalt", "chalk"]];
+  const text: [string, string][] = [
+    ["plate", "chalk"], ["plate", "paper"], ["paper", "plate"], ["paper", "plate-deep"], ["sky", "asphalt"], ["sky", "asphalt-raised"],
+    ["paper", "asphalt"], ["concrete", "paper"], ["concrete", "chalk"], ["asphalt-soft", "chalk"], ["asphalt-soft", "paper"],
+    ["ink", "chalk"], ["ink", "paper"], ["asphalt", "chalk"], ["asphalt", "notice"], ["ok", "paper"], ["ok", "chalk"], ["danger", "paper"], ["danger", "chalk"],
+  ];
   for (const [fg, bg] of text) assert.ok(ratio(tok(fg), tok(bg)) >= 4.5, `${fg} su ${bg}: ${ratio(tok(fg), tok(bg)).toFixed(2)}`);
   for (const bg of ["paper", "chalk"]) assert.ok(ratio(tok("field"), tok(bg)) >= 3, `bordo campi su ${bg}`);
 });

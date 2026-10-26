@@ -1,4 +1,4 @@
-# Compro Moto — Acquisizione moto da privati
+# Compriamo Moto — Acquisizione moto da privati
 
 Funnel *"Hai una moto da vendere? Noi possiamo comprartela."* e backoffice per gestire le richieste
 fino all'acquisto. Area: Milano e provincia.
@@ -304,6 +304,18 @@ Deploy Preview e Branch deploy (usano la configurazione di produzione).
 primo deploy:** nei log deve comparire `ip=header` e *non* il messaggio `IP del client non trovato`; dal vostro
 telefono, ripetendo l'invio oltre il limite (8/ora), il blocco deve scattare per IP. Se l'header manca, tutte le
 richieste condividono un solo contatore (più restrittivo, non più permissivo).
+
+## Brand, valutazione e dominio
+
+- **Brand Compriamo Moto:** i colori stanno in un solo punto, `src/app/globals.css` (blu notte `#0B1220`, blu elettrico `#2563EB`, hover
+  `#1D4ED8`, sfondo `#F8FAFC`, testo `#0F172A`, secondario `#64748B`, bordi `#E2E8F0`). I nomi storici dei token (`asphalt`, `plate`, `chalk`…) sono
+  mantenuti e documentati nel file; un test verifica il contrasto WCAG delle coppie usate. Logo tipografico in `src/components/BrandMark.tsx`
+  (file di riferimento: `public/brand/compriamo-moto-logo.svg`); icone e anteprima social rigenerate. Le denominazioni tecniche
+  (nome del repository `moto-acquisizione`, intestazione `user-agent` delle notifiche, etichette analytics) non cambiano.
+- **Valutazione e offerta preliminare:** motore server-side, configurabile e testato; **offerte reali disabilitate** finché mancano parametri approvati
+  e dati di mercato con fonte. Progettazione, formula, fonti e parametri da approvare: [docs/VALUTAZIONE.md](docs/VALUTAZIONE.md). Migrazione
+  `0005` proposta, **non applicata**.
+- **Dominio `compriamo-moto.it`:** acquistato ma non collegato; passaggi manuali (Netlify, HTTPS, DNS, Resend) in [docs/DOMINIO.md](docs/DOMINIO.md).
 
 ## Backup
 

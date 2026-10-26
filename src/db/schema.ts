@@ -216,3 +216,123 @@ export const rateLimitBuckets = pgTable("rate_limit_buckets", {
   count: integer("count").notNull(),
   resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Valutazione e offerta preliminare (src/modules/valuation). Strutture NUOVE e additive: le richieste esistenti non
+// vengono toccate. Importi sempre in centesimi (interi), percentuali in punti base.
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const VALUATION_STATUSES = [
+  "to_evaluate", // Da valutare (nessun calcolo ancora, o da ricalcolare)
+  "insufficient_data", // Dati insufficienti (mancano parametri approvati o dati di mercato)
+  "preliminary_generated", // Valutazione preliminare generata (offerta o fascia calcolata dal motore)
+  "manual_review", // Verifica manuale richiesta
+  "offer_to_confirm", // Offerta da confermare (proposta manuale in attesa)
+  "offer_confirmed", // Offerta confermata da un amministratore
+  "rejected", // Rifiutata
+  "expired", // Scaduta
+] as const;
+export type ValuationStatus = (typeof VALUATION_STATUSES)[number];
+
+/**
+ * Parametri economici versionati. Una versione APPROVATA è immutabile: per cambiare un parametro si crea una nuova
+ * versione e la si approva (la precedente passa a «retired»). Chi crea e chi approva è registrato: audit trail.
+ */
+export const valuationSettings = pgTable(
+  "valuation_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    version: integer("version").notNull().unique(),
+    status: text("status", { enum: ["draft", "approved", "retired"] }).notNull().default("draft"),
+    params: jsonb("params").notNull(),
+    note: text("note"),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+    approvedBy: text("approved_by"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+  },
+  (t) => [
+    // una sola versione approvata alla volta
+    uniqueIndex("valuation_settings_one_approved").on(t.status).where(sql`${t.status} = 'approved'`),
+    check("valuation_settings_status_valid", sql`${t.status} in ('draft','approved','retired')`),
+    check("valuation_settings_approval_coherent", sql`(${t.status} in ('approved','retired')) = (${t.approvedAt} is not null)`),
+  ],
+);
+
+/**
+ * Riferimenti di mercato inseriti da un amministratore, CON la provenienza (fonte, tipo, data, numero di casi).
+ * Nessun valore è precaricato: senza righe il motore non produce offerte.
+ */
+export const marketReferences = pgTable(
+  "market_references",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    brand: text("brand").notNull(),
+    /** famiglia del catalogo (es. "SH"); null = tutti i modelli del marchio */
+    family: text("family"),
+    yearFrom: integer("year_from").notNull(),
+    yearTo: integer("year_to").notNull(),
+    medianCents: integer("median_cents").notNull(),
+    p25Cents: integer("p25_cents"),
+    p75Cents: integer("p75_cents"),
+    sampleCount: integer("sample_count").notNull(),
+    kind: text("kind", { enum: ["sold", "asking", "internal", "manual"] }).notNull(),
+    source: text("source").notNull(),
+    asOf: timestamp("as_of", { withTimezone: true }).notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("market_references_lookup_idx").on(t.brand, t.family),
+    check("market_references_median_positive", sql`${t.medianCents} > 0`),
+    check("market_references_years_valid", sql`${t.yearFrom} <= ${t.yearTo} and ${t.yearFrom} >= 1950`),
+    check("market_references_samples_positive", sql`${t.sampleCount} >= 1`),
+    check("market_references_kind_valid", sql`${t.kind} in ('sold','asking','internal','manual')`),
+  ],
+);
+
+/**
+ * Valutazioni di una richiesta: una riga per REVISIONE (1 = calcolo automatico alla creazione). Ogni modifica
+ * amministrativa o ricalcolo aggiunge una revisione: lo storico non si riscrive mai. La revisione più alta è quella in vigore.
+ */
+export const valuations = pgTable(
+  "valuations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    leadId: uuid("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    kind: text("kind", { enum: ["automatic", "manual"] }).notNull(),
+    status: text("status", { enum: VALUATION_STATUSES }).notNull(),
+    decision: text("decision", { enum: ["preliminary_offer", "indicative_range", "manual_review"] }).notNull(),
+    reasons: jsonb("reasons").notNull(),
+    confidenceBp: integer("confidence_bp").notNull().default(0),
+    /** input normalizzati usati dal calcolo (dati della moto, nessun dato personale del cliente) */
+    inputs: jsonb("inputs"),
+    /** provenienza dei dati di mercato (fonte, tipo, data, casi, mediana…) */
+    market: jsonb("market"),
+    resaleCents: integer("resale_cents"),
+    costs: jsonb("costs"),
+    costTotalCents: integer("cost_total_cents"),
+    marginCents: integer("margin_cents"),
+    maxOfferCents: integer("max_offer_cents"),
+    rangeLowCents: integer("range_low_cents"),
+    rangeHighCents: integer("range_high_cents"),
+    /** prezzo impostato a mano da un amministratore, con il motivo */
+    manualOfferCents: integer("manual_offer_cents"),
+    manualReason: text("manual_reason"),
+    formulaVersion: text("formula_version").notNull(),
+    settingsId: uuid("settings_id").references(() => valuationSettings.id),
+    /** mostrato al cliente alla creazione? (dipende dall'interruttore VALUATION_PUBLIC_OFFERS) */
+    disclosedToCustomer: boolean("disclosed_to_customer").notNull().default(false),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("valuations_lead_revision_uq").on(t.leadId, t.revision),
+    index("valuations_lead_idx").on(t.leadId),
+    check("valuations_status_valid", sql`${t.status} in ('to_evaluate','insufficient_data','preliminary_generated','manual_review','offer_to_confirm','offer_confirmed','rejected','expired')`),
+    check("valuations_amounts_non_negative", sql`coalesce(${t.maxOfferCents}, 0) >= 0 and coalesce(${t.manualOfferCents}, 1) > 0`),
+    check("valuations_manual_has_reason", sql`${t.manualOfferCents} is null or (${t.manualReason} is not null and length(${t.manualReason}) >= 5)`),
+  ],
+);

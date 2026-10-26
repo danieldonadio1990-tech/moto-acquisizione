@@ -41,7 +41,7 @@ function uploadTokenFor(leadId: string, submissionId: string) {
     .digest("base64url");
 }
 
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
 export class BusinessRuleError extends Error {}
 
@@ -354,14 +354,17 @@ export async function updateNotes(leadId: string, notes: string) {
 }
 
 /** Nuova offerta: lo stato passa a "Offerta fatta" (se non c'è già un'offerta accettata). */
+/** Come addOffer, dentro una transazione già aperta (la richiesta deve essere già bloccata da chi chiama). */
+export async function addOfferInTx(tx: Tx, leadId: string, amount: number, by: string) {
+  const lead = await lockLead(tx, leadId);
+  if (lead.status === "purchased") throw new BusinessRuleError("La moto risulta già acquistata");
+  await tx.insert(offers).values({ leadId, amount, createdBy: by });
+  if (lead.status !== "accepted") await setStatusTx(tx, leadId, lead.status, "offer_made", by);
+}
+
 export async function addOffer(leadId: string, amount: number, by: string) {
   const db = await getDb();
-  await db.transaction(async (tx) => {
-    const lead = await lockLead(tx, leadId);
-    if (lead.status === "purchased") throw new BusinessRuleError("La moto risulta già acquistata");
-    await tx.insert(offers).values({ leadId, amount, createdBy: by });
-    if (lead.status !== "accepted") await setStatusTx(tx, leadId, lead.status, "offer_made", by);
-  });
+  await db.transaction((tx) => addOfferInTx(tx, leadId, amount, by));
 }
 
 /**

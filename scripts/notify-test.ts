@@ -38,9 +38,9 @@ async function main() {
   const result = await new ResendTransport(cfg.apiKey).send({
     from: cfg.from,
     to: cfg.to,
-    subject: "[PROVA] Notifiche Compro Moto",
+    subject: "[PROVA] Notifiche Compriamo Moto",
     text: [
-      "Questa è un'email di prova delle notifiche di Compro Moto.",
+      "Questa è un'email di prova delle notifiche di Compriamo Moto.",
       "Non è stata creata nessuna richiesta e non contiene dati di clienti.",
       "",
       `Back office: ${new URL("/admin", siteUrl()).toString()}`,

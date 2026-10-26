@@ -22,6 +22,7 @@ import { ConditionStep } from "./steps/ConditionStep";
 import { ContactStep } from "./steps/ContactStep";
 import { PhotoStep, type PickedPhoto } from "./steps/PhotoStep";
 import { DoneStep } from "./steps/DoneStep";
+import type { PublicValuation } from "@/modules/valuation/public";
 
 /** Attesa prima di riprovare con un gettone nuovo: poco più dell'età minima richiesta dal server (3 s) */
 const FORM_TOKEN_WAIT_MS = 3_500;
@@ -169,7 +170,7 @@ export function Funnel() {
     try {
       const post = async () => {
         if (!formToken.current) await refreshFormToken(formToken);
-        return postWithRetry<{ id: string; code: string; uploadToken: string }>("/api/leads", {
+        return postWithRetry<{ id: string; code: string; uploadToken: string; valuation?: PublicValuation }>("/api/leads", {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             submissionId,
@@ -202,7 +203,7 @@ export function Funnel() {
         return;
       }
       track("contact_submitted");
-      update({ lead: { id: res.data.id, code: res.data.code, uploadToken: res.data.uploadToken }, step: 4 });
+      update({ lead: { id: res.data.id, code: res.data.code, uploadToken: res.data.uploadToken, valuation: res.data.valuation }, step: 4 });
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -331,7 +332,7 @@ export function Funnel() {
                 <li key={s} className="flex-1">
                   <span
                     className={`block h-2 rounded-full transition-colors duration-300 ${
-                      i < step ? "bg-plate" : i === step ? "bg-signal" : "bg-line"
+                      i < step ? "bg-plate" : i === step ? "bg-sky" : "bg-line"
                     }`}
                   />
                   <span className="sr-only">{s}</span>
@@ -375,7 +376,14 @@ export function Funnel() {
           )}
           {step === 4 && <PhotoStep photos={photos} setPhotos={setPhotos} error={photoError} />}
           {isDone && state.lead && (
-            <DoneStep code={state.lead.code} motoLabel={motoLabel} photosSent={state.photosSent} onHome={reset} />
+            <DoneStep
+              code={state.lead.code}
+              motoLabel={motoLabel}
+              summary={{ label: motoLabel, year: Number(state.moto.year) || undefined, mileage: state.mileage ? Number(state.mileage) : undefined }}
+              valuation={state.lead.valuation ?? { kind: "manual" }}
+              photosSent={state.photosSent}
+              onHome={reset}
+            />
           )}
         </div>
 

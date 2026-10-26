@@ -9,7 +9,7 @@ export function LoginForm() {
   return (
     <form action={action} className="mt-8 space-y-4">
       {expired && !state && (
-        <p role="status" className="rounded-xl bg-signal/40 p-3 font-semibold">
+        <p role="status" className="rounded-xl bg-notice p-3 font-semibold">
           La sessione è scaduta: accedi di nuovo per continuare.
         </p>
       )}

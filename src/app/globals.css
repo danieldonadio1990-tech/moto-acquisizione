@@ -1,30 +1,35 @@
 @import "tailwindcss";
 
 /*
- * Token di design.
- * Riferimenti visivi: la strada (asfalto, segnaletica gialla), la targa (blu banda UE),
- * il contachilometri. Nessun riferimento a identità di concorrenti.
+ * Token di design Compriamo Moto (unico punto in cui vivono i colori del brand).
+ * I nomi storici (asphalt, chalk, plate…) sono mantenuti per non riscrivere ogni componente: significano
+ *   asphalt       = blu notte        chalk  = sfondo chiaro     paper  = bianco
+ *   plate         = blu elettrico (azione principale, link)     plate-deep = blu interattivo (hover)
+ *   sky           = blu chiaro leggibile su sfondo scuro        notice = evidenziatore di avvisi
+ *   concrete      = testo secondario  line = bordi              field  = bordo dei campi (>= 3:1)
  */
 @theme {
-  --color-asphalt: #20252b;
-  --color-asphalt-soft: #3b434c;
-  --color-asphalt-raised: #2b323a;
-  --color-chalk: #f0f1f2;
+  --color-asphalt: #0b1220;
+  --color-asphalt-soft: #334155;
+  --color-asphalt-raised: #141d31;
+  --color-ink: #0f172a;
+  --color-chalk: #f8fafc;
   --color-paper: #ffffff;
-  --color-plate: #1a3fa8;
-  --color-plate-deep: #12307f;
-  --color-signal: #f5c928;
-  --color-signal-soft: #ffd84d;
-  --color-concrete: #5b626a;
-  --color-line: #d6d9dc;
-  /* bordo dei campi e dei controlli: almeno 3:1 su bianco e su grigio chiaro (WCAG 1.4.11) */
-  --color-field: #737a82;
-  --color-ok: #1f7a52;
+  --color-plate: #2563eb;
+  --color-plate-deep: #1d4ed8;
+  --color-sky: #7fb0ff;
+  --color-notice: #fef3c7;
+  --color-concrete: #64748b;
+  --color-line: #e2e8f0;
+  /* bordo dei campi e dei controlli: almeno 3:1 su bianco (WCAG 1.4.11) */
+  --color-field: #64748b;
+  --color-ok: #15803d;
   --color-danger: #b3261e;
 
   --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -12px rgb(15 23 42 / 0.12);
 }
 
 html {
@@ -35,17 +40,17 @@ html {
 
 body {
   background: var(--color-chalk);
-  color: var(--color-asphalt);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "tnum" 0;
 }
 
-/* Titoli in larghezza condensata: la personalità tipografica del prodotto */
+/* Titoli: sans-serif a larghezza normale, peso pieno, interlinea stretta ma leggibile */
 .display {
-  font-stretch: 72%;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 0.92;
+  font-stretch: 100%;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
 }
 
 .tabular {
@@ -60,21 +65,12 @@ body {
 
 /* Nelle sezioni scure l'anello di focus è giallo, altrove blu targa: sempre visibile */
 .on-dark :focus-visible {
-  outline-color: var(--color-signal);
+  outline-color: var(--color-sky);
 }
 
-/* Mezzeria orizzontale tratteggiata (decorazione tipografica, nessuna immagine) */
+/* Filetto sottile in blu elettrico (decorazione tipografica, nessuna immagine) */
 .lane-h {
-  background-image: linear-gradient(to right, var(--color-signal) 0 60%, transparent 60% 100%);
-  background-size: 28px 4px;
-  background-repeat: repeat-x;
-}
-
-/* Linea di mezzeria tratteggiata (percorso "come funziona") */
-.lane {
-  background-image: linear-gradient(to bottom, var(--color-signal) 0 60%, transparent 60% 100%);
-  background-size: 4px 22px;
-  background-repeat: repeat-y;
+  background-image: linear-gradient(to right, var(--color-plate), var(--color-sky));
 }
 
 @keyframes step-in {

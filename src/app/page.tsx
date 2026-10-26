@@ -57,8 +57,12 @@ const FAQ = [
     a: "Niente. Ci mandi i dati, noi ti diciamo se la moto ci interessa. Non ti impegni a vendere.",
   },
   {
-    q: "Mi date subito un prezzo?",
-    a: "No: prima controlliamo dati e foto, poi ti contattiamo con un'offerta reale. Preferiamo non darti un numero che poi cambia.",
+    q: "Ricevo subito un importo?",
+    a: "Dipende dai dati disponibili per la tua moto. Se bastano, alla fine del modulo vedi una prima valutazione; altrimenti ti ricontattiamo noi dopo aver controllato i dati. Preferiamo non darti un numero che poi cambia.",
+  },
+  {
+    q: "La valutazione è definitiva?",
+    a: "No. È una valutazione preliminare: non è un acquisto concluso né un impegno. Il prezzo finale dipende dalla verifica delle condizioni e dei dati della moto.",
   },
   {
     q: "Quali moto acquistate?",
@@ -94,15 +98,15 @@ export default function Home() {
           <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 pb-12 pt-10 sm:px-6 md:grid-cols-[1.1fr_0.9fr] md:gap-12 md:pb-20 md:pt-16 lg:px-8">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-asphalt-raised px-3.5 py-1.5 text-sm font-bold text-paper/90 ring-1 ring-paper/15">
-                <span aria-hidden className="h-2 w-2 rounded-full bg-signal" />
+                <span aria-hidden className="h-2 w-2 rounded-full bg-sky" />
                 Acquisto di moto usate da privati · {BRAND.area}
               </p>
               <h1 className="display mt-5 text-[clamp(2.7rem,9.5vw,5.4rem)]">
-                La compriamo noi,{" "}
-                <span className="text-signal">la gestione successiva è affar nostro.</span>
+                Valuta la tua moto{" "}
+                <span className="text-sky">in pochi passaggi.</span>
               </h1>
               <p className="mt-5 max-w-[40ch] text-lg leading-snug text-paper/80 md:text-xl">
-                Acquistiamo la tua moto direttamente da te. Ti guidiamo in una procedura chiara e, dopo la vendita, della rivendita non devi occuparti tu.
+                Acquistiamo la tua moto direttamente da te. Ti guidiamo in una procedura chiara e, dopo la vendita, la gestione successiva è affar nostro: della rivendita non devi occuparti tu.
               </p>
               <div id="hero-cta" className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
                 <TrackedLink href="/valuta" event="cta_click" label="hero" className={`${btnPrimary} w-full sm:w-auto`}>
@@ -114,7 +118,7 @@ export default function Home() {
               <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-paper/85">
                 {HERO_POINTS.map((t) => (
                   <li key={t} className="flex items-center gap-2">
-                    <IconCheck className="h-4 w-4 shrink-0 text-signal" />
+                    <IconCheck className="h-4 w-4 shrink-0 text-sky" />
                     {t}
                   </li>
                 ))}
@@ -137,14 +141,14 @@ export default function Home() {
                 </figure>
               ) : (
                 <div className="overflow-hidden rounded-3xl bg-asphalt-raised ring-1 ring-paper/10">
-                  <span aria-hidden className="block h-2 w-full bg-signal" />
+                  <span aria-hidden className="block h-1 w-full bg-sky" />
                   <div className="p-6 sm:p-8">
-                  <p className="text-sm font-bold uppercase tracking-wider text-signal">Cosa ci serve</p>
+                  <p className="text-sm font-bold uppercase tracking-wider text-sky">Cosa ci serve</p>
                   <p className="display mt-2 text-3xl sm:text-4xl">Pochi dati sulla tua moto.</p>
                   <ul className="mt-6 space-y-3">
                     {NEEDED.map((t) => (
                       <li key={t} className="flex items-center gap-3 text-lg">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-signal text-asphalt">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-plate text-paper">
                           <IconCheck className="h-3.5 w-3.5" />
                         </span>
                         {t}
@@ -160,11 +164,11 @@ export default function Home() {
         </section>
 
         {/* VANTAGGI */}
-        <section aria-label="Vantaggi" className="bg-signal text-asphalt">
+        <section aria-label="Vantaggi" className="border-y border-line bg-paper text-asphalt">
           <ul className="mx-auto grid max-w-6xl gap-4 px-4 py-6 sm:px-6 md:grid-cols-3 md:gap-8 md:py-7 lg:px-8">
             {BENEFITS.map((b) => (
               <li key={b.title} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-asphalt text-signal">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-asphalt text-sky">
                   <IconCheck className="h-3.5 w-3.5" />
                 </span>
                 <p className="leading-snug">
@@ -183,8 +187,8 @@ export default function Home() {
             <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Come funziona</h2>
             <ol className="mt-12 grid gap-8 md:grid-cols-3 md:gap-6">
               {STEPS.map(({ title, body, Icon }, i) => (
-                <li key={title} className="relative rounded-2xl border-t-4 border-signal bg-paper p-6 pt-8 shadow-sm ring-1 ring-line">
-                  <span className="display absolute -top-5 left-6 flex h-11 min-w-11 items-center justify-center rounded-full bg-signal px-3 text-2xl text-asphalt">
+                <li key={title} className="relative rounded-2xl border-t-4 border-plate bg-paper p-6 pt-8 shadow-[var(--shadow-card)] ring-1 ring-line">
+                  <span className="display absolute -top-5 left-6 flex h-11 min-w-11 items-center justify-center rounded-full bg-plate px-3 text-2xl text-paper">
                     {i + 1}
                   </span>
                   <Icon className="mt-3 h-9 w-9 text-plate" />
@@ -211,8 +215,8 @@ export default function Home() {
                     {hasPhoto(m.id) ? (
                       <SitePhoto id={m.id} />
                     ) : (
-                      <div className={`flex h-full w-full flex-col justify-between border-b-4 border-signal p-5 ${m.panel}`}>
-                        <span className="text-sm font-bold uppercase tracking-widest text-signal">{m.brand}</span>
+                      <div className={`flex h-full w-full flex-col justify-between border-b-4 border-plate p-5 ${m.panel}`}>
+                        <span className="text-sm font-bold uppercase tracking-widest text-sky">{m.brand}</span>
                         <span className="display text-[clamp(3.5rem,9vw,5rem)] leading-none">{m.name}</span>
                       </div>
                     )}
@@ -240,7 +244,7 @@ export default function Home() {
               ))}
               <li className="flex flex-col justify-between rounded-2xl border-2 border-dashed border-asphalt-soft/70 bg-paper p-5">
                 <div>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-asphalt text-signal">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-asphalt text-sky">
                     <IconPlus className="h-6 w-6" />
                   </span>
                   <p className="display mt-4 text-3xl">Un&apos;altra moto?</p>
@@ -260,7 +264,7 @@ export default function Home() {
         <section className="on-dark bg-asphalt text-paper">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 md:py-20 lg:px-8">
             <div>
-              <p className="text-sm font-bold uppercase tracking-widest text-signal">Per chi vende</p>
+              <p className="text-sm font-bold uppercase tracking-widest text-sky">Per chi vende</p>
               <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Niente annunci da gestire, nessuna rivendita a tuo carico.</h2>
               <p className="mt-5 max-w-[42ch] text-lg leading-snug text-paper/75">
                 Una richiesta semplice, da inviare quando preferisci.
@@ -269,7 +273,7 @@ export default function Home() {
             <ul className="space-y-4">
               {EASY.map((t) => (
                 <li key={t} className="flex items-start gap-4 rounded-2xl bg-asphalt-raised p-5 ring-1 ring-paper/10">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-signal text-asphalt">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plate text-paper">
                     <IconCheck className="h-4 w-4" />
                   </span>
                   <span className="text-lg leading-snug">{t}</span>
@@ -304,7 +308,7 @@ export default function Home() {
         </section>
 
         {/* CTA FINALE */}
-        <section className="on-dark bg-plate text-paper">
+        <section className="on-dark bg-asphalt text-paper">
           <div className="mx-auto flex max-w-6xl flex-col items-start gap-7 px-4 py-14 sm:px-6 md:flex-row md:items-center md:justify-between md:py-16 lg:px-8">
             <p className="display max-w-[20ch] text-4xl sm:text-5xl md:text-6xl">Hai una moto da vendere?</p>
             <div id="final-cta" className="w-full md:w-auto">

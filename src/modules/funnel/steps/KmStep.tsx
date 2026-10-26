@@ -39,7 +39,7 @@ export function KmStep({
             <span
               key={`${i}-${real ? d : "z"}-${mileage.length}`}
               aria-hidden
-              className="tabular relative flex h-20 flex-1 items-center justify-center overflow-hidden rounded-lg bg-[#2b3138] sm:h-24"
+              className="tabular relative flex h-20 flex-1 items-center justify-center overflow-hidden rounded-lg bg-asphalt-raised sm:h-24"
             >
               <span
                 className={`display text-[2.6rem] sm:text-6xl ${real ? "digit-roll text-paper" : "text-paper/45"}`}
@@ -50,7 +50,7 @@ export function KmStep({
             </span>
           );
         })}
-        <span aria-hidden className="display flex items-end pb-1 pl-1 text-xl text-signal">
+        <span aria-hidden className="display flex items-end pb-1 pl-1 text-xl text-sky">
           km
         </span>
         <input

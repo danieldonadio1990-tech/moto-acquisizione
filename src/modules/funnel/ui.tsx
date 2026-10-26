@@ -47,7 +47,7 @@ export function Choices<T extends string>({
             </span>
             <span
               aria-hidden
-              className="pointer-events-none absolute -right-1.5 -top-1.5 hidden h-6 w-6 items-center justify-center rounded-full bg-signal text-asphalt ring-2 ring-paper peer-checked:flex"
+              className="pointer-events-none absolute -right-1.5 -top-1.5 hidden h-6 w-6 items-center justify-center rounded-full bg-plate text-paper ring-2 ring-paper peer-checked:flex"
             >
               <IconCheck className="h-3 w-3" />
             </span>

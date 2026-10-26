@@ -171,7 +171,7 @@ export function PurchaseForm({ leadId, suggestedPrice }: { leadId: string; sugge
           <input id="date" name="date" type="date" defaultValue={today} max={today} className={input} required />
         </div>
       </div>
-      <button className={`${btn} w-full bg-ok hover:bg-[#17603f]`} disabled={pending}>
+      <button className={`${btn} w-full bg-ok hover:bg-[#166534]`} disabled={pending}>
         {pending ? "Registro…" : "Registra acquisto"}
       </button>
       <Feedback state={state} okText="Acquisto registrato" />

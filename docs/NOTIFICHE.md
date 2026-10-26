@@ -241,7 +241,7 @@ Da fare una volta, con credenziali **di prova** e mai con quelle di produzione:
 | `NOTIFY_DAILY_LIMIT` | no | massimo di notifiche al giorno (giorno UTC), predefinito **50**, `0` = nessun limite |
 | `FORM_TOKEN_REQUIRED` | no | gettone anti-bot del modulo: obbligatorio in produzione; `false` lo spegne, `true` lo accende in sviluppo |
 | `NOTIFY_RETRY_TOKEN` | no (senza: nessun recupero automatico) | token della rotta di recupero (**segreto**, ≥ 32 caratteri; `openssl rand -hex 32`). Vedi «Recupero automatico» |
-| `NOTIFY_EMAIL_FROM` | no | mittente, per esempio `Compro Moto <notifiche@tuodominio.it>`. Se manca: `Compro Moto <onboarding@resend.dev>` |
+| `NOTIFY_EMAIL_FROM` | no | mittente, per esempio `Compriamo Moto <notifiche@tuodominio.it>`. Se manca: `Compriamo Moto <onboarding@resend.dev>` |
 
 - **Netlify:** pannello → Site configuration → Environment variables, valore **solo per il contesto Production**
   (come le altre variabili: vedi [PUBBLICAZIONE.md](PUBBLICAZIONE.md)). Per `RESEND_API_KEY` attivare «Contains secret
@@ -282,7 +282,7 @@ Da fare una volta, con credenziali **di prova** e mai con quelle di produzione:
   direttamente dall'ambiente di sviluppo. **Rileggere i limiti e i prezzi aggiornati prima del lancio.**
 
 ## Comando di prova: `npm run notify:test`
-Invia **una** email di prova (`[PROVA] Notifiche Compro Moto`) al destinatario configurato. Non crea richieste, non apre
+Invia **una** email di prova (`[PROVA] Notifiche Compriamo Moto`) al destinatario configurato. Non crea richieste, non apre
 il database e non modifica dati dei clienti; il messaggio non contiene dati personali.
 
 ```bash

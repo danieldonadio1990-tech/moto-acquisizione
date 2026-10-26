@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 
+import type { PublicValuation } from "@/modules/valuation/public";
+
 export type Tri = "yes" | "no" | "unknown";
 
 export type FunnelState = {
@@ -34,7 +36,7 @@ export type FunnelState = {
   /** chiave di idempotenza dell'invio: generata al primo tentativo, riusata nei retry */
   submissionId?: string;
   /** valorizzato dopo l'invio dei contatti */
-  lead?: { id: string; code: string; uploadToken: string };
+  lead?: { id: string; code: string; uploadToken: string; valuation?: PublicValuation };
   photosSent: number;
 };
 

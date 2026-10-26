@@ -6,6 +6,7 @@ import { clientIp, rateLimit, RULES, tooManyRequests } from "@/lib/rate-limit";
 import { logError } from "@/lib/log";
 import { notifyNewLead } from "@/modules/notifications/new-lead";
 import { checkFormToken, formTokenRequired } from "@/modules/leads/form-token";
+import { evaluateLeadOnCreate } from "@/modules/valuation/service";
 
 /**
  * Crea il lead (dati moto + contatti). Idempotente sul campo submissionId:
@@ -38,8 +39,11 @@ export async function POST(request: Request) {
     // il lead è comunque salvato e la notifica viene ritentata (retry del browser o back office).
     // Un retry dello stesso invio (duplicate) riprova solo se la notifica non risulta già inviata.
     await notifyNewLead(lead.id).catch(() => {});
+    // Prima valutazione, calcolata sul server da dati del database. Non lancia mai eccezioni: se il motore non ha dati
+    // sufficienti (o non è abilitato) il cliente riceve «verifica manuale». Un retry restituisce la valutazione già salvata.
+    const valuation = await evaluateLeadOnCreate(lead.id);
     return NextResponse.json(
-      { id: lead.id, code: lead.code, uploadToken: lead.uploadToken },
+      { id: lead.id, code: lead.code, uploadToken: lead.uploadToken, valuation },
       { status: lead.duplicate ? 200 : 201 },
     );
   } catch (err) {

@@ -89,9 +89,11 @@ Branch deploys già disattivati (passo 3.5), le variabili vuote negli altri cont
 | `ADMIN_PASSWORD` | password di almeno 12 caratteri | scegli tu; **rimuovila dopo il primo avvio** |
 | `RESEND_API_KEY` | chiave API di Resend (**segreta**) | Resend → API Keys. Facoltativa: senza, nessuna notifica email (vedi [NOTIFICHE.md](NOTIFICHE.md)) |
 | `NOTIFY_EMAIL_TO` | es. `notifiche@example.invalid` (indirizzo reale solo qui, su Netlify) | destinatario delle notifiche (fino a 3, separati da virgola) |
+| `VALUATION_PUBLIC_OFFERS` | vuoto (spento) | (facoltativa) `true` mostra ai clienti gli importi calcolati dal motore di valutazione: **lasciare spento** finché parametri, dati di mercato e testi non sono approvati. Vedi [VALUTAZIONE.md](VALUTAZIONE.md) |
+| `VALUATION_ALLOW_SELF_APPROVAL` | vuoto | (facoltativa) `true` solo con un unico amministratore: consente di approvare da soli i parametri economici |
 | `NOTIFY_DAILY_LIMIT` | `50` | (facoltativa) massimo di email di notifica al giorno, per non esaurire la quota gratuita di Resend (100/giorno); `0` = nessun limite. Oltre il limite le richieste restano salvate. Vedi [NOTIFICHE.md](NOTIFICHE.md) |
 | `NOTIFY_RETRY_TOKEN` | token casuale di 64 caratteri (**segreto**) | `openssl rand -hex 32`. Facoltativo: attiva il recupero automatico delle notifiche (workflow GitHub, vedi [NOTIFICHE.md](NOTIFICHE.md)); lo stesso valore va nel secret GitHub omonimo |
-| `NOTIFY_EMAIL_FROM` | facoltativa, es. `Compro Moto <notifiche@tuodominio.it>` | se manca si usa il mittente di prova di Resend: l'account Resend va registrato con l'email del destinatario |
+| `NOTIFY_EMAIL_FROM` | facoltativa, es. `Compriamo Moto <notifiche@tuodominio.it>` | se manca si usa il mittente di prova di Resend: l'account Resend va registrato con l'email del destinatario |
 
 Il build **si ferma con un errore chiaro** (senza stampare valori segreti) se manca una variabile S3 (`S3_ENDPOINT`, `S3_REGION`,
 `S3_BUCKET`, `S3_FORCE_PATH_STYLE`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`), se `S3_ENDPOINT` non è `https://`, o se `DATABASE_URL`

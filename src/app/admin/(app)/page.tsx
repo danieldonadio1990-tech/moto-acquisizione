@@ -65,13 +65,13 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
       </div>
 
       {!notificationsConfigured ? (
-        <p role="status" className="mt-4 rounded-xl bg-signal/40 px-4 py-3 text-sm font-semibold">
+        <p role="status" className="mt-4 rounded-xl bg-notice px-4 py-3 text-sm font-semibold">
           Notifiche email non configurate: le nuove richieste si vedono solo qui. Vedi docs/NOTIFICHE.md.
         </p>
       ) : (
         <>
           {throttled > 0 && (
-            <p role="status" className="mt-4 rounded-xl bg-signal/40 px-4 py-3 text-sm font-semibold">
+            <p role="status" className="mt-4 rounded-xl bg-notice px-4 py-3 text-sm font-semibold">
               {throttled === 1 ? "1 notifica sospesa" : `${throttled} notifiche sospese`}: raggiunto il limite giornaliero (
               {notificationDailyLimit()} email al giorno, giorno UTC). Le richieste sono salve e le notifiche ripartono da sole dal giorno
               dopo. Se succede spesso, controlla se ci sono richieste anomale.
@@ -166,7 +166,7 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
                       </span>
                       {r.displacement ? <span className="text-concrete"> {r.displacement}</span> : null}
                       {r.buyBox && (
-                        <span className="ml-2 rounded bg-signal/60 px-1.5 py-0.5 text-[11px] font-bold">
+                        <span className="ml-2 rounded bg-notice px-1.5 py-0.5 text-[11px] font-bold">
                           Buy Box {PRIORITY_LABELS[r.buyBox.priority]}
                         </span>
                       )}
@@ -216,7 +216,7 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
                   </div>
                   {(r.buyBox || r.lastOffer) && (
                     <div className="mt-2 flex gap-2 text-xs font-bold">
-                      {r.buyBox && <span className="rounded bg-signal/60 px-1.5 py-0.5">Buy Box {PRIORITY_LABELS[r.buyBox.priority]}</span>}
+                      {r.buyBox && <span className="rounded bg-notice px-1.5 py-0.5">Buy Box {PRIORITY_LABELS[r.buyBox.priority]}</span>}
                       {r.lastOffer && <span className="rounded bg-chalk px-1.5 py-0.5">Offerta {formatEur(r.lastOffer)}</span>}
                     </div>
                   )}

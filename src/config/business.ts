@@ -16,11 +16,11 @@ export const BRAND = {
    * Nome commerciale scelto. NON è ancora stata verificata la disponibilità legale del nome (marchio) né del dominio:
    * farlo prima di investire in comunicazione.
    */
-  name: "Compro Moto",
+  name: "Compriamo Moto",
   /** Area servita, mostrata nei testi */
   area: "Milano e provincia",
   /** Testo usato in titolo e descrizione per i motori di ricerca e la condivisione */
-  tagline: "Vendi la tua moto a Milano",
+  tagline: "Valuta la tua moto in pochi passaggi",
   description:
     "Vendi la tua moto a Milano: la compriamo direttamente da te, ti guidiamo in una procedura chiara e, dopo la vendita, della rivendita non devi occuparti tu.",
 } as const;

@@ -17,7 +17,7 @@ function T({ children }: { children: string }) {
     <>
       {parts.map((p, i) =>
         /^\[DA /.test(p) ? (
-          <mark key={i} className="rounded bg-signal px-1 font-semibold text-asphalt">
+          <mark key={i} className="rounded bg-notice px-1 font-semibold text-asphalt">
             {p}
           </mark>
         ) : (
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
       <p className="mt-3 text-sm text-concrete">Versione {PRIVACY_POLICY_VERSION}</p>
 
       {PRIVACY_POLICY_IS_DRAFT && (
-        <p role="note" className="mt-6 rounded-xl border-2 border-asphalt bg-signal/40 p-4 text-sm font-semibold">
+        <p role="note" className="mt-6 rounded-xl border-2 border-asphalt bg-notice p-4 text-sm font-semibold">
           Bozza in revisione: il testo e i dati evidenziati in giallo devono essere completati e verificati prima della
           pubblicazione.
         </p>
