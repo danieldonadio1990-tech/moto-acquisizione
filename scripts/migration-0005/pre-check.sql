@@ -20,12 +20,13 @@ with m as (
   union all select 9, 'nessuna transazione aperta da più di 5 minuti',
     (select count(*) = 0 from pg_stat_activity where datname = current_database() and state = 'idle in transaction' and xact_start < now() - interval '5 minutes'),
     'visibilità limitata ai propri processi se il ruolo non è amministratore'
-  -- informazioni da CONFRONTARE con il post-controllo (nessun esito)
-  union all select 20, 'INFO richieste (leads)', true, (select count(*)::text from leads)
+  -- informazioni da annotare e CONFRONTARE con il post-controllo (nessun esito): le richieste e le offerte possono aumentare se nel frattempo
+  -- arrivano clienti; le COLONNE di leads e il numero di tabelle non devono cambiare
+  union all select 20, 'INFO richieste (leads) — annota: può crescere se arrivano nuove richieste', true, (select count(*)::text from leads)
   union all select 21, 'INFO offerte (offers)', true, (select count(*)::text from offers)
   union all select 22, 'INFO colonne della tabella leads', true, (select count(*)::text from information_schema.columns where table_schema = 'public' and table_name = 'leads')
   union all select 23, 'INFO tabelle nello schema public', true, (select count(*)::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE')
 )
 select ord as n, controllo, ok, dettaglio from checks
-union all select 99, 'ESITO (tutti i controlli numerati 1–9)', bool_and(ok) filter (where ord < 20), '' from checks
+union all select 99, 'ESITO (tutti i controlli numerati 1–9)', coalesce(bool_and(coalesce(ok, false)) filter (where ord < 20), false), '' from checks
 order by 1;

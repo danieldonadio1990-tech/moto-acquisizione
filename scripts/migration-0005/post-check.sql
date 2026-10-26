@@ -1,5 +1,5 @@
 -- VERIFICA POST-MIGRAZIONE 0005 — SOLA LETTURA (cataloghi e conteggi: nessuna scrittura, nessun dato personale).
--- Stesso modo d'uso di pre-check.sql. Se l'ultima riga (ESITO) è `false`, vedi docs/MIGRAZIONE-0005.md (rollback).
+-- Stesso modo d'uso di pre-check.sql. Due esiti separati: MIGRAZIONE (righe 1–8) e BACKUP (riga 10). Come leggerli: docs/MIGRAZIONE-0005.md.
 with m as (
   select count(*)::int as n, max(created_at) as last from drizzle.__drizzle_migrations
 ), checks(ord, controllo, ok, dettaglio) as (
@@ -21,16 +21,21 @@ with m as (
       then (select string_agg((xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I', t), false, true, '')))[1]::text, ' / ' order by t)
             from unnest(array['valuations','market_references','valuation_settings']) as t)
       else 'tabelle assenti' end
-  union all select 9, 'backup_reader può leggere le tre tabelle nuove (se il ruolo esiste)',
+  -- controllo 10: NON riguarda la riuscita della migrazione ma la configurazione del backup (esito separato in fondo)
+  union all select 10, 'backup_reader può leggere le tre tabelle nuove (se il ruolo esiste)',
     case when not exists (select 1 from pg_roles where rolname = 'backup_reader') then true
-         else coalesce(has_table_privilege('backup_reader', to_regclass('public.valuations'), 'SELECT'), false) and coalesce(has_table_privilege('backup_reader', to_regclass('public.market_references'), 'SELECT'), false) and coalesce(has_table_privilege('backup_reader', to_regclass('public.valuation_settings'), 'SELECT'), false) end,
-    case when exists (select 1 from pg_roles where rolname = 'backup_reader') then 'ruolo presente' else 'ruolo assente: controllo saltato' end
-  -- da CONFRONTARE con le INFO del pre-controllo: devono essere IDENTICHE (la migrazione non tocca le tabelle esistenti)
-  union all select 20, 'INFO richieste (leads)', true, (select count(*)::text from leads)
-  union all select 21, 'INFO offerte (offers)', true, (select count(*)::text from offers)
-  union all select 22, 'INFO colonne della tabella leads', true, (select count(*)::text from information_schema.columns where table_schema = 'public' and table_name = 'leads')
-  union all select 23, 'INFO tabelle nello schema public (pre + 3)', true, (select count(*)::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE')
+         else coalesce(has_table_privilege('backup_reader', to_regclass('public.valuations'), 'SELECT'), false)
+          and coalesce(has_table_privilege('backup_reader', to_regclass('public.market_references'), 'SELECT'), false)
+          and coalesce(has_table_privilege('backup_reader', to_regclass('public.valuation_settings'), 'SELECT'), false) end,
+    case when exists (select 1 from pg_roles where rolname = 'backup_reader') then 'ruolo presente' else 'ruolo «backup_reader» assente: controllo saltato (se usi un altro nome, verificalo a mano)' end
+  -- da CONFRONTARE con le INFO del pre-controllo: le COLONNE di leads devono essere identiche e le tabelle di public esattamente +3;
+  -- richieste e offerte possono essere AUMENTATE se nel frattempo sono arrivati clienti, ma mai diminuite
+  union all select 20, 'INFO richieste (leads): uguale o maggiore del pre-controllo', true, (select count(*)::text from leads)
+  union all select 21, 'INFO offerte (offers): uguale o maggiore del pre-controllo', true, (select count(*)::text from offers)
+  union all select 22, 'INFO colonne della tabella leads: identico al pre-controllo', true, (select count(*)::text from information_schema.columns where table_schema = 'public' and table_name = 'leads')
+  union all select 23, 'INFO tabelle nello schema public: pre-controllo + 3', true, (select count(*)::text from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE')
 )
 select ord as n, controllo, ok, dettaglio from checks
-union all select 99, 'ESITO (tutti i controlli numerati 1–9)', bool_and(ok) filter (where ord < 20), '' from checks
+union all select 98, 'ESITO MIGRAZIONE (controlli 1–8)', coalesce(bool_and(coalesce(ok, false)) filter (where ord < 10), false), '' from checks
+union all select 99, 'ESITO BACKUP (controllo 10): se false NON è un errore della migrazione, vedi docs/MIGRAZIONE-0005.md', coalesce(bool_and(coalesce(ok, false)) filter (where ord = 10), false), '' from checks
 order by 1;
