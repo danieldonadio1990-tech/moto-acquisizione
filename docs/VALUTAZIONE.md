@@ -101,6 +101,8 @@ Valutazione preliminare generata · Verifica manuale richiesta · Offerta da con
 Le richieste esistenti non hanno una valutazione finché un amministratore non preme «Ricalcola»: nessun dato esistente viene modificato.
 
 ## 7. Migrazione `0005_valuation_engine.sql` (PROPOSTA — NON applicata)
+> Piano operativo con script di verifica pre e post e istruzioni per lo snapshot Neon: [MIGRAZIONE-0005.md](MIGRAZIONE-0005.md).
+
 Additiva: crea soltanto `valuation_settings`, `market_references`, `valuations` (vuote). Non modifica tabelle o dati esistenti e il
 codice precedente non le usa. Parte all'avvio come le altre (`MIGRATE_ON_START`) o con `npm run db:migrate` (`DATABASE_URL_DIRECT`).
 **Da applicare solo dopo approvazione, in un ambiente di prova prima.** Rollback manuale, in quest'ordine:
