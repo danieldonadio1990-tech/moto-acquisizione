@@ -15,6 +15,7 @@ import {
 } from "@/modules/leads/service";
 import { LEAD_STATUSES } from "@/modules/leads/statuses";
 import { clientIp } from "@/lib/rate-limit";
+import { isValuationSchemaUnavailable } from "@/db/errors";
 import { MAX_ATTEMPTS, manualRetryNotification } from "@/modules/notifications/new-lead";
 import { manualRetryMessage } from "@/modules/notifications/status";
 import { logError } from "@/lib/log";
@@ -44,6 +45,10 @@ function fail(err: unknown): ActionState {
   if (err && typeof err === "object" && "digest" in err) throw err; // redirect()/notFound(): controllo di flusso
   if (err instanceof z.ZodError) return { error: err.issues[0]?.message ?? "Dati non validi" };
   if (err instanceof BusinessRuleError) return { error: err.message };
+  if (isValuationSchemaUnavailable(err)) {
+    logError("admin action: tabelle della valutazione non disponibili", err);
+    return { error: "Il motore di valutazione non è disponibile: verifica che la migrazione 0005 sia stata applicata." };
+  }
   logError("admin action", err);
   return { error: "Operazione non riuscita. Riprova; se il problema continua, avvisa chi gestisce il sito." };
 }

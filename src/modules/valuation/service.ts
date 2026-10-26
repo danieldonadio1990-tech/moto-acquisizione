@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, isNull, lte, gte, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { isUniqueViolation } from "@/db/errors";
+import { isUniqueViolation, isValuationSchemaUnavailable } from "@/db/errors";
 import { leads, marketReferences, motorcycles, valuationSettings, valuations, type ValuationStatus } from "@/db/schema";
 import { getModel } from "@/modules/catalog";
 import { logError } from "@/lib/log";
@@ -23,6 +23,25 @@ import type { MarketDataProvider, MarketSnapshot, NormalizedVehicle, ValuationRe
  * della formulazione commerciale/legale.
  */
 export const publicOffersEnabled = (e: NodeJS.ProcessEnv = process.env) => e.VALUATION_PUBLIC_OFFERS === "true";
+
+// ---- Schema non disponibile (migrazione 0005 non applicata) ------------------------------------------------------------
+export type Guarded<T> = { available: true; value: T } | { available: false };
+
+/**
+ * Esegue una lettura delle tabelle del motore. Se mancano (o non sono accessibili) restituisce {available:false} così il back office
+ * mostra un avviso invece di andare in errore. Ogni ALTRO errore (connessione, colonne, bug) viene rilanciato: il fallback non li nasconde.
+ */
+export async function whenValuationAvailable<T>(fn: () => Promise<T>): Promise<Guarded<T>> {
+  try {
+    return { available: true, value: await fn() };
+  } catch (err) {
+    if (isValuationSchemaUnavailable(err)) {
+      logError("valutazione: tabelle non disponibili (migrazione 0005 non applicata?)", err);
+      return { available: false };
+    }
+    throw err;
+  }
+}
 
 // ---- Parametri approvati ---------------------------------------------------------------------------------------------------
 export async function getApprovedSettings(): Promise<{ id: string; version: number; params: ValuationParams } | null> {
@@ -215,7 +234,7 @@ export async function evaluateLeadOnCreate(leadId: string): Promise<PublicValuat
     const [first] = await db.select().from(valuations).where(and(eq(valuations.leadId, leadId), eq(valuations.revision, 1)));
     return first ? toPublicValuation(first) : { kind: "manual" };
   } catch (err) {
-    logError("valutazione alla creazione", err);
+    logError(isValuationSchemaUnavailable(err) ? "valutazione alla creazione: tabelle non disponibili (migrazione 0005?)" : "valutazione alla creazione", err);
     return { kind: "manual" };
   }
 }

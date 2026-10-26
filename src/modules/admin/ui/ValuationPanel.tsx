@@ -1,4 +1,10 @@
-import { getApprovedSettings, getCurrentValuation, listValuationRevisions, publicOffersEnabled } from "@/modules/valuation/service";
+import {
+  getApprovedSettings,
+  getCurrentValuation,
+  listValuationRevisions,
+  publicOffersEnabled,
+  whenValuationAvailable,
+} from "@/modules/valuation/service";
 import { MARKET_KIND_LABELS, REASON_LABELS, VALUATION_STATUS_LABELS } from "@/modules/valuation/labels";
 import { formatEuro } from "@/modules/valuation/money";
 import type { ReasonCode } from "@/modules/valuation/types";
@@ -10,9 +16,29 @@ type MarketView = { source: string; kind: keyof typeof MARKET_KIND_LABELS; asOf:
 
 const row = "flex justify-between gap-4 py-1 text-sm";
 
+/** Avviso mostrato quando le tabelle del motore non sono disponibili. Nessuna azione: nulla da calcolare o confermare. */
+export function ValuationUnavailable() {
+  return (
+    <div role="status" data-testid="valuation-unavailable" className="rounded-xl bg-notice px-4 py-3 text-sm">
+      <p className="font-semibold">Il motore di valutazione non è disponibile.</p>
+      <p className="mt-1">
+        Le tabelle della valutazione non risultano nel database: verifica che la migrazione <code>0005_valuation_engine</code> sia stata
+        applicata (<code>npm run db:migrate</code>, oppure l&apos;avvio del sito con le migrazioni automatiche). La richiesta e le sue
+        offerte restano consultabili e modificabili come sempre; i clienti vedono «verifica manuale».
+      </p>
+    </div>
+  );
+}
+
 /** Riquadro «Valutazione» nel dettaglio di una richiesta. Solo back office: contiene costi e margini. */
 export async function ValuationPanel({ leadId }: { leadId: string }) {
-  const [cur, revisions, settings] = await Promise.all([getCurrentValuation(leadId), listValuationRevisions(leadId), getApprovedSettings()]);
+  // Se le tabelle del motore non ci sono (migrazione 0005 non applicata) il resto della pagina continua a funzionare.
+  // Qualsiasi altro errore NON viene nascosto: whenValuationAvailable lo rilancia.
+  const loaded = await whenValuationAvailable(() =>
+    Promise.all([getCurrentValuation(leadId), listValuationRevisions(leadId), getApprovedSettings()]),
+  );
+  if (!loaded.available) return <ValuationUnavailable />;
+  const [cur, revisions, settings] = loaded.value;
   const costs = (cur?.costs ?? []) as Cost[];
   const market = (cur?.market ?? null) as MarketView | null;
   const reasons = ((cur?.reasons ?? []) as ReasonCode[]).filter(Boolean);
