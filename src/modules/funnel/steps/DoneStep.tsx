@@ -113,7 +113,7 @@ export function DoneStep({
       <ol className="mt-3 space-y-3">
         {NEXT.map((t, i) => (
           <li key={t} className="flex items-start gap-3">
-            <span className="display flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plate text-lg text-paper">
+            <span className="display flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-plate text-lg text-asphalt">
               {i + 1}
             </span>
             <span className="pt-1 leading-snug text-asphalt-soft">{t}</span>

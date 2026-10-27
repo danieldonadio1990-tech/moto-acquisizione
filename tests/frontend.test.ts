@@ -179,10 +179,10 @@ test("footer: i dati aziendali segnaposto non vengono mostrati al pubblico", () 
   assert.doesNotMatch(footer, /DA COMPLETARE/);
 });
 
-test("palette Compriamo Moto: blu notte, blu elettrico, blu hover, sfondo chiaro, testi e bordi", () => {
+test("palette Compriamo Moto: grafite, bianco sporco, pietra, giallo segnale (e suo hover/testo), testi e bordi", () => {
   const css = readFileSync("src/app/globals.css", "utf8");
-  for (const c of ["#0b1220", "#2563eb", "#1d4ed8", "#f8fafc", "#0f172a", "#64748b", "#e2e8f0", "#ffffff"]) assert.ok(css.toLowerCase().includes(c), c);
-  assert.doesNotMatch(css, /--color-signal|#f5c928|#1a3fa8/i, "residui della vecchia palette");
+  for (const c of ["#15181b", "#fbfbf8", "#e9ebe7", "#f1bf1a", "#dcaa0d", "#7a5c00", "#565c60", "#c3c8c1"]) assert.ok(css.toLowerCase().includes(c), c);
+  assert.doesNotMatch(css, /--color-signal|#f5c928|#1a3fa8|#2563eb|#1d4ed8|#0b1220|#7fb0ff/i, "residui della vecchia palette");
 });
 
 test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei controlli 3:1)", () => {
@@ -194,7 +194,7 @@ test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei control
   };
   const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
   const text: [string, string][] = [
-    ["plate", "chalk"], ["plate", "paper"], ["paper", "plate"], ["paper", "plate-deep"], ["sky", "asphalt"], ["sky", "asphalt-raised"],
+    ["asphalt", "plate"], ["asphalt", "plate-deep"], ["gold", "chalk"], ["gold", "paper"], ["sky", "asphalt"], ["sky", "asphalt-raised"],
     ["paper", "asphalt"], ["concrete", "paper"], ["concrete", "chalk"], ["asphalt-soft", "chalk"], ["asphalt-soft", "paper"],
     ["ink", "chalk"], ["ink", "paper"], ["asphalt", "chalk"], ["asphalt", "notice"], ["ok", "paper"], ["ok", "chalk"], ["danger", "paper"], ["danger", "chalk"],
   ];

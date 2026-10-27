@@ -19,7 +19,7 @@ export default function ErrorPage({ error, retry }: { error: Error & { digest?: 
         <button
           type="button"
           onClick={() => retry()}
-          className="inline-flex h-14 items-center justify-center rounded-xl bg-plate px-8 text-lg font-bold text-paper"
+          className="inline-flex h-14 items-center justify-center rounded-xl bg-plate px-8 text-lg font-bold text-asphalt"
         >
           Riprova
         </button>

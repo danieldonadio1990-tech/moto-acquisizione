@@ -12,8 +12,8 @@ import {
 } from "@/app/admin/actions";
 import { PARAM_GROUPS } from "@/modules/valuation/fields";
 
-const input = "h-11 w-full rounded-lg border-2 border-line bg-paper px-3 outline-none focus:border-plate disabled:opacity-60";
-const btn = "h-11 shrink-0 rounded-lg bg-plate px-4 font-bold text-paper hover:bg-plate-deep disabled:opacity-60";
+const input = "h-11 w-full rounded-lg border-2 border-line bg-paper px-3 outline-none focus:border-asphalt disabled:opacity-60";
+const btn = "h-11 shrink-0 rounded-lg bg-plate px-4 font-bold text-asphalt hover:bg-plate-deep disabled:opacity-60";
 const btnGhost = "h-9 rounded-lg px-3 text-sm font-bold ring-1 ring-line hover:ring-asphalt-soft disabled:opacity-60";
 
 function Feedback({ state, okText = "Salvato" }: { state: ActionState; okText?: string }) {

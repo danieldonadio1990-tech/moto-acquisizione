@@ -332,7 +332,7 @@ export function Funnel() {
                 <li key={s} className="flex-1">
                   <span
                     className={`block h-2 rounded-full transition-colors duration-300 ${
-                      i < step ? "bg-plate" : i === step ? "bg-sky" : "bg-line"
+                      i < step ? "bg-asphalt" : i === step ? "bg-plate" : "bg-line"
                     }`}
                   />
                   <span className="sr-only">{s}</span>
@@ -410,7 +410,7 @@ export function Funnel() {
                   type="button"
                   onClick={skipPhotos}
                   disabled={submitting}
-                  className="mt-2 h-11 w-full text-sm font-bold text-plate underline underline-offset-4"
+                  className="mt-2 h-11 w-full text-sm font-bold text-gold underline underline-offset-4"
                 >
                   {hasWhatsapp() ? "Le mando dopo su WhatsApp" : "Invia senza foto"}
                 </button>

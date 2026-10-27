@@ -3,33 +3,44 @@
 /*
  * Token di design Compriamo Moto (unico punto in cui vivono i colori del brand).
  * I nomi storici (asphalt, chalk, plate…) sono mantenuti per non riscrivere ogni componente: significano
- *   asphalt       = blu notte        chalk  = sfondo chiaro     paper  = bianco
- *   plate         = blu elettrico (azione principale, link)     plate-deep = blu interattivo (hover)
- *   sky           = blu chiaro leggibile su sfondo scuro        notice = evidenziatore di avvisi
- *   concrete      = testo secondario  line = bordi              field  = bordo dei campi (>= 3:1)
+ *   asphalt       = grafite          chalk  = pietra (sfondo)   paper  = bianco sporco
+ *   plate         = giallo segnale (azione principale; sempre con testo grafite)   plate-deep = giallo in hover
+ *   sky           = giallo leggibile su sfondo scuro            gold   = giallo scuro per testo e link su sfondo chiaro
+ *   notice        = evidenziatore di avvisi                     concrete = testo secondario
+ *   line          = bordi                                       field  = bordo dei campi (>= 3:1)
+ * Il giallo è per l'azione principale e per la C del marchio: non per grandi superfici né per il testo corrente.
  */
 @theme {
-  --color-asphalt: #0b1220;
-  --color-asphalt-soft: #334155;
-  --color-asphalt-raised: #141d31;
-  --color-ink: #0f172a;
-  --color-chalk: #f8fafc;
-  --color-paper: #ffffff;
-  --color-plate: #2563eb;
-  --color-plate-deep: #1d4ed8;
-  --color-sky: #7fb0ff;
+  --color-asphalt: #15181b;
+  --color-asphalt-soft: #363c41;
+  --color-asphalt-raised: #20252a;
+  --color-ink: #15181b;
+  --color-chalk: #e9ebe7;
+  --color-paper: #fbfbf8;
+  --color-plate: #f1bf1a;
+  --color-plate-deep: #dcaa0d;
+  --color-gold: #7a5c00;
+  --color-sky: #f1bf1a;
   --color-notice: #fef3c7;
-  --color-concrete: #64748b;
-  --color-line: #e2e8f0;
+  --color-concrete: #565c60;
+  --color-line: #c3c8c1;
   /* bordo dei campi e dei controlli: almeno 3:1 su bianco (WCAG 1.4.11) */
-  --color-field: #64748b;
-  --color-ok: #15803d;
+  --color-field: #6b7176;
+  --color-ok: #166534;
   --color-danger: #b3261e;
 
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), "Arial Narrow", Impact, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, Menlo, monospace;
+
+  /* angoli più netti (marchio e cartellino), applicati a tutti i componenti */
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.5rem;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --shadow-card: 0 1px 2px rgb(21 24 27 / 0.06), 0 8px 24px -12px rgb(21 24 27 / 0.14);
 }
 
 html {
@@ -45,12 +56,22 @@ body {
   font-feature-settings: "tnum" 0;
 }
 
-/* Titoli: sans-serif a larghezza normale, peso pieno, interlinea stretta ma leggibile */
+/* Titoli e cifre in evidenza: condensato maiuscolo (Big Shoulders Display), interlinea stretta */
 .display {
-  font-stretch: 100%;
-  font-weight: 750;
-  letter-spacing: -0.025em;
-  line-height: 1.05;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+/* Etichette e dati (marca, anno, passaggi): IBM Plex Mono */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .tabular {
@@ -58,19 +79,19 @@ body {
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-plate);
+  outline: 3px solid var(--color-asphalt);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Nelle sezioni scure l'anello di focus è giallo, altrove blu targa: sempre visibile */
+/* Nelle sezioni scure l'anello di focus è giallo, altrove grafite: sempre visibile */
 .on-dark :focus-visible {
   outline-color: var(--color-sky);
 }
 
-/* Filetto sottile in blu elettrico (decorazione tipografica, nessuna immagine) */
+/* Filetto pieno (decorazione tipografica, nessuna immagine) */
 .lane-h {
-  background-image: linear-gradient(to right, var(--color-plate), var(--color-sky));
+  background-color: var(--color-asphalt);
 }
 
 @keyframes step-in {
