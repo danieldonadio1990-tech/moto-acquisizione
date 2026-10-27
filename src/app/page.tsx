@@ -2,6 +2,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SitePhoto, hasPhoto } from "@/components/SitePhoto";
 import { PhoneButton, WhatsAppButton } from "@/components/ContactButtons";
+import { AdSlot } from "@/components/AdSlot";
 import { StickyCta } from "@/components/StickyCta";
 import { TrackedLink, TrackOnMount } from "@/components/Track";
 import { btnPrimary } from "@/components/buttons";
@@ -117,6 +118,9 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* spazio per partner: spento, non produce nulla (src/config/ads.ts) */}
+        <AdSlot id="home-dopo-faq" />
 
         {/* CTA FINALE */}
         <section className="on-dark bg-asphalt text-paper">

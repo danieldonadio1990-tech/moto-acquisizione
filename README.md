@@ -307,11 +307,12 @@ richieste condividono un solo contatore (più restrittivo, non più permissivo).
 
 ## Brand, valutazione e dominio
 
-- **Brand Compriamo Moto:** i colori stanno in un solo punto, `src/app/globals.css` (blu notte `#0B1220`, blu elettrico `#2563EB`, hover
-  `#1D4ED8`, sfondo `#F8FAFC`, testo `#0F172A`, secondario `#64748B`, bordi `#E2E8F0`). I nomi storici dei token (`asphalt`, `plate`, `chalk`…) sono
-  mantenuti e documentati nel file; un test verifica il contrasto WCAG delle coppie usate. Logo tipografico in `src/components/BrandMark.tsx`
-  (file di riferimento: `public/brand/compriamo-moto-logo.svg`); icone e anteprima social rigenerate. Le denominazioni tecniche
-  (nome del repository `moto-acquisizione`, intestazione `user-agent` delle notifiche, etichette analytics) non cambiano.
+- **Brand Compriamo Moto:** simbolo CM + moto, palette grafite / bianco sporco / pietra / giallo segnale, Big Shoulders Display + Instrument Sans +
+  IBM Plex Mono. I colori stanno in un solo punto, `src/app/globals.css`; i nomi storici dei token (`asphalt`, `plate`, `chalk`…) sono mantenuti e
+  documentati nel file; un test verifica il contrasto WCAG delle coppie usate. File del logo in `public/brand/v2`, componenti in
+  `src/components/BrandMark.tsx` e `src/components/brand/`. Dettagli, regole d'uso e icone: [docs/BRAND.md](docs/BRAND.md). Spazi pubblicitari
+  predisposti e **spenti**: [docs/PUBBLICITA.md](docs/PUBBLICITA.md). Le denominazioni tecniche (nome del repository `moto-acquisizione`,
+  intestazione `user-agent` delle notifiche, etichette analytics) non cambiano.
 - **Valutazione e offerta preliminare:** motore server-side, configurabile e testato; **offerte reali disabilitate** finché mancano parametri approvati
   e dati di mercato con fonte. Progettazione, formula, fonti e parametri da approvare: [docs/VALUTAZIONE.md](docs/VALUTAZIONE.md). Migrazione
   `0005` proposta, **non applicata**.
@@ -525,7 +526,7 @@ Ripetere la prova di ripristino su un branch Neon subito dopo il primo backup.
 
 ## SEO
 
-Solo base tecnica: title e description, Open Graph con immagine generata (`/opengraph-image`), favicon
+Solo base tecnica: title e description, Open Graph con immagine statica (`src/app/opengraph-image.png`), favicon
 (`src/app/icon.svg`), URL canonici, `robots.txt`, `sitemap.xml` (home e privacy).
 Tutto prende nome, testi e dominio da `src/config/business.ts`.
 **Indicizzazione spenta** (`robots.txt` → `Disallow: /`, meta `noindex`) finché l'informativa è in bozza,
