@@ -40,6 +40,13 @@ describe("rifiuti prima di qualunque connessione", () => {
     assert.ok(!r.out.includes("ep-cool-darkness"), "l'indirizzo completo non va stampato");
     noCanary(r.out);
   });
+  test("altri pooler (nome con «pooler», porta 6543) rifiutati; l'impronta cambia con la porta", () => {
+    assert.match(run(["check"], { DATABASE_URL_DIRECT: `postgres://u:${CANARY}@aws-0-eu.pooler.supabase.com/postgres` }).out, /pooler/);
+    assert.match(run(["check"], { DATABASE_URL_DIRECT: `postgres://u:${CANARY}@127.0.0.1:6543/x` }).out, /pooler/);
+    const fp = (port: number) => /Impronta del bersaglio: ([0-9a-f]{8})/.exec(run(["check"], { DATABASE_URL_DIRECT: `postgres://u:${CANARY}@127.0.0.1:${port}/miodb` }).out)![1];
+    assert.notEqual(fp(1), fp(2), "porte diverse = bersagli diversi");
+    assert.equal(fp(1), fp(1), "stessa impronta per lo stesso bersaglio");
+  });
   test("indirizzo non valido o senza database", () => {
     assert.match(run(["check"], { DATABASE_URL_DIRECT: "non-un-indirizzo" }).out, /non è un indirizzo valido/);
     assert.match(run(["check"], { DATABASE_URL_DIRECT: `postgres://u:${CANARY}@127.0.0.1:1` }).out, /nome del database/);
@@ -152,6 +159,38 @@ describe("con un PostgreSQL di prova (TEST_DATABASE_URL)", { skip: process.env.T
       await exec("insert into drizzle.__drizzle_migrations (hash, created_at) values ('test-0004', 1792676806531)");
     }
     assert.equal(await count(), 5);
+  });
+
+  test("un blocco esclusivo su una tabella non fa restare appeso il controllo: fallisce con «lock timeout» e non scrive nulla", async () => {
+    const postgres = (await import("postgres")).default;
+    const holder = postgres(URL_, { max: 1, prepare: false, onnotice: () => {} });
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    const tx = holder.begin(async (t) => {
+      await t`lock table leads in access exclusive mode`;
+      await held;
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 500));
+      const started = Date.now();
+      const r = await new Promise<{ code: number | null; out: string }>((resolve) => {
+        const { spawn } = require("node:child_process") as typeof import("node:child_process");
+        const env = { ...process.env, DATABASE_URL_DIRECT: URL_ } as NodeJS.ProcessEnv;
+        delete env.DATABASE_URL;
+        const c = spawn(TSX, ["--conditions=react-server", GUARD, "check"], { env });
+        let out = "";
+        c.stdout.on("data", (d) => (out += d));
+        c.stderr.on("data", (d) => (out += d));
+        c.on("close", (code) => resolve({ code, out }));
+      });
+      assert.equal(r.code, 1, r.out);
+      assert.match(r.out, /lock timeout|canceling statement/i);
+      assert.ok(Date.now() - started < 25_000, "non è rimasto appeso");
+    } finally {
+      release();
+      await tx;
+      await holder.end({ timeout: 5 });
+    }
   });
 
   test("check → pre-controllo verde; apply con codice errato non cambia nulla; apply col codice giusto migra; una seconda apply è rifiutata", async () => {

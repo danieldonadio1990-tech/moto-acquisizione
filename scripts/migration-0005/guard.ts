@@ -8,7 +8,11 @@
  * Non stampa mai l'URL né la password: mostra database, ruolo, indirizzo parzialmente oculto e un'«impronta» di 8 caratteri.
  * `check` e `apply` mostrano la stessa impronta: il codice per `--confirm` si copia dall'output di `check`, così non si può
  * confermare un bersaglio che non si è prima guardato. Rifiuta gli indirizzi del pooler (il lock delle migrazioni non vi funziona).
- * Il pre-controllo è lo stesso `pre-check.sql` (sola lettura) usato nell'SQL Editor, eseguito sulla STESSA connessione della migrazione.
+ * Il pre-controllo è lo stesso `pre-check.sql` (sola lettura) usato nell'SQL Editor, eseguito con lo STESSO indirizzo della migrazione
+ * (connessioni separate: il pre-controllo, poi la migrazione sotto lock e transazione unica, poi il post-controllo).
+ *
+ * LIMITE: l'impronta nasce dall'indirizzo che fornisci (host, porta, database, ruolo): protegge da errori di battitura e da sessioni
+ * dimenticate, NON dimostra che l'indirizzo sia quello di produzione. Quel controllo è tuo: confronta host oculto e database con la console Neon.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -33,8 +37,8 @@ export function maskHost(host: string): string {
   return rest.length ? `${label}.${rest.join(".")}` : label;
 }
 
-export function fingerprint(host: string, db: string, user: string): string {
-  return createHash("sha256").update(`${host}\n${db}\n${user}`).digest("hex").slice(0, 8);
+export function fingerprint(host: string, port: string, db: string, user: string): string {
+  return createHash("sha256").update(`${host}\n${port}\n${db}\n${user}`).digest("hex").slice(0, 8);
 }
 
 /**
@@ -45,7 +49,12 @@ async function readOnly(sql: postgres.Sql, file: string): Promise<Row[]> {
   // MIGRATION_SQL_DIR serve solo ai test (dimostrano che anche un file SQL modificato non può scrivere); di norma è la cartella del repository
   const dir = process.env.MIGRATION_SQL_DIR?.trim() || "scripts/migration-0005";
   const text = readFileSync(path.resolve(process.cwd(), dir, file), "utf8");
-  const rows = await sql.begin("read only", (tx) => tx.unsafe(text));
+  const rows = await sql.begin("read only", async (tx) => {
+    // un blocco esclusivo tenuto da un'altra sessione non deve far restare il controllo appeso
+    await tx`set local lock_timeout = '5s'`;
+    await tx`set local statement_timeout = '30s'`;
+    return tx.unsafe(text);
+  });
   return rows as unknown as Row[];
 }
 
@@ -71,8 +80,8 @@ async function main() {
   const db = decodeURIComponent(u.pathname.replace(/^\//, ""));
   const user = decodeURIComponent(u.username);
   if (!db) fail("DATABASE_URL_DIRECT non indica il nome del database.");
-  if (host.includes("-pooler")) fail("L'indirizzo è quello del pooler (-pooler): serve la stringa DIRETTA.");
-  const fp = fingerprint(host, db, user);
+  if (/pooler/i.test(host) || u.port === "6543") fail("L'indirizzo è quello di un pooler (nome con «pooler» o porta 6543): serve la stringa DIRETTA.");
+  const fp = fingerprint(host, u.port || "5432", db, user);
   const code = `${db}:${fp}`;
 
   if (mode === "apply") {
