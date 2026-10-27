@@ -100,6 +100,14 @@ describe("presupposti codificati negli script coincidono con il repository", () 
     assert.match(MANUAL, /Read-Host/);
     assert.doesNotMatch(MANUAL, /postgres(ql)?:\/\/[^\s<]+:[^\s<@]+@/, "nessuna stringa di connessione con password");
   });
+  test("il manuale descrive la guardia del bersaglio e il rischio della migrazione automatica", () => {
+    assert.match(MANUAL, /## Rischio: migrazione automatica all'avvio/);
+    assert.match(MANUAL, /anche se il deploy non è pubblicato/);
+    assert.match(MANUAL, /npm run migrate:0005 -- check/);
+    assert.match(MANUAL, /apply --confirm=/);
+    assert.match(MANUAL, /non stampa mai\*\* l'URL né la password/);
+    assert.match(MANUAL, /percorso A prima del merge/);
+  });
   test("il manuale distingue snapshot e backup, descrive i due esiti e un rollback senza perdita di richieste", () => {
     assert.match(MANUAL, /Uno snapshot Neon NON è un backup indipendente/);
     assert.match(MANUAL, /ESITO MIGRAZIONE/);

@@ -16,6 +16,7 @@
     "check:storage": "tsx --env-file-if-exists=.env.local scripts/check-storage.ts",
     "build:production": "npm run check:env && next build",
     "db:migrate": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/db-migrate.ts",
+    "migrate:0005": "tsx --conditions=react-server scripts/migration-0005/guard.ts",
     "admin:user": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/admin-user.ts",
     "test:e2e": "playwright test"
   },
