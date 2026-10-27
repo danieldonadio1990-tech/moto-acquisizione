@@ -1,4 +1,4 @@
-/** Testi dell'anteprima. Nessun dato di mercato, recensione, prezzo o promessa: solo ciò che il sito già dichiara. */
+/** Testi della homepage. Nessun dato di mercato, recensione, prezzo o promessa: solo ciò che il sito già dichiara. */
 export const AREA = "Milano e provincia";
 
 export const STEPS = [

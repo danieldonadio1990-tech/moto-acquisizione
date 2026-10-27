@@ -20,6 +20,8 @@
   --color-plate: #f1bf1a;
   --color-plate-deep: #dcaa0d;
   --color-gold: #7a5c00;
+  /* giallo scuro solo per testo grande (marchio, titoli): contrasto ~3:1, non per il testo corrente */
+  --color-brass: #a37c00;
   --color-sky: #f1bf1a;
   --color-notice: #fef3c7;
   --color-concrete: #565c60;
@@ -128,5 +130,38 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Cartellino: scheda con tacche laterali e linea di strappo (anteprima del modulo in homepage, solo decorativa) */
+.ticket {
+  position: relative;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+}
+.ticket::before,
+.ticket::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--color-chalk);
+  border: 1px solid var(--color-line);
+  transform: translateY(-50%);
+}
+.ticket::before {
+  left: -10px;
+}
+.ticket::after {
+  right: -10px;
+}
+.perf {
+  border-top: 2px dashed var(--color-line);
+}
+@media (min-width: 768px) {
+  .ticket {
+    transform: rotate(-1.2deg);
   }
 }
