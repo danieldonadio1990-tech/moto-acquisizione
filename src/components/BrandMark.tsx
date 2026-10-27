@@ -6,7 +6,7 @@ import { BrandSymbol } from "./brand/BrandSymbol";
  * Logo Compriamo Moto: simbolo CM + moto e scritta in Big Shoulders Display (testo vero: nitido a qualunque dimensione
  * e leggibile dagli screen reader). «COMPRIAMO» nel colore del testo, «MOTO» in giallo scuro (su fondo chiaro) o giallo segnale
  * (su fondo scuro). I file statici di riferimento sono in public/brand/v2; email e immagini di anteprima (src/modules/notifications,
- * src/app/opengraph-image.tsx) ripetono la stessa composizione.
+ * src/app/opengraph-image.png, generata una tantum) ripetono la stessa composizione.
  *  - tone "light": per sfondi chiari   - tone "dark": per sfondi scuri
  */
 export function BrandMark({
