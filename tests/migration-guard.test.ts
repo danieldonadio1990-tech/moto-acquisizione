@@ -5,7 +5,7 @@
  */
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -174,7 +174,6 @@ describe("con un PostgreSQL di prova (TEST_DATABASE_URL)", { skip: process.env.T
       await new Promise((r) => setTimeout(r, 500));
       const started = Date.now();
       const r = await new Promise<{ code: number | null; out: string }>((resolve) => {
-        const { spawn } = require("node:child_process") as typeof import("node:child_process");
         const env = { ...process.env, DATABASE_URL_DIRECT: URL_ } as NodeJS.ProcessEnv;
         delete env.DATABASE_URL;
         const c = spawn(TSX, ["--conditions=react-server", GUARD, "check"], { env });
