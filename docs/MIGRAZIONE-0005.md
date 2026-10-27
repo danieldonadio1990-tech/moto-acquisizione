@@ -10,6 +10,36 @@
 > Serve come **protezione temporanea** per il momento della migrazione. Il **backup cifrato fuori da Neon** (workflow «Backup database», README «Backup»)
 > resta il requisito per il lancio con clienti veri e **non è stato ancora eseguito**: è un passaggio diverso, non sostituito da questo.
 
+## Procedura breve (5 fasi)
+Nessuna fase richiede di incollare credenziali in chat: gli URL di connessione restano nel tuo terminale o nella console Neon. A me serve solo il **risultato testuale**
+degli script (nomi di controlli e `true`/`false`, nessun dato personale).
+
+| Fase | Che cosa | Chi | Criterio di successo | Se fallisce / come tornare indietro |
+|---|---|---|---|---|
+| **1. Protezione** | Console Neon → progetto di produzione → crea lo **snapshot manuale** `pre-0005` (o, se non disponibile, un **branch** dallo stato attuale). Riportami: piano, nome, data e ora | **tu** (console Neon) | lo snapshot compare nell'elenco, creato **da meno di un'ora** prima della migrazione | niente da annullare. Se non riesci: non migrare finché non decidi di accettare il rischio (la `0005` è additiva) |
+| **2. Pre-controllo** | SQL Editor di Neon: scegli il branch/database **di produzione**, incolla `scripts/migration-0005/pre-check.sql`, esegui, **incollami la tabella dei risultati** | **tu** esegui, **io** interpreto | riga 2 = database e ruolo attesi; `ESITO = true` | `false`: **non migrare** (vedi «Come leggere i risultati») |
+| **3. Migrazione** | **Percorso A (consigliato, esito visibile):** sul tuo PC, nella copia del ramo della PR: `npm ci`, poi i comandi qui sotto. **Percorso B (nessun comando locale):** la applica il sito da solo al primo avvio dopo il deploy | **tu** (A) · **io** merge, **tu** pubblichi (B) | A: `✓ Migrazioni applicate` · B: il sito si apre e il post-controllo è `true` | transazione unica: se fallisce non resta nulla a metà. In B un errore di avvio impedisce l'avvio del nuovo deploy: **ripubblica il deploy precedente** |
+| **4. Post-controllo** | Stessa procedura della fase 2 con `scripts/migration-0005/post-check.sql` | **tu** esegui, **io** interpreto | `ESITO MIGRAZIONE = true`; colonne di `leads` identiche; tabelle in `public` = pre + 3; richieste e offerte uguali o maggiori | `false`: **non fare il merge** → rollback |
+| **5. Rollback** | prima il codice (ripubblica il deploy precedente), poi, solo se serve, `DROP` delle tre tabelle (sezione «Rollback») | **tu** (Netlify e SQL Editor) con la mia guida | pre-controllo di nuovo `true` | **non** ripristinare lo snapshot per annullare la `0005` |
+
+**Chi esegue cosa**
+- **Io:** controllare CI e stato della PR, interpretare i risultati che incolli, fare il **merge** (solo dopo il tuo «autorizzo» e post-controllo `true`), preparare correzioni. **Non** posso accedere a Neon, creare snapshot, eseguire query o migrazioni né pubblicare su Netlify: non ho credenziali né connettori.
+- **Tu:** creare lo snapshot, eseguire i due script nell'SQL Editor, eseguire la migrazione (percorso A) o pubblicare il deploy (percorso B), pubblicare su Netlify.
+- Finché non mi dai una **conferma** (nome e ora dello snapshot, risultati del pre-controllo) il database **non** va considerato protetto: la conferma è una tua dichiarazione, non qualcosa che io possa verificare.
+
+**Comandi del percorso A (PowerShell, nella cartella del ramo della PR)**
+```powershell
+# una sola volta: scarica il ramo "claude/compriamo-moto-rebrand-valutazione" da GitHub (Code → Download ZIP), estrailo, poi:
+npm ci
+$env:DATABASE_URL_DIRECT = Read-Host "URL diretta Neon (ruolo proprietario, senza -pooler)"   # solo nel terminale
+npm run db:migrate                       # atteso: ✓ Migrazioni applicate
+Remove-Item Env:DATABASE_URL_DIRECT
+```
+Se il tuo `.env.local` contiene un `DATABASE_URL`, svuotalo o rimuovilo per questa operazione: lo script lo userebbe in mancanza dell'URL diretto.
+
+**Attenzione all'SQL Editor:** controlla sempre in alto quale branch e database sono selezionati. Se per la prova del ripristino hai un branch di test, gli script danno risultati
+sul branch **selezionato**: la riga 2 del pre-controllo mostra database e ruolo, ma non il branch. Esegui i controlli ufficiali solo sul branch di **produzione**.
+
 ## Cosa fa la migrazione
 `drizzle/0005_valuation_engine.sql` crea **solo** tre tabelle nuove e vuote (`valuation_settings`, `market_references`, `valuations`), i loro
 indici, vincoli e due chiavi esterne. Nessun `UPDATE`/`DELETE`/`DROP`, nessuna colonna aggiunta alle tabelle esistenti. Il sito attuale (`5d23ecc`)
@@ -25,10 +55,10 @@ la ignora. Il codice nuovo, se le tabelle mancano, mostra un avviso nel back off
 |---|---|---|---|---|
 | 1 | Controlli CI della PR #6 verdi sul commit da distribuire | — | `check`, `shellcheck`, `script-tests`, `rehearsal` verdi | non procedere |
 | 2 | **Verifica dello snapshot Neon** (vedi sotto) | tu | snapshot visibile con data e ora, oppure branch di prova creato | senza snapshot: decidi se procedere (migrazione additiva) o preparare prima il backup cifrato |
-| 3 | `scripts/migration-0005/pre-check.sql` sul database di produzione | tu o io, con autorizzazione | ultima riga `ESITO = true`; **annota** le righe `INFO` | `false`: **non migrare**, indica la riga fallita |
-| 4 | `npm run db:migrate` con `DATABASE_URL_DIRECT` | **solo con autorizzazione esplicita** | `✓ Migrazioni applicate` | transazione annullata in automatico; rilancia `pre-check.sql` per capire lo stato |
-| 5 | `scripts/migration-0005/post-check.sql` | stesso | **`ESITO MIGRAZIONE = true`**; colonne di `leads` identiche al pre-controllo, tabelle in `public` = pre + 3, richieste e offerte uguali **o maggiori** (nel frattempo possono essere arrivati clienti) | vedi «Come leggere i risultati» |
-| 6 | Merge della PR #6, deploy Netlify, **pubblicazione manuale** (la pubblicazione automatica è bloccata) | con autorizzazione | deploy «Published» al commit atteso | ripubblica il deploy precedente |
+| 3 | `scripts/migration-0005/pre-check.sql` sul database di produzione | tu esegui, io interpreto | ultima riga `ESITO = true`; **annota** le righe `INFO` | `false`: **non migrare**, indica la riga fallita |
+| 4 | `npm run db:migrate` con `DATABASE_URL_DIRECT` (percorso A) | tu, **solo dopo il tuo «autorizzo» esplicito** | `✓ Migrazioni applicate` | transazione annullata in automatico; rilancia `pre-check.sql` per capire lo stato |
+| 5 | `scripts/migration-0005/post-check.sql` | tu esegui, io interpreto | **`ESITO MIGRAZIONE = true`**; colonne di `leads` identiche al pre-controllo, tabelle in `public` = pre + 3, richieste e offerte uguali **o maggiori** (nel frattempo possono essere arrivati clienti) | vedi «Come leggere i risultati» |
+| 6 | Merge della PR #6 (io, con autorizzazione), deploy Netlify e **pubblicazione manuale** (tu: la pubblicazione automatica è bloccata) | io + tu | deploy «Published» al commit atteso | ripubblica il deploy precedente |
 | 7 | Smoke test e notifiche | — | home, modulo, back office, pagina «Valutazione» senza errori; nessun importo mostrato ai clienti | rollback del deploy |
 
 `VALUATION_PUBLIC_OFFERS`, `NOTIFY_RETRY_ENABLED` e `NOTIFY_RETRY_TOKEN` non si toccano.

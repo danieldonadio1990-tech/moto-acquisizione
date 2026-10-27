@@ -92,6 +92,14 @@ describe("presupposti codificati negli script coincidono con il repository", () 
       assert.match(code.trim(), /^with\b/i);
     }
   });
+  test("il manuale ha la procedura breve con le 5 fasi, chi esegue cosa e nessuna richiesta di credenziali in chat", () => {
+    assert.match(MANUAL, /## Procedura breve \(5 fasi\)/);
+    for (const fase of ["1. Protezione", "2. Pre-controllo", "3. Migrazione", "4. Post-controllo", "5. Rollback"]) assert.ok(MANUAL.includes(`**${fase}**`), fase);
+    assert.match(MANUAL, /\*\*Chi esegue cosa\*\*/);
+    assert.match(MANUAL, /il database \*\*non\*\* va considerato protetto/);
+    assert.match(MANUAL, /Read-Host/);
+    assert.doesNotMatch(MANUAL, /postgres(ql)?:\/\/[^\s<]+:[^\s<@]+@/, "nessuna stringa di connessione con password");
+  });
   test("il manuale distingue snapshot e backup, descrive i due esiti e un rollback senza perdita di richieste", () => {
     assert.match(MANUAL, /Uno snapshot Neon NON è un backup indipendente/);
     assert.match(MANUAL, /ESITO MIGRAZIONE/);
