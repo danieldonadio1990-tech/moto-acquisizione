@@ -57,6 +57,12 @@ describe("rifiuti prima di qualunque connessione", () => {
     assert.ok(!/ECONNREFUSED/.test(b.out), "nessun tentativo di connessione");
     noCanary(a.out + b.out);
   });
+  test("i controlli passano SEMPRE da una transazione di sola lettura (verifica nel codice)", () => {
+    const src = readFileSync(GUARD, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.match(src, /sql\.begin\("read only"/);
+    assert.equal((src.match(/\.unsafe\(/g) ?? []).length, 1, "l'SQL dei file si esegue in un solo punto, dentro la transazione di sola lettura");
+    assert.doesNotMatch(src, /\b(insert\s+into|update\s+\w+\s+set|delete\s+from|drop\s+(table|schema|database)|alter\s+(table|role)|truncate\s+table|grant\s|revoke\s)/i, "nessuna istruzione di scrittura nel guard");
+  });
   test("modalità sconosciuta: uso", () => {
     assert.match(run(["boh"], { DATABASE_URL_DIRECT: "postgres://u:p@127.0.0.1:1/x" }).out, /uso:/);
   });
@@ -66,6 +72,7 @@ describe("rifiuti prima di qualunque connessione", () => {
     assert.match(r.out, /Bersaglio: host .* · database «miodb» · ruolo «ruolo»/);
     assert.match(r.out, /Impronta del bersaglio: [0-9a-f]{8}/);
     noCanary(r.out);
+    assert.ok(!r.out.includes("127.0.0.1"), "l'indirizzo completo non compare nemmeno negli errori");
   });
   test("lo script non legge .env.local né usa --env-file (un URL dimenticato lì non può essere usato)", () => {
     const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { scripts: Record<string, string> };
@@ -96,6 +103,55 @@ describe("con un PostgreSQL di prova (TEST_DATABASE_URL)", { skip: process.env.T
   after(async () => {
     await dbmod.closeDb();
     rmSync(TMP, { recursive: true, force: true });
+  });
+
+  test("check non scrive nulla: nemmeno se il file SQL del controllo venisse modificato per scrivere (transazione di sola lettura)", async () => {
+    const snapshot = async () => {
+      const names = (await exec("select table_name from information_schema.tables where table_schema in ('public','drizzle') and table_type='BASE TABLE' order by 1")) as unknown as { table_name: string }[];
+      const parts: string[] = [];
+      for (const { table_name } of names) {
+        const schemaName = table_name === "__drizzle_migrations" ? "drizzle" : "public";
+        const r = (await exec(`select count(*)::int as n from ${schemaName}."${table_name}"`)) as unknown as { n: number }[];
+        parts.push(`${table_name}=${r[0].n}`);
+      }
+      return parts.join(",");
+    };
+    const before = await snapshot();
+    // 1) il controllo vero
+    const real = run(["check"], { DATABASE_URL_DIRECT: URL_ });
+    assert.equal(real.code, 0, real.out);
+    assert.equal(await snapshot(), before, "il check non ha cambiato nulla");
+    // 2) un file «malevolo» che prova a scrivere in events: PostgreSQL deve rifiutare
+    const dir = mkdtempSync(path.join(tmpdir(), "moto-guard-sql-"));
+    try {
+      const { writeFileSync } = await import("node:fs");
+      writeFileSync(path.join(dir, "pre-check.sql"), "with w as (insert into events(name) values ('scrittura-vietata') returning 1) select 1 as n, 'x' as controllo, true as ok, '' as dettaglio from w");
+      const bad = run(["check"], { DATABASE_URL_DIRECT: URL_, MIGRATION_SQL_DIR: dir });
+      assert.equal(bad.code, 1);
+      assert.match(bad.out, /read-only/i);
+      assert.equal(await snapshot(), before, "nessuna scrittura è passata");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("apply con il codice GIUSTO ma pre-controllo non superato (registro anomalo): rifiutato, nessuna migrazione", async () => {
+    await exec("delete from drizzle.__drizzle_migrations where created_at = 1792676806531"); // finge un registro diverso dall'atteso
+    try {
+      const chk = run(["check"], { DATABASE_URL_DIRECT: URL_ });
+      assert.equal(chk.code, 1, chk.out);
+      const fp = /Impronta del bersaglio: ([0-9a-f]{8})/.exec(chk.out)![1];
+      const db = /database «([^»]+)»/.exec(chk.out)![1];
+      const r = run(["apply", `--confirm=${db}:${fp}`], { DATABASE_URL_DIRECT: URL_ });
+      assert.equal(r.code, 1);
+      assert.match(r.out, /Pre-controllo NON superato: nessuna migrazione applicata/);
+      assert.equal(await count(), 4, "il registro non è stato toccato");
+      const tbl = (await exec("select to_regclass('public.valuations') as t")) as unknown as { t: string | null }[];
+      assert.equal(tbl[0].t, null, "le tabelle non sono state create");
+    } finally {
+      await exec("insert into drizzle.__drizzle_migrations (hash, created_at) values ('test-0004', 1792676806531)");
+    }
+    assert.equal(await count(), 5);
   });
 
   test("check → pre-controllo verde; apply con codice errato non cambia nulla; apply col codice giusto migra; una seconda apply è rifiutata", async () => {

@@ -40,6 +40,7 @@ Remove-Item Env:DATABASE_URL_DIRECT
 - legge **solo** `DATABASE_URL_DIRECT` (mai `DATABASE_URL`, mai `.env.local`: un URL dimenticato lì non viene usato);
 - **non stampa mai** l'URL né la password: mostra database, ruolo, l'indirizzo con la parte centrale oculta (confrontalo con quello della console Neon) e un'**impronta** di 8 caratteri;
 - rifiuta gli indirizzi del pooler (`-pooler`);
+- `check` **non scrive nulla**: i controlli girano in una transazione di **sola lettura** imposta da PostgreSQL (anche un file SQL modificato per errore verrebbe rifiutato; provato con un file «malevolo» su un database di prova); gli errori di connessione mostrano l'indirizzo con la parte centrale oculta;
 - `apply` si rifiuta senza `--confirm=<database>:<impronta>`: il codice si copia dall'output di `check`, quindi si conferma solo un bersaglio che si è guardato;
 - esegue il **pre-controllo sulla stessa connessione** della migrazione e non migra se non è verde; dopo la migrazione stampa il post-controllo;
 - una seconda `apply` è rifiutata (il pre-controllo non è più verde).

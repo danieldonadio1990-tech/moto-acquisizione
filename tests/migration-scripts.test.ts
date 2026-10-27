@@ -107,6 +107,7 @@ describe("presupposti codificati negli script coincidono con il repository", () 
     assert.match(MANUAL, /apply --confirm=/);
     assert.match(MANUAL, /non stampa mai\*\* l'URL né la password/);
     assert.match(MANUAL, /percorso A prima del merge/);
+    assert.match(MANUAL, /transazione di \*\*sola lettura\*\*/);
   });
   test("il manuale distingue snapshot e backup, descrive i due esiti e un rollback senza perdita di richieste", () => {
     assert.match(MANUAL, /Uno snapshot Neon NON è un backup indipendente/);

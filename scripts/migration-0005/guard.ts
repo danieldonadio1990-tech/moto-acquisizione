@@ -19,6 +19,9 @@ import { runPostgresMigrations } from "@/db/client";
 
 type Row = { n: number | string; controllo: string; ok: boolean; dettaglio: string };
 
+let knownHost = "";
+const hideHost = (text: string) => (knownHost ? text.split(knownHost).join(maskHost(knownHost)) : text);
+
 function fail(msg: string): never {
   console.error(`✗ ${msg}`);
   process.exit(1);
@@ -32,6 +35,18 @@ export function maskHost(host: string): string {
 
 export function fingerprint(host: string, db: string, user: string): string {
   return createHash("sha256").update(`${host}\n${db}\n${user}`).digest("hex").slice(0, 8);
+}
+
+/**
+ * I controlli girano SEMPRE in una transazione di sola lettura imposta dal database: anche se un file SQL venisse modificato
+ * per errore, una scrittura verrebbe rifiutata da PostgreSQL ("read-only transaction").
+ */
+async function readOnly(sql: postgres.Sql, file: string): Promise<Row[]> {
+  // MIGRATION_SQL_DIR serve solo ai test (dimostrano che anche un file SQL modificato non può scrivere); di norma è la cartella del repository
+  const dir = process.env.MIGRATION_SQL_DIR?.trim() || "scripts/migration-0005";
+  const text = readFileSync(path.resolve(process.cwd(), dir, file), "utf8");
+  const rows = await sql.begin("read only", (tx) => tx.unsafe(text));
+  return rows as unknown as Row[];
 }
 
 function table(rows: Row[]) {
@@ -52,6 +67,7 @@ async function main() {
   }
   if (!/^postgres(ql)?:$/.test(u.protocol)) fail("DATABASE_URL_DIRECT deve iniziare con postgres:// o postgresql://");
   const host = u.hostname;
+  knownHost = host;
   const db = decodeURIComponent(u.pathname.replace(/^\//, ""));
   const user = decodeURIComponent(u.username);
   if (!db) fail("DATABASE_URL_DIRECT non indica il nome del database.");
@@ -73,8 +89,7 @@ async function main() {
     const [who] = await sql<{ db: string; usr: string; v: string }[]>`select current_database() as db, current_user as usr, current_setting('server_version') as v`;
     if (who.db !== db) fail("Il database raggiunto non corrisponde a quello indicato nell'indirizzo.");
     console.log(`Connesso: PostgreSQL ${who.v}`);
-    const pre = await sql.unsafe(readFileSync(path.resolve(process.cwd(), "scripts/migration-0005/pre-check.sql"), "utf8"));
-    const preRows = pre as unknown as Row[];
+    const preRows = await readOnly(sql, "pre-check.sql");
     console.log("\nPre-controllo (sola lettura):");
     table(preRows);
     const preOk = preRows.find((r) => Number(r.n) === 99)?.ok === true;
@@ -92,7 +107,7 @@ async function main() {
   console.log("\n✓ Migrazioni applicate");
   const sql2 = postgres(raw, { max: 1, prepare: false, connect_timeout: 15, onnotice: () => {} });
   try {
-    const post = (await sql2.unsafe(readFileSync(path.resolve(process.cwd(), "scripts/migration-0005/post-check.sql"), "utf8"))) as unknown as Row[];
+    const post = await readOnly(sql2, "post-check.sql");
     console.log("\nPost-controllo (sola lettura):");
     table(post);
     const ok = post.find((r) => Number(r.n) === 98)?.ok === true;
@@ -104,6 +119,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(`✗ ${redact(err instanceof Error ? err.message.split("\nparams")[0] : String(err)).slice(0, 300)}`);
+  console.error(`✗ ${hideHost(redact(err instanceof Error ? err.message.split("\nparams")[0] : String(err))).slice(0, 300)}`);
   process.exit(1);
 });
