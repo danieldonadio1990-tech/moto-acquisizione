@@ -24,14 +24,24 @@ Per provare lo storage reale prima di tutto il resto: `npm run check:storage` (c
 **Nota:** una versione precedente della rotta rifiutava con 411 ogni richiesta senza intestazione `Content-Length`; ora il tetto è sui byte ricevuti. Se i log mostrano `[foto:storage]`, la correzione del codice non basta: va sistemato lo storage (nessun costo, ma serve un intervento nel pannello del fornitore).
 
 ## Informativa privacy: cosa è cambiato
-- La pagina `/privacy` non evidenzia più nulla in giallo e non mostra più il banner «Bozza in revisione» né il numero di versione `draft-…`. I dati ancora da fornire compaiono come frase normale («ragione sociale (da indicare)»). Finché l'informativa resta una bozza il sito non è indicizzato dai motori di ricerca (`src/config/seo.ts`) e il log di avvio lo segnala.
+- La pagina `/privacy` non evidenzia più nulla in giallo, non mostra il banner «Bozza in revisione» né il numero di versione `draft-…` e ora riporta i dati confermati del titolare (vedi sotto). Finché l'informativa resta una bozza il sito non è indicizzato dai motori di ricerca (`src/config/seo.ts`) e il log di avvio lo segnala.
 - La casella nel modulo è una **presa visione** dell'informativa («Ho letto l'informativa privacy»), non un consenso generico a essere ricontattati: la base giuridica indicata nel testo per valutare e ricontattare è la richiesta dell'interessato (misure precontrattuali, art. 6.1.b), non il consenso. Resta obbligatoria per documentare che l'informativa è stata mostrata; viene salvata con data e versione (colonna `privacy_consent_at`, nome storico, nessuna migrazione). **Da far verificare a chi segue la privacy dell'azienda**: questa non è una verifica legale né una dichiarazione di conformità.
 - Nessun nuovo dato personale viene raccolto. L'email di notifica al titolare non contiene dati di contatto del cliente (solo codice richiesta, moto, anno).
 
-## Dati e decisioni che deve fornire il titolare
-Non li ho inventati: restano da completare in `src/config/business.ts` e nel testo di `src/app/privacy/page.tsx`.
-- Ragione sociale, indirizzo della sede, partita IVA, email per la privacy e, se presente, PEC.
-- Fornitore dell'archivio foto realmente usato in produzione (finora indicato solo come «da indicare»; Netlify e Neon sono già nominati).
-- Periodi di conservazione (le bozze sono «12 mesi» per le richieste senza acquisto e «di norma 10 anni» per l'acquisto: da confermare).
-- Eventuali trasferimenti fuori dall'UE dei fornitori e relative garanzie.
-- Quando il testo è approvato: portare `PRIVACY_POLICY_VERSION` da `draft-…` a `1.0`.
+## Informativa: dati del titolare e punti ancora da verificare
+Dati forniti e confermati dal titolare (in `src/config/business.ts`): Donadio Luca, impresa individuale (nessuna ragione sociale o denominazione commerciale diversa), sede legale
+Via F.lli Bronzetti 8, 20129 Milano (MI), partita IVA 13723400969, PEC lucadonadio4@pec.it, email per la privacy compriamo.moto.support@gmail.com; attività: commercio al dettaglio
+online di motocicli e ciclomotori per corrispondenza; sito gestito direttamente.
+
+L'informativa **resta una bozza** (`PRIVACY_POLICY_VERSION = "draft-4"`: il sito resta non indicizzabile dai motori di ricerca finché è una bozza) perché mancano questi punti, che
+il testo pubblico non dichiara:
+1. **Conservazione**: nessun periodo è stato deliberato dal titolare (il codice non cancella nulla da solo: la cancellazione è manuale con `npm run privacy:erase`). Il testo usa solo criteri.
+2. **Trasferimenti fuori dallo Spazio economico europeo e garanzie** per Netlify, Neon, Supabase, Resend e Gmail: non verificati.
+3. **Dove sono davvero richieste e foto**: il titolare indica Supabase per richieste e foto; il codice e il database di produzione (host `…eu-central-1.aws.neon.tech`) indicano che le **richieste** stanno su Neon e solo le **foto** sul bucket S3 (Supabase). Confermare.
+4. **Località dei dati** di Supabase, Netlify, Resend e Gmail (non dedotte dal nome del fornitore).
+5. **Accordi con i fornitori** (nomina a responsabili del trattamento / contratti): non dichiarati nel testo.
+6. **Basi giuridiche** (art. 6.1.b, c, f) e legittimo interesse per statistiche/sicurezza: testo ereditato dalla bozza, da far confermare da un consulente.
+7. **Offerte automatiche**: il testo dice che nessuna offerta è comunicata in modo automatico. Va riscritto prima di attivare `VALUATION_PUBLIC_OFFERS` (e la PR sull'offerta automatica).
+8. Se in produzione `NOTIFY_EMAIL_TO` o altri servizi (es. backup su Supabase) coinvolgono altri fornitori, l'elenco va aggiornato.
+9. Contatto di assistenza generale (`CONTACTS.email`, telefono, WhatsApp): non forniti, quindi non mostrati nel sito.
+Quando tutto è verificato: portare la versione a `1.0` (attiva anche l'indicizzazione).

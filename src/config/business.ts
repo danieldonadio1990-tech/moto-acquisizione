@@ -36,12 +36,20 @@ export const CONTACTS = {
   email: "[DA COMPLETARE: email di contatto]",
 } as const;
 
+/**
+ * Dati del titolare, forniti e confermati dal titolare. Impresa individuale: non ha una ragione sociale né una denominazione
+ * commerciale diversa dal nome del titolare (non inventarne una).
+ */
 export const LEGAL = {
-  companyName: "[DA COMPLETARE: ragione sociale]",
-  vatNumber: "[DA COMPLETARE: partita IVA]",
-  address: "[DA COMPLETARE: indirizzo sede legale]",
-  privacyEmail: "[DA COMPLETARE: email per la privacy]",
-  pec: "[DA COMPLETARE: PEC, se presente]",
+  /** nome con cui l'impresa compare in pagina (piè di pagina) */
+  companyName: "Donadio Luca (impresa individuale)",
+  holderName: "Donadio Luca",
+  legalForm: "impresa individuale",
+  activity: "commercio al dettaglio online di motocicli e ciclomotori per corrispondenza",
+  vatNumber: "13723400969",
+  address: "Via F.lli Bronzetti 8, 20129 Milano (MI)",
+  privacyEmail: "compriamo.moto.support@gmail.com",
+  pec: "lucadonadio4@pec.it",
 } as const;
 
 export const SITE = {
@@ -53,11 +61,19 @@ export const SITE = {
   domain: "[DA COMPLETARE: https://www.dominio.it]",
 } as const;
 
+/**
+ * Servizi che trattano i dati. Solo i nomi dei fornitori: nessuna località né garanzia è dichiarata se non è verificata.
+ *  - hosting: Netlify (configurazione del progetto);  database: Neon, regione AWS eu-central-1 (dal nome dell'indirizzo del database);
+ *  - archivio foto: Supabase (indicato dal titolare);  notifiche interne: Resend (codice richiesta e dati della moto, non i contatti);
+ *  - posta e gestione delle richieste: Gmail (indicato dal titolare).
+ */
 export const PROVIDERS = {
   hosting: "Netlify",
-  database: "Neon (regione dell'Unione Europea: Francoforte)",
-  // da confermare con lo storage realmente configurato in produzione (vedi docs/PUBBLICAZIONE.md)
-  storage: "[DA COMPLETARE: nome del fornitore dell'archivio foto, es. Cloudflare R2 (UE) o Supabase Storage]",
+  database: "Neon",
+  databaseRegion: "regione AWS eu-central-1 (Francoforte)",
+  storage: "Supabase",
+  notifications: "Resend",
+  mail: "Gmail (Google)",
 } as const;
 
 /**
@@ -65,7 +81,7 @@ export const PROVIDERS = {
  * Resta "draft-…" finché il testo e i dati sopra non sono completati e approvati;
  * poi passare a "1.0" (e incrementare a ogni modifica del testo).
  */
-export const PRIVACY_POLICY_VERSION = "draft-3";
+export const PRIVACY_POLICY_VERSION = "draft-4";
 
 // ----------------------------------------------------------------------------
 // Funzioni di supporto (non contengono dati: non serve modificarle)
