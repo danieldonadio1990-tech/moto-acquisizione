@@ -47,15 +47,17 @@ export function SiteFooter() {
           </div>
         )}
         <nav aria-label="Informazioni" className="flex flex-col gap-3 text-sm font-bold">
-          <a href="#come-funziona" className="underline-offset-4 hover:underline">
+          <Link href="/#come-funziona" className="underline-offset-4 hover:underline">
             Come funziona
-          </a>
+          </Link>
           <Link href="/valuta" className="underline-offset-4 hover:underline">
             Valuta la tua moto
-          </Link>
+          
+       </Link>
           <Link href="/privacy" className="underline-offset-4 hover:underline">
             Informativa privacy
-          </Link>
+          
+       </Link>
         </nav>
       </div>
       {(credits.length > 0 || hasGeneratedImages()) && (

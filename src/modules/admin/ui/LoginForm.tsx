@@ -9,7 +9,7 @@ export function LoginForm() {
   return (
     <form action={action} className="mt-8 space-y-4">
       {expired && !state && (
-        <p role="status" className="rounded-xl bg-signal/40 p-3 font-semibold">
+        <p role="status" className="rounded-xl bg-notice p-3 font-semibold">
           La sessione è scaduta: accedi di nuovo per continuare.
         </p>
       )}
@@ -25,7 +25,7 @@ export function LoginForm() {
           defaultValue={state?.email}
           key={state?.email}
           required
-          className="h-12 w-full rounded-xl border-2 border-line bg-paper px-4 outline-none focus:border-plate"
+          className="h-12 w-full rounded-xl border-2 border-line bg-paper px-4 outline-none focus:border-asphalt"
         />
       </div>
       <div>
@@ -38,7 +38,7 @@ export function LoginForm() {
           type="password"
           autoComplete="current-password"
           required
-          className="h-12 w-full rounded-xl border-2 border-line bg-paper px-4 outline-none focus:border-plate"
+          className="h-12 w-full rounded-xl border-2 border-line bg-paper px-4 outline-none focus:border-asphalt"
         />
       </div>
       {state?.error && (
@@ -48,7 +48,7 @@ export function LoginForm() {
       )}
       <button
         disabled={pending}
-        className="h-12 w-full rounded-xl bg-plate font-bold text-paper hover:bg-plate-deep disabled:opacity-70"
+        className="h-12 w-full rounded-xl bg-plate font-bold text-asphalt hover:bg-plate-deep disabled:opacity-70"
       >
         {pending ? "Accesso…" : "Accedi"}
       </button>

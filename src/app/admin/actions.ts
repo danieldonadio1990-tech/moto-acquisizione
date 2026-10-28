@@ -15,9 +15,20 @@ import {
 } from "@/modules/leads/service";
 import { LEAD_STATUSES } from "@/modules/leads/statuses";
 import { clientIp } from "@/lib/rate-limit";
+import { isValuationSchemaUnavailable } from "@/db/errors";
 import { MAX_ATTEMPTS, manualRetryNotification } from "@/modules/notifications/new-lead";
 import { manualRetryMessage } from "@/modules/notifications/status";
 import { logError } from "@/lib/log";
+import {
+  addMarketReference,
+  approveSettings,
+  closeValuation,
+  confirmOffer,
+  createSettingsDraft,
+  recomputeValuation,
+  setManualOffer,
+} from "@/modules/valuation/service";
+import { decimalToHundredths, paramsFromForm } from "@/modules/valuation/fields";
 
 export type ActionState = { ok?: boolean; error?: string; email?: string } | null;
 
@@ -34,6 +45,10 @@ function fail(err: unknown): ActionState {
   if (err && typeof err === "object" && "digest" in err) throw err; // redirect()/notFound(): controllo di flusso
   if (err instanceof z.ZodError) return { error: err.issues[0]?.message ?? "Dati non validi" };
   if (err instanceof BusinessRuleError) return { error: err.message };
+  if (isValuationSchemaUnavailable(err)) {
+    logError("admin action: tabelle della valutazione non disponibili", err);
+    return { error: "Il motore di valutazione non è disponibile: verifica che la migrazione 0005 sia stata applicata." };
+  }
   logError("admin action", err);
   return { error: "Operazione non riuscita. Riprova; se il problema continua, avvisa chi gestisce il sito." };
 }
@@ -147,6 +162,119 @@ export async function retryNotificationAction(_: ActionState, form: FormData): P
     const res = await manualRetryNotification(leadId, admin.email);
     refresh();
     return manualRetryMessage(res, MAX_ATTEMPTS);
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Valutazione e offerta. Ogni azione parte da requireAdmin(); gli importi arrivano in euro e sono riconvertiti e
+// riverificati sul server. Il browser non imposta mai margini o costi di una singola richiesta.
+// ---------------------------------------------------------------------------------------------------------------------
+
+export async function recomputeValuationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    await recomputeValuation(uuid.parse(form.get("leadId")), admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setManualOfferAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const leadId = uuid.parse(form.get("leadId"));
+    const euros_ = euros.parse(String(form.get("amount") ?? ""));
+    const reason = String(form.get("reason") ?? "").slice(0, 500);
+    await setManualOffer(leadId, euros_ * 100, reason, admin.email, form.get("exceed") === "on");
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function confirmOfferAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    await confirmOffer(uuid.parse(form.get("leadId")), admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function closeValuationAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const status = z.enum(["rejected", "expired"]).parse(form.get("status"));
+    await closeValuation(uuid.parse(form.get("leadId")), status, String(form.get("reason") ?? "").slice(0, 500), admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function createSettingsDraftAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const { params, errors } = paramsFromForm((n) => (form.get(n) === null ? null : String(form.get(n))));
+    if (errors.length) return { error: errors[0] };
+    await createSettingsDraft(params, String(form.get("note") ?? "").slice(0, 300), admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function approveSettingsAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    await approveSettings(uuid.parse(form.get("settingsId")), admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function addMarketReferenceAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const get = (n: string) => String(form.get(n) ?? "").trim();
+    const money = (n: string, required: boolean) => {
+      const raw = get(n);
+      if (!raw && !required) return null;
+      const h = decimalToHundredths(raw);
+      if (h === null) throw new BusinessRuleError("Importo non valido");
+      return h;
+    };
+    const int = z.string().regex(/^\d{1,6}$/, "Numero non valido").transform(Number);
+    const asOf = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data non valida").parse(get("asOf"));
+    await addMarketReference(
+      {
+        brand: get("brand").slice(0, 60),
+        family: get("family").slice(0, 60) || null,
+        yearFrom: int.parse(get("yearFrom")),
+        yearTo: int.parse(get("yearTo")),
+        medianCents: money("median", true)!,
+        p25Cents: money("p25", false),
+        p75Cents: money("p75", false),
+        sampleCount: int.parse(get("sampleCount")),
+        kind: z.enum(["sold", "asking", "internal", "manual"]).parse(get("kind")),
+        source: get("source"),
+        asOf: new Date(`${asOf}T00:00:00Z`),
+      },
+      admin.email,
+    );
+    refresh();
+    return { ok: true };
   } catch (err) {
     return fail(err);
   }

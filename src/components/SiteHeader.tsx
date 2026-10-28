@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BrandMark } from "./BrandMark";
 import { TrackedLink } from "./Track";
 import { btnPrimarySm } from "./buttons";
@@ -10,12 +11,12 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <BrandMark size="sm" />
         <nav aria-label="Principale" className="flex items-center gap-5">
-          <a href="#come-funziona" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline md:inline">
+          <Link href="/#come-funziona" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline md:inline">
             Come funziona
-          </a>
-          <a href="#mezzi" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline 2xl:inline">
-            Quali moto
-          </a>
+          </Link>
+          <Link href="/#domande" className="hidden whitespace-nowrap text-sm font-bold underline-offset-4 hover:underline md:inline">
+            Domande
+          </Link>
           {/* contatti diretti: solo da schermi larghi e solo se i numeri sono configurati */}
           <div className="hidden items-center gap-2 lg:flex">
             <PhoneButton size="sm" numberOnly />

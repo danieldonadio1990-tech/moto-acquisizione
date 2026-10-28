@@ -13,9 +13,9 @@ import {
 import { LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 
 const input =
-  "h-11 w-full rounded-lg border-2 border-line bg-paper px-3 outline-none focus:border-plate disabled:opacity-60";
+  "h-11 w-full rounded-lg border-2 border-line bg-paper px-3 outline-none focus:border-asphalt disabled:opacity-60";
 const btn =
-  "h-11 shrink-0 rounded-lg bg-plate px-4 font-bold text-paper hover:bg-plate-deep disabled:opacity-60";
+  "h-11 shrink-0 rounded-lg bg-plate px-4 font-bold text-asphalt hover:bg-plate-deep disabled:opacity-60";
 const btnGhost = "h-9 rounded-lg px-3 text-sm font-bold ring-1 ring-line hover:ring-asphalt-soft disabled:opacity-60";
 
 function Feedback({ state, okText = "Salvato" }: { state: ActionState; okText?: string }) {
@@ -93,7 +93,7 @@ export function NotesForm({ leadId, notes }: { leadId: string; notes: string | n
         maxLength={5000}
         onChange={() => setDirty(true)}
         placeholder="Visibili solo al team"
-        className="w-full rounded-lg border-2 border-line bg-paper p-3 outline-none focus:border-plate"
+        className="w-full rounded-lg border-2 border-line bg-paper p-3 outline-none focus:border-asphalt"
       />
       <div className="mt-2 flex items-center gap-3">
         <button className={btn} disabled={pending || !dirty}>
@@ -171,7 +171,7 @@ export function PurchaseForm({ leadId, suggestedPrice }: { leadId: string; sugge
           <input id="date" name="date" type="date" defaultValue={today} max={today} className={input} required />
         </div>
       </div>
-      <button className={`${btn} w-full bg-ok hover:bg-[#17603f]`} disabled={pending}>
+      <button className={`${btn} w-full bg-ok hover:bg-[#166534]`} disabled={pending}>
         {pending ? "Registro…" : "Registra acquisto"}
       </button>
       <Feedback state={state} okText="Acquisto registrato" />

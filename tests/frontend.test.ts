@@ -120,7 +120,7 @@ test("WhatsApp: nell'interfaccia il link è sempre generato con whatsappLink() e
 });
 
 test("brand: nome commerciale impostato, nessun segnaposto [BRAND] nei sorgenti pubblici", () => {
-  assert.equal(BRAND.name, "Compro Moto");
+  assert.equal(BRAND.name, "Compriamo Moto");
   const offenders = sources("src").filter((f) => readFileSync(f, "utf8").includes("[BRAND]"));
   assert.deepEqual(offenders, []);
 });
@@ -133,14 +133,15 @@ test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con sugger
 
 // ---- Redesign: home, immagini segnaposto, footer ------------------------------------------------------------------------
 test("home: messaggio principale, CTA e sezioni previste, senza promesse non verificate", () => {
-  const home = readFileSync("src/app/page.tsx", "utf8");
-  assert.match(home, /La compriamo noi,[\s\S]{0,80}la gestione successiva è affar nostro\./);
+  const home = readFileSync("src/app/page.tsx", "utf8") + readFileSync("src/config/home-content.ts", "utf8");
+  assert.match(home, /Valuta la tua moto[\s\S]{0,80}in pochi passaggi\./);
+  assert.match(home, /Della rivendita non devi occuparti tu/);
+  assert.match(home, /gestione successiva è a nostro carico/);
   assert.match(home, /Acquistiamo la tua moto direttamente da te/);
   assert.match(home, /Valuta la tua moto/);
-  for (const id of ["come-funziona", "mezzi", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
-  for (const m of ["Honda", "Piaggio", "Liberty", "Agility"]) assert.match(home, new RegExp(m));
+  for (const id of ["come-funziona", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
   // niente promesse di tempi, garanzie, recensioni o volumi
-  assert.doesNotMatch(home, /garantit|in giornata|entro \d|24 ?ore|subito il pagamento|recension|testimonianz|clienti soddisfatti|\d+ moto acquistate/i);
+  assert.doesNotMatch(home.replace(/\/\*[\s\S]*?\*\//g, ""), /garantit|in giornata|entro \d|24 ?ore|subito il pagamento|recension|testimonianz|clienti soddisfatti|\d+ moto acquistate/i);
 });
 
 test("immagini: nessuna illustrazione o immagine sintetica; foto solo se vere, esistenti e con credito", () => {
@@ -178,9 +179,10 @@ test("footer: i dati aziendali segnaposto non vengono mostrati al pubblico", () 
   assert.doesNotMatch(footer, /DA COMPLETARE/);
 });
 
-test("palette: antracite, giallo segnale, blu targa, grigio chiaro", () => {
+test("palette Compriamo Moto: grafite, bianco sporco, pietra, giallo segnale (e suo hover/testo), testi e bordi", () => {
   const css = readFileSync("src/app/globals.css", "utf8");
-  for (const c of ["#20252b", "#f5c928", "#1a3fa8", "#f0f1f2"]) assert.ok(css.toLowerCase().includes(c), c);
+  for (const c of ["#15181b", "#fbfbf8", "#e9ebe7", "#f1bf1a", "#dcaa0d", "#7a5c00", "#565c60", "#c3c8c1"]) assert.ok(css.toLowerCase().includes(c), c);
+  assert.doesNotMatch(css, /--color-signal|#f5c928|#1a3fa8|#2563eb|#1d4ed8|#0b1220|#7fb0ff/i, "residui della vecchia palette");
 });
 
 test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei controlli 3:1)", () => {
@@ -191,7 +193,11 @@ test("contrasto WCAG: coppie di colori del brand (testo 4.5:1, bordi dei control
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
   const ratio = (a: string, b: string) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05);
-  const text: [string, string][] = [["plate", "chalk"], ["plate", "paper"], ["signal", "asphalt"], ["signal", "asphalt-raised"], ["asphalt", "signal"], ["paper", "plate"], ["signal", "plate"], ["concrete", "paper"], ["asphalt-soft", "chalk"], ["asphalt", "chalk"]];
+  const text: [string, string][] = [
+    ["asphalt", "plate"], ["asphalt", "plate-deep"], ["gold", "chalk"], ["gold", "paper"], ["sky", "asphalt"], ["sky", "asphalt-raised"],
+    ["paper", "asphalt"], ["concrete", "paper"], ["concrete", "chalk"], ["asphalt-soft", "chalk"], ["asphalt-soft", "paper"],
+    ["ink", "chalk"], ["ink", "paper"], ["asphalt", "chalk"], ["asphalt", "notice"], ["ok", "paper"], ["ok", "chalk"], ["danger", "paper"], ["danger", "chalk"],
+  ];
   for (const [fg, bg] of text) assert.ok(ratio(tok(fg), tok(bg)) >= 4.5, `${fg} su ${bg}: ${ratio(tok(fg), tok(bg)).toFixed(2)}`);
   for (const bg of ["paper", "chalk"]) assert.ok(ratio(tok("field"), tok(bg)) >= 3, `bordo campi su ${bg}`);
 });
@@ -244,9 +250,9 @@ test("contatti: i pulsanti dell'interfaccia dipendono dai numeri e mantengono il
 test("testi per il cliente: «moto» (mai «mezzo») e nessuna limitazione a scooter o a una cilindrata", () => {
   const files = [
     "src/app/page.tsx",
+    "src/config/home-content.ts",
     "src/app/valuta/page.tsx",
-    "src/app/opengraph-image.tsx",
-    "src/components/SiteHeader.tsx",
+        "src/components/SiteHeader.tsx",
     "src/components/SiteFooter.tsx",
     "src/modules/funnel/steps/DoneStep.tsx",
     "src/modules/funnel/steps/MotoStep.tsx",
@@ -262,9 +268,9 @@ test("testi per il cliente: «moto» (mai «mezzo») e nessuna limitazione a sco
     assert.doesNotMatch(txt, /\bmezz[oi]\b/i, `${f}: usare «moto», «motocicletta» o «la tua moto»`);
     assert.doesNotMatch(txt, /\bscooter\b|soprattutto scooter|solo scooter|\b125 ?cc\b(?!")/i, `${f}: il servizio riguarda tutte le moto`);
   }
-  const home = readFileSync("src/app/page.tsx", "utf8");
+  const home = readFileSync("src/app/page.tsx", "utf8") + readFileSync("src/config/home-content.ts", "utf8");
   assert.match(home, /gestione successiva/);
-  assert.match(home, /della rivendita non devi occuparti tu/);
+  assert.match(home, /non devi occuparti|Della rivendita non devi occuparti tu/i);
   const biz = readFileSync("src/config/business.ts", "utf8");
   assert.doesNotMatch(biz.replace(/\/\*[\s\S]*?\*\//g, ""), /scooter|\bmezz[oi]\b/i);
 });

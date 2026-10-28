@@ -39,7 +39,7 @@ export function Choices<T extends string>({
               className="peer sr-only"
             />
             <span
-              className={`flex items-center justify-center rounded-xl border-2 border-field bg-paper px-3 text-center font-bold transition-colors duration-150 hover:border-asphalt-soft peer-checked:border-plate peer-checked:bg-plate peer-checked:text-paper peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-plate ${
+              className={`flex items-center justify-center rounded-xl border-2 border-field bg-paper px-3 text-center font-bold transition-colors duration-150 hover:border-asphalt-soft peer-checked:border-asphalt peer-checked:bg-plate peer-checked:text-asphalt peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-asphalt ${
                 size === "lg" ? "min-h-16 text-lg" : "min-h-14 text-base"
               }`}
             >
@@ -47,7 +47,7 @@ export function Choices<T extends string>({
             </span>
             <span
               aria-hidden
-              className="pointer-events-none absolute -right-1.5 -top-1.5 hidden h-6 w-6 items-center justify-center rounded-full bg-signal text-asphalt ring-2 ring-paper peer-checked:flex"
+              className="pointer-events-none absolute -right-1.5 -top-1.5 hidden h-6 w-6 items-center justify-center rounded-full bg-asphalt text-paper ring-2 ring-paper peer-checked:flex"
             >
               <IconCheck className="h-3 w-3" />
             </span>
@@ -84,7 +84,7 @@ export function TextField({
         id={id}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined}
-        className={`h-14 w-full rounded-xl border-2 bg-paper px-4 text-lg outline-none transition-colors placeholder:text-concrete focus:border-plate focus:ring-4 focus:ring-plate/20 ${
+        className={`h-14 w-full rounded-xl border-2 bg-paper px-4 text-lg outline-none transition-colors placeholder:text-concrete focus:border-asphalt focus:ring-4 focus:ring-asphalt/10 ${
           error ? "border-danger bg-danger/5" : "border-field"
         }`}
         {...props}
@@ -114,7 +114,7 @@ export function SelectField({
       <select
         id={id}
         aria-invalid={!!error}
-        className={`h-14 w-full appearance-none rounded-xl border-2 bg-paper bg-[length:14px] bg-[right_1rem_center] bg-no-repeat px-4 pr-10 text-lg outline-none focus:border-plate focus:ring-4 focus:ring-plate/20 ${
+        className={`h-14 w-full appearance-none rounded-xl border-2 bg-paper bg-[length:14px] bg-[right_1rem_center] bg-no-repeat px-4 pr-10 text-lg outline-none focus:border-asphalt focus:ring-4 focus:ring-asphalt/10 ${
           error ? "border-danger bg-danger/5" : "border-field"
         }`}
         style={{

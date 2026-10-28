@@ -1,12 +1,12 @@
 import { STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
-  new: "bg-signal text-asphalt",
+  new: "bg-plate text-asphalt",
   to_contact: "bg-[#ffe9a8] text-asphalt",
-  contacted: "bg-[#dfe6f7] text-plate-deep",
-  interesting: "bg-[#c9d6f5] text-plate-deep",
-  appointment: "bg-plate text-paper",
-  offer_made: "bg-plate-deep text-paper",
+  contacted: "bg-[#ece6cf] text-gold",
+  interesting: "bg-[#f6e6a8] text-asphalt",
+  appointment: "bg-plate text-asphalt",
+  offer_made: "bg-asphalt text-paper",
   accepted: "bg-[#cfe9dc] text-ok",
   purchased: "bg-ok text-paper",
   rejected: "bg-line text-asphalt-soft",

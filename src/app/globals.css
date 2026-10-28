@@ -1,30 +1,48 @@
 @import "tailwindcss";
 
 /*
- * Token di design.
- * Riferimenti visivi: la strada (asfalto, segnaletica gialla), la targa (blu banda UE),
- * il contachilometri. Nessun riferimento a identità di concorrenti.
+ * Token di design Compriamo Moto (unico punto in cui vivono i colori del brand).
+ * I nomi storici (asphalt, chalk, plate…) sono mantenuti per non riscrivere ogni componente: significano
+ *   asphalt       = grafite          chalk  = pietra (sfondo)   paper  = bianco sporco
+ *   plate         = giallo segnale (azione principale; sempre con testo grafite)   plate-deep = giallo in hover
+ *   sky           = giallo leggibile su sfondo scuro            gold   = giallo scuro per testo e link su sfondo chiaro
+ *   notice        = evidenziatore di avvisi                     concrete = testo secondario
+ *   line          = bordi                                       field  = bordo dei campi (>= 3:1)
+ * Il giallo è per l'azione principale e per la C del marchio: non per grandi superfici né per il testo corrente.
  */
 @theme {
-  --color-asphalt: #20252b;
-  --color-asphalt-soft: #3b434c;
-  --color-asphalt-raised: #2b323a;
-  --color-chalk: #f0f1f2;
-  --color-paper: #ffffff;
-  --color-plate: #1a3fa8;
-  --color-plate-deep: #12307f;
-  --color-signal: #f5c928;
-  --color-signal-soft: #ffd84d;
-  --color-concrete: #5b626a;
-  --color-line: #d6d9dc;
-  /* bordo dei campi e dei controlli: almeno 3:1 su bianco e su grigio chiaro (WCAG 1.4.11) */
-  --color-field: #737a82;
-  --color-ok: #1f7a52;
+  --color-asphalt: #15181b;
+  --color-asphalt-soft: #363c41;
+  --color-asphalt-raised: #20252a;
+  --color-ink: #15181b;
+  --color-chalk: #e9ebe7;
+  --color-paper: #fbfbf8;
+  --color-plate: #f1bf1a;
+  --color-plate-deep: #dcaa0d;
+  --color-gold: #7a5c00;
+  /* giallo scuro solo per testo grande (marchio, titoli): contrasto ~3:1, non per il testo corrente */
+  --color-brass: #a37c00;
+  --color-sky: #f1bf1a;
+  --color-notice: #fef3c7;
+  --color-concrete: #565c60;
+  --color-line: #c3c8c1;
+  /* bordo dei campi e dei controlli: almeno 3:1 su bianco (WCAG 1.4.11) */
+  --color-field: #6b7176;
+  --color-ok: #166534;
   --color-danger: #b3261e;
 
-  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), "Arial Narrow", Impact, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, Menlo, monospace;
+
+  /* angoli più netti (marchio e cartellino), applicati a tutti i componenti */
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.5rem;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-card: 0 1px 2px rgb(21 24 27 / 0.06), 0 8px 24px -12px rgb(21 24 27 / 0.14);
 }
 
 html {
@@ -35,17 +53,27 @@ html {
 
 body {
   background: var(--color-chalk);
-  color: var(--color-asphalt);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "tnum" 0;
 }
 
-/* Titoli in larghezza condensata: la personalità tipografica del prodotto */
+/* Titoli e cifre in evidenza: condensato maiuscolo (Big Shoulders Display), interlinea stretta */
 .display {
-  font-stretch: 72%;
+  font-family: var(--font-display);
   font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+/* Etichette e dati (marca, anno, passaggi): IBM Plex Mono */
+.label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .tabular {
@@ -53,28 +81,19 @@ body {
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-plate);
+  outline: 3px solid var(--color-asphalt);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Nelle sezioni scure l'anello di focus è giallo, altrove blu targa: sempre visibile */
+/* Nelle sezioni scure l'anello di focus è giallo, altrove grafite: sempre visibile */
 .on-dark :focus-visible {
-  outline-color: var(--color-signal);
+  outline-color: var(--color-sky);
 }
 
-/* Mezzeria orizzontale tratteggiata (decorazione tipografica, nessuna immagine) */
+/* Filetto pieno (decorazione tipografica, nessuna immagine) */
 .lane-h {
-  background-image: linear-gradient(to right, var(--color-signal) 0 60%, transparent 60% 100%);
-  background-size: 28px 4px;
-  background-repeat: repeat-x;
-}
-
-/* Linea di mezzeria tratteggiata (percorso "come funziona") */
-.lane {
-  background-image: linear-gradient(to bottom, var(--color-signal) 0 60%, transparent 60% 100%);
-  background-size: 4px 22px;
-  background-repeat: repeat-y;
+  background-color: var(--color-asphalt);
 }
 
 @keyframes step-in {
@@ -111,5 +130,38 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Cartellino: scheda con tacche laterali e linea di strappo (anteprima del modulo in homepage, solo decorativa) */
+.ticket {
+  position: relative;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+}
+.ticket::before,
+.ticket::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: var(--color-chalk);
+  border: 1px solid var(--color-line);
+  transform: translateY(-50%);
+}
+.ticket::before {
+  left: -10px;
+}
+.ticket::after {
+  right: -10px;
+}
+.perf {
+  border-top: 2px dashed var(--color-line);
+}
+@media (min-width: 768px) {
+  .ticket {
+    transform: rotate(-1.2deg);
   }
 }

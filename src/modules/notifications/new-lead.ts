@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { adminUsers, events, leads, motorcycles } from "@/db/schema";
 import { rateLimit, releaseRateLimit, type Rule } from "@/lib/rate-limit";
-import { siteUrl } from "@/config/business";
+import { BRAND, siteUrl } from "@/config/business";
 import { logError } from "@/lib/log";
 import { getEmailTransport, type EmailMessage } from "./transport";
 
@@ -117,6 +117,7 @@ export function buildLeadEmail(lead: LeadForEmail, base: URL = siteUrl()): Omit<
       ? `Apri la richiesta dal back office del sito (serve il login), percorso: ${path}`
       : `Apri la richiesta (serve il login): ${new URL(path, base).toString()}`;
   const lines = [
+    "COMPRIAMO MOTO",
     `Nuova richiesta di valutazione ${lead.code}`,
     "",
     `Moto: ${moto}${lead.version ? ` ${safeText(lead.version, 40)}` : ""}`,
@@ -131,9 +132,11 @@ export function buildLeadEmail(lead: LeadForEmail, base: URL = siteUrl()): Omit<
     openLine,
     "",
     "I dati di contatto del cliente non sono inclusi in questa email: si vedono solo nel back office.",
+    "",
+    `— ${BRAND.name}`,
   ];
   return {
-    subject: `Nuova richiesta ${lead.code} — ${moto} (${lead.year})`,
+    subject: `${BRAND.name} · Nuova richiesta ${lead.code} — ${moto} (${lead.year})`,
     text: lines.join("\n"),
     idempotencyKey: `lead-notify-${lead.id}`,
   };

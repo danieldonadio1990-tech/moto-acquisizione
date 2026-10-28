@@ -375,7 +375,7 @@ describe("4. Richieste duplicate: una sola notifica", () => {
 });
 
 describe("5. Trasporto Resend (fetch simulato, nessuna rete)", () => {
-  const msg = { from: "Compro Moto <onboarding@resend.dev>", to: [TO], subject: "Oggetto", text: "Corpo", idempotencyKey: "lead-notify-xyz" };
+  const msg = { from: "Compriamo Moto <onboarding@resend.dev>", to: [TO], subject: "Oggetto", text: "Corpo", idempotencyKey: "lead-notify-xyz" };
 
   test("richiesta ben formata: URL, intestazioni, corpo e chiave di idempotenza", async () => {
     let seen: { url: string; init: RequestInit } | undefined;
@@ -422,8 +422,8 @@ describe("6. Configurazione", () => {
   test("valida: destinatario da NOTIFY_EMAIL_TO, mittente di prova se manca NOTIFY_EMAIL_FROM", () => {
     const c = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: ` ${TO} ` }));
     assert.deepEqual(c, { enabled: true, apiKey: "k", to: [TO], from: cfgmod.RESEND_TEST_SENDER, dailyLimit: cfgmod.DEFAULT_DAILY_LIMIT });
-    const d = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: `${TO}, altra@example.com`, NOTIFY_EMAIL_FROM: "Compro Moto <notifiche@example.com>" }));
-    assert.ok(d.enabled && d.to.length === 2 && d.from === "Compro Moto <notifiche@example.com>");
+    const d = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: `${TO}, altra@example.com`, NOTIFY_EMAIL_FROM: "Compriamo Moto <notifiche@example.com>" }));
+    assert.ok(d.enabled && d.to.length === 2 && d.from === "Compriamo Moto <notifiche@example.com>");
   });
 
   test("incompleta o non valida: disattivata (mai un errore bloccante), con avviso senza valori", () => {

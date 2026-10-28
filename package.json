@@ -16,6 +16,7 @@
     "check:storage": "tsx --env-file-if-exists=.env.local scripts/check-storage.ts",
     "build:production": "npm run check:env && next build",
     "db:migrate": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/db-migrate.ts",
+    "migrate:0005": "tsx --conditions=react-server scripts/migration-0005/guard.ts",
     "admin:user": "tsx --conditions=react-server --env-file-if-exists=.env.local scripts/admin-user.ts",
     "test:e2e": "playwright test"
   },
@@ -31,7 +32,7 @@
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
     "sharp": "^0.35.5",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite-socket": "^0.2.11",

@@ -13,7 +13,7 @@ export type NotificationConfig =
   | { enabled: true; apiKey: string; to: string[]; from: string; dailyLimit: number };
 
 /** Mittente di prova di Resend: consegna SOLO all'indirizzo dell'account Resend (vedi docs/NOTIFICHE.md). */
-export const RESEND_TEST_SENDER = "Compro Moto <onboarding@resend.dev>";
+export const RESEND_TEST_SENDER = "Compriamo Moto <onboarding@resend.dev>";
 
 const EMAIL_RE = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
 const FROM_RE = /^(?:[^<>@\r\n]{1,80}<[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+>|[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+)$/;
@@ -49,7 +49,7 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
   if (toRaw && (to.length === 0 || to.length > MAX_RECIPIENTS || to.some((a) => !EMAIL_RE.test(a)))) {
     reasons.push(`NOTIFY_EMAIL_TO non valido (da 1 a ${MAX_RECIPIENTS} indirizzi email separati da virgola)`);
   }
-  if (fromRaw && !FROM_RE.test(fromRaw)) reasons.push('NOTIFY_EMAIL_FROM non valido (es. "Compro Moto <notifiche@tuodominio.it>")');
+  if (fromRaw && !FROM_RE.test(fromRaw)) reasons.push('NOTIFY_EMAIL_FROM non valido (es. "Compriamo Moto <notifiche@tuodominio.it>")');
 
   if (reasons.length) return { enabled: false, reasons };
   return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, dailyLimit: parseDailyLimit(e).value };

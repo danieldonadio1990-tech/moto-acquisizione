@@ -17,6 +17,7 @@ import {
   StatusBadge,
   TRI_LABELS,
 } from "@/modules/admin/ui/format";
+import { ValuationPanel } from "@/modules/admin/ui/ValuationPanel";
 import {
   NotesForm,
   OfferForm,
@@ -106,7 +107,7 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
             <span>Richiesta {lead.code}</span>
             <span>ricevuta il {formatDateTime(lead.createdAt)}</span>
             {buyBox ? (
-              <span className="rounded bg-signal/60 px-1.5 py-0.5 text-xs font-bold text-asphalt">
+              <span className="rounded bg-notice px-1.5 py-0.5 text-xs font-bold text-asphalt">
                 Buy Box: priorità {PRIORITY_LABELS[buyBox.priority].toLowerCase()}
               </span>
             ) : (
@@ -163,6 +164,11 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
             )}
           </Section>
 
+          <Section title="Valutazione e offerta">
+            <Suspense fallback={<p className="text-concrete">Carico la valutazione…</p>}>
+              <ValuationPanel leadId={lead.id} />
+            </Suspense>
+          </Section>
           <Section title={`Foto (${photos.length})`}>
             {photos.length === 0 ? (
               <p className="text-sm text-concrete">

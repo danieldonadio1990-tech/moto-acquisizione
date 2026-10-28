@@ -28,6 +28,9 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
             <Link href="/admin" className="font-bold">
               Richieste
             </Link>
+            <Link href="/admin/valutazione" className="font-bold text-asphalt-soft hover:text-asphalt">
+              Valutazione
+            </Link>
           </div>
           <Suspense>
             <UserBox />
