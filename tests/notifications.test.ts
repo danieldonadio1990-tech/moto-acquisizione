@@ -377,6 +377,28 @@ describe("4. Richieste duplicate: una sola notifica", () => {
 describe("5. Trasporto Resend (fetch simulato, nessuna rete)", () => {
   const msg = { from: "Compriamo Moto <onboarding@resend.dev>", to: [TO], subject: "Oggetto", text: "Corpo", idempotencyKey: "lead-notify-xyz" };
 
+  test("Reply-To: assente se non configurato, inviato come reply_to se presente", async () => {
+    const bodies: unknown[] = [];
+    const stub = (async (_u: string, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ id: "re-1" }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const t = new tr.ResendTransport("dummy-key-not-real", stub);
+    await t.send(msg);
+    await t.send({ ...msg, replyTo: "risposte@example.com" });
+    assert.equal("reply_to" in (bodies[0] as object), false);
+    assert.equal((bodies[1] as { reply_to?: string }).reply_to, "risposte@example.com");
+  });
+
+  test("configurazione: NOTIFY_EMAIL_REPLY_TO facoltativa e validata", () => {
+    const ok = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: " risposte@example.com " }));
+    assert.ok(ok.enabled && ok.replyTo === "risposte@example.com");
+    const none = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO }));
+    assert.ok(none.enabled && none.replyTo === undefined);
+    const bad = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: "non valido" }));
+    assert.equal(bad.enabled, false);
+  });
+
   test("richiesta ben formata: URL, intestazioni, corpo e chiave di idempotenza", async () => {
     let seen: { url: string; init: RequestInit } | undefined;
     const stub = (async (url: string, init: RequestInit) => {

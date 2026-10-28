@@ -93,6 +93,7 @@ Branch deploys già disattivati (passo 3.5), le variabili vuote negli altri cont
 | `VALUATION_ALLOW_SELF_APPROVAL` | vuoto | (facoltativa) `true` solo con un unico amministratore: consente di approvare da soli i parametri economici |
 | `NOTIFY_DAILY_LIMIT` | `50` | (facoltativa) massimo di email di notifica al giorno, per non esaurire la quota gratuita di Resend (100/giorno); `0` = nessun limite. Oltre il limite le richieste restano salvate. Vedi [NOTIFICHE.md](NOTIFICHE.md) |
 | `NOTIFY_RETRY_TOKEN` | token casuale di 64 caratteri (**segreto**) | `openssl rand -hex 32`. Facoltativo: attiva il recupero automatico delle notifiche (workflow GitHub, vedi [NOTIFICHE.md](NOTIFICHE.md)); lo stesso valore va nel secret GitHub omonimo |
+| `NOTIFY_EMAIL_REPLY_TO` | facoltativa, un indirizzo (es. quello ufficiale `compriamo.moto.support@gmail.com`) | se manca le notifiche non hanno Reply-To |
 | `NOTIFY_EMAIL_FROM` | facoltativa, es. `Compriamo Moto <notifiche@tuodominio.it>` | se manca si usa il mittente di prova di Resend: l'account Resend va registrato con l'email del destinatario |
 
 Il build **si ferma con un errore chiaro** (senza stampare valori segreti) se manca una variabile S3 (`S3_ENDPOINT`, `S3_REGION`,

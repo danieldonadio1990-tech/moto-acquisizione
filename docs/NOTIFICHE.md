@@ -241,6 +241,7 @@ Da fare una volta, con credenziali **di prova** e mai con quelle di produzione:
 | `NOTIFY_DAILY_LIMIT` | no | massimo di notifiche al giorno (giorno UTC), predefinito **50**, `0` = nessun limite |
 | `FORM_TOKEN_REQUIRED` | no | gettone anti-bot del modulo: obbligatorio in produzione; `false` lo spegne, `true` lo accende in sviluppo |
 | `NOTIFY_RETRY_TOKEN` | no (senza: nessun recupero automatico) | token della rotta di recupero (**segreto**, ≥ 32 caratteri; `openssl rand -hex 32`). Vedi «Recupero automatico» |
+| `NOTIFY_EMAIL_REPLY_TO` | no | Reply-To delle notifiche (un solo indirizzo). Se manca, nessun Reply-To |
 | `NOTIFY_EMAIL_FROM` | no | mittente, per esempio `Compriamo Moto <notifiche@tuodominio.it>`. Se manca: `Compriamo Moto <onboarding@resend.dev>` |
 
 - **Netlify:** pannello → Site configuration → Environment variables, valore **solo per il contesto Production**
@@ -337,6 +338,32 @@ ALTER TABLE leads DROP CONSTRAINT leads_notification_status_valid;
 ALTER TABLE leads DROP COLUMN notification_status, DROP COLUMN notification_attempts, DROP COLUMN notification_claimed_at,
   DROP COLUMN notification_sent_at, DROP COLUMN notification_error;
 ```
+
+## Indirizzo email ufficiale e checklist di migrazione
+Indirizzo ufficiale: `compriamo.moto.support@gmail.com`. Nel repository compare **una sola volta** come dato attivo,
+`CONTACTS.email` in `src/config/business.ts` (da lì lo prendono footer e link `mailto:`). Il vecchio indirizzo non è più
+in nessun file versionato (resta solo nella cronologia Git, che non si modifica); un test lo verifica.
+
+**Da dove arrivano i campi di un'email di notifica** (verificato nel codice):
+- `to`: solo dalla variabile `NOTIFY_EMAIL_TO` (`config.ts`); nessun indirizzo è nel codice. Se in produzione risulta
+  ancora il vecchio indirizzo, è il valore della variabile su Netlify: va cambiato lì, poi serve un nuovo deploy.
+- `from`: `NOTIFY_EMAIL_FROM`, altrimenti il mittente di prova `Compriamo Moto <onboarding@resend.dev>`.
+- Reply-To: prima non esisteva. Ora è la variabile facoltativa `NOTIFY_EMAIL_REPLY_TO` (inviata a Resend come
+  `reply_to`); se vuota non si invia nulla. Le notifiche vanno solo al titolare e non contengono i contatti del cliente:
+  il Reply-To è utile perché una risposta dal mittente di prova (`onboarding@resend.dev`) non arriverebbe a nessuno.
+  Consigliato: impostarla a `compriamo.moto.support@gmail.com`.
+
+| Servizio | Cosa controllare | Nel repository? | Stato |
+|---|---|---|---|
+| **Netlify** | `NOTIFY_EMAIL_TO` (Production ed eventuali Deploy Preview/Branch deploy) = nuovo indirizzo; aggiungere `NOTIFY_EMAIL_REPLY_TO`; poi nuovo deploy | No: solo variabili d'ambiente | da aggiornare |
+| **Netlify** | `NOTIFY_EMAIL_FROM` (se impostata) e `ADMIN_EMAIL`: funzioni diverse, vedi sotto | No | da confermare manualmente |
+| **Resend** | Email dell'account: con il mittente di prova le notifiche arrivano **solo** a quell'indirizzo; se l'account è registrato con il vecchio, il nuovo destinatario riceve 403. Cambiare l'email dell'account o verificare un dominio | No | da confermare manualmente |
+| **Resend** | Template: non esistono, il testo è generato da `new-lead.ts` e non contiene indirizzi email | Sì | verificato |
+| **Supabase** | Nel codice è solo storage S3 delle foto: nessun template o mittente email. In dashboard controllare solo eventuali notifiche di progetto (auth non toccata) | No | da confermare manualmente |
+| **Gmail** | La casella `compriamo.moto.support@gmail.com` esiste e riceve; le notifiche non finiscono in spam (filtro «mai in spam» per il mittente); eventuale inoltro dalla vecchia casella | No | da confermare manualmente |
+
+Indirizzi con funzione diversa, **non** modificati: `ADMIN_EMAIL` (login del back office, `src/db/bootstrap.ts`,
+`scripts/admin-user.ts`) e `NOTIFY_EMAIL_FROM` (mittente).
 
 ## Fornitori coinvolti (documentazione tecnica, NON l'informativa privacy)
 | Fornitore | Ruolo | Dati trattati |
