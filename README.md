@@ -307,8 +307,8 @@ richieste condividono un solo contatore (più restrittivo, non più permissivo).
 
 ## Brand, valutazione e dominio
 
-- **Brand Compriamo Moto:** simbolo CM + moto, palette grafite / bianco sporco / pietra / giallo segnale, Big Shoulders Display + Instrument Sans +
-  IBM Plex Mono. I colori stanno in un solo punto, `src/app/globals.css`; i nomi storici dei token (`asphalt`, `plate`, `chalk`…) sono mantenuti e
+- **Brand Compriamo Moto:** simbolo CM + moto, palette grafite / bianco sporco / pietra / giallo segnale, Big Shoulders Display per i titoli e Instrument Sans per testi ed
+  etichette (nessun carattere monospazio). I colori stanno in un solo punto, `src/app/globals.css`; i nomi storici dei token (`asphalt`, `plate`, `chalk`…) sono mantenuti e
   documentati nel file; un test verifica il contrasto WCAG delle coppie usate. File del logo in `public/brand/v2`, componenti in
   `src/components/BrandMark.tsx` e `src/components/brand/`. Dettagli, regole d'uso e icone: [docs/BRAND.md](docs/BRAND.md). Spazi pubblicitari
   predisposti e **spenti**: [docs/PUBBLICITA.md](docs/PUBBLICITA.md). Le denominazioni tecniche (nome del repository `moto-acquisizione`,

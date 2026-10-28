@@ -42,7 +42,7 @@ I nomi dei token sono quelli storici; i contrasti WCAG delle coppie usate sono v
 
 - **Big Shoulders Display** (800, 900): titoli e cifre in evidenza (classe `.display`, maiuscolo).
 - **Instrument Sans** (400–700): testo del sito, moduli.
-- **IBM Plex Mono** (400): etichette e dati (classe `.label`).
+- Etichette e dati (classe `.label`): Instrument Sans, maiuscolo spaziato. Nessun carattere monospazio nel sito.
 
 ## Icone e anteprima social
 

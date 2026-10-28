@@ -108,7 +108,7 @@ export default function Home() {
                 <details key={f.q} className="group border-b border-line">
                   <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 py-3 text-lg font-semibold [&::-webkit-details-marker]:hidden">
                     {f.q}
-                    <span aria-hidden className="shrink-0 font-mono text-2xl leading-none transition-transform duration-200 group-open:rotate-45 motion-reduce:transition-none">
+                    <span aria-hidden className="shrink-0 font-sans text-2xl leading-none transition-transform duration-200 group-open:rotate-45 motion-reduce:transition-none">
                       +
                     </span>
                   </summary>

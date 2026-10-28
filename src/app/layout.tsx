@@ -4,7 +4,7 @@ import { BRAND, siteUrl } from "@/config/business";
 import { indexingEnabled } from "@/config/seo";
 import "./globals.css";
 
-// Instrument Sans (testo), Big Shoulders Display (titoli) e IBM Plex Mono (dati): SIL Open Font License, self-hosted,
+// Instrument Sans (testo ed etichette) e Big Shoulders Display (titoli): SIL Open Font License, self-hosted,
 // nessuna richiesta a server esterni (licenze in src/fonts/OFL-brand-v2.txt)
 const body = localFont({
   src: "../fonts/instrument-sans-latin-wght-normal.woff2",
@@ -19,13 +19,6 @@ const display = localFont({
     { path: "../fonts/big-shoulders-display-latin-900-normal.woff2", weight: "900", style: "normal" },
   ],
   variable: "--font-display-face",
-  display: "swap",
-});
-const mono = localFont({
-  src: "../fonts/ibm-plex-mono-latin-400-normal.woff2",
-  variable: "--font-mono-face",
-  weight: "400",
-  style: "normal",
   display: "swap",
 });
 
@@ -56,7 +49,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="it" className={`${body.variable} ${display.variable} ${mono.variable} antialiased`}>
+    <html lang="it" className={`${body.variable} ${display.variable} antialiased`}>
       <body className="min-h-dvh">{children}</body>
     </html>
   );

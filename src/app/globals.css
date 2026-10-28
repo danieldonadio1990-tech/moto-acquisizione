@@ -33,7 +33,6 @@
 
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display-face), "Arial Narrow", Impact, sans-serif;
-  --font-mono: var(--font-mono-face), ui-monospace, Menlo, monospace;
 
   /* angoli più netti (marchio e cartellino), applicati a tutti i componenti */
   --radius-lg: 0.25rem;
@@ -68,9 +67,9 @@ body {
   text-wrap: balance;
 }
 
-/* Etichette e dati (marca, anno, passaggi): IBM Plex Mono */
+/* Etichette e dati (marca, anno, passaggi): Instrument Sans, maiuscolo spaziato */
 .label {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.75rem;
   letter-spacing: 0.09em;
   text-transform: uppercase;
