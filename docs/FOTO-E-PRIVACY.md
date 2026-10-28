@@ -23,6 +23,25 @@ Per provare lo storage reale prima di tutto il resto: `npm run check:storage` (c
 
 **Nota:** una versione precedente della rotta rifiutava con 411 ogni richiesta senza intestazione `Content-Length`; ora il tetto è sui byte ricevuti. Se i log mostrano `[foto:storage]`, la correzione del codice non basta: va sistemato lo storage (nessun costo, ma serve un intervento nel pannello del fornitore).
 
+## Diagnosi dell'upload in produzione (senza log)
+Il messaggio «Alcune foto non sono state caricate…» compare solo se il server ha risposto **200** ma almeno una foto è finita in «error» (un errore HTTP mostra
+invece il suo messaggio con il codice). Gli esiti per foto sono: `saved`/`duplicate` (ok), `invalid` (file non valido, foto in rosso), `limit` (12 foto), `error`
+(**archivio foto o database**). Da questa versione il messaggio «error» dice dove e con quale codice tecnico (es. «Archivio delle foto non raggiungibile (NoSuchBucket,
+HTTP 404)»); i codici sono solo nomi di errore, mai indirizzi o chiavi.
+
+Controllo dentro il sito pubblicato, senza terminale: da amministratore (già connesso al back office) apri **`/api/admin/storage-check`**. Esegue nello stesso runtime di un
+upload vero: elaborazione immagini (sharp), lettura della tabella delle foto, scrittura/lettura/elenco/cancellazione di un solo oggetto di prova sotto `healthcheck/`.
+Risposta JSON con la configurazione non segreta (driver, bucket, regione, host dell'endpoint, path-style) e l'esito di ogni passo con nome dell'errore e stato HTTP. Non
+tocca foto o dati dei clienti e non restituisce chiavi.
+
+| Passo fallito | Causa tipica |
+|---|---|
+| `storage: scrittura` con `InvalidAccessKeyId` / `SignatureDoesNotMatch` / `AccessDenied` (403) | chiavi o permessi del bucket sbagliati; regione errata |
+| `storage: scrittura` con `NoSuchBucket` (404) | nome del bucket sbagliato o bucket non creato |
+| `storage: scrittura` con `ENOTFOUND` / `ETIMEDOUT` / `UnknownEndpoint` | endpoint sbagliato, `S3_FORCE_PATH_STYLE` non `true` per Supabase, progetto sospeso |
+| `database: lettura della tabella delle foto` | tabella o permessi del database |
+| `elaborazione immagini (sharp)` | libreria immagini non disponibile nell'hosting |
+
 ## Informativa privacy: cosa è cambiato
 - La pagina `/privacy` non evidenzia più nulla in giallo e non mostra più il banner «Bozza in revisione» né il numero di versione `draft-…`. I dati ancora da fornire compaiono come frase normale («ragione sociale (da indicare)»). Finché l'informativa resta una bozza il sito non è indicizzato dai motori di ricerca (`src/config/seo.ts`) e il log di avvio lo segnala.
 - La casella nel modulo è una **presa visione** dell'informativa («Ho letto l'informativa privacy»), non un consenso generico a essere ricontattati: la base giuridica indicata nel testo per valutare e ricontattare è la richiesta dell'interessato (misure precontrattuali, art. 6.1.b), non il consenso. Resta obbligatoria per documentare che l'informativa è stata mostrata; viene salvata con data e versione (colonna `privacy_consent_at`, nome storico, nessuna migrazione). **Da far verificare a chi segue la privacy dell'azienda**: questa non è una verifica legale né una dichiarazione di conformità.

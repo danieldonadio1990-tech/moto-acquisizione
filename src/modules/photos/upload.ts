@@ -7,12 +7,16 @@ import { leadPhotos, leads } from "@/db/schema";
 import { logError } from "@/lib/log";
 import { getPhotoStorage } from "./storage";
 import { MAX_PHOTOS_PER_LEAD, PhotoError, processPhoto } from "./process";
+import { describeSafeError, safeErrorInfo } from "./diagnostics";
 
 export type PhotoItem = { clientPhotoId: string; data: Buffer };
 export type PhotoResult = {
   clientPhotoId: string;
   status: "saved" | "duplicate" | "invalid" | "limit" | "error";
   message?: string;
+  /** solo per status «error»: dove è fallito (archivio delle foto o database) e il codice tecnico non sensibile */
+  reason?: "storage" | "database";
+  detail?: string;
 };
 
 class LimitReached extends Error {}
@@ -64,7 +68,8 @@ export async function savePhotos(leadId: string, items: PhotoItem[]): Promise<Ph
       await storage.put(key, processed.data, processed.contentType);
     } catch (err) {
       logError("foto:storage", err);
-      results.push({ clientPhotoId: id, status: "error", message: "Salvataggio non riuscito, riprova" });
+      const detail = describeSafeError(safeErrorInfo(err));
+      results.push({ clientPhotoId: id, status: "error", reason: "storage", detail, message: `Archivio delle foto non raggiungibile (${detail}). Riprova tra poco.` });
       continue;
     }
 
@@ -95,7 +100,8 @@ export async function savePhotos(leadId: string, items: PhotoItem[]): Promise<Ph
         results.push({ clientPhotoId: id, status: "duplicate" });
       } else {
         logError("foto:db", err);
-        results.push({ clientPhotoId: id, status: "error", message: "Salvataggio non riuscito, riprova" });
+        const detail = describeSafeError(safeErrorInfo(err));
+        results.push({ clientPhotoId: id, status: "error", reason: "database", detail, message: `Salvataggio non riuscito nel database (${detail}). Riprova tra poco.` });
       }
     }
   }
