@@ -38,7 +38,7 @@ export const CONTACTS = {
 
 export const LEGAL = {
   companyName: "[DA COMPLETARE: ragione sociale]",
-  vatNumber: "[DA COMPLETARE: P.IVA]",
+  vatNumber: "[DA COMPLETARE: partita IVA]",
   address: "[DA COMPLETARE: indirizzo sede legale]",
   privacyEmail: "[DA COMPLETARE: email per la privacy]",
   pec: "[DA COMPLETARE: PEC, se presente]",
@@ -54,17 +54,18 @@ export const SITE = {
 } as const;
 
 export const PROVIDERS = {
-  hosting: "[DA COMPLETARE: fornitore hosting del sito, es. Vercel]",
-  database: "[DA COMPLETARE: fornitore database, es. Neon o Supabase, regione UE]",
-  storage: "[DA COMPLETARE: fornitore storage foto, es. Cloudflare R2 (UE) o Supabase Storage]",
+  hosting: "Netlify",
+  database: "Neon (regione dell'Unione Europea: Francoforte)",
+  // da confermare con lo storage realmente configurato in produzione (vedi docs/PUBBLICAZIONE.md)
+  storage: "[DA COMPLETARE: nome del fornitore dell'archivio foto, es. Cloudflare R2 (UE) o Supabase Storage]",
 } as const;
 
 /**
- * Versione dell'informativa, salvata insieme a ogni consenso.
+ * Versione dell'informativa, salvata insieme alla presa visione dell'utente.
  * Resta "draft-…" finché il testo e i dati sopra non sono completati e approvati;
  * poi passare a "1.0" (e incrementare a ogni modifica del testo).
  */
-export const PRIVACY_POLICY_VERSION = "draft-2";
+export const PRIVACY_POLICY_VERSION = "draft-3";
 
 // ----------------------------------------------------------------------------
 // Funzioni di supporto (non contengono dati: non serve modificarle)
