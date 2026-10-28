@@ -105,8 +105,9 @@ export function ContactStep({
               Ho letto l&apos;
               <Link href="/privacy" target="_blank" className="font-semibold underline underline-offset-4">
                 informativa privacy
-              </Link>{" "}
-              e accetto di essere ricontattato per la valutazione della moto.
+              </Link>
+              .
+              <span className="mt-1 block text-sm text-concrete">Usiamo i tuoi dati solo per valutare la moto e ricontattarti.</span>
             </span>
           </label>
           {errors.privacyConsent && <FieldError>{errors.privacyConsent}</FieldError>}
