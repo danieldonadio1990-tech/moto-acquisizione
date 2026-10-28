@@ -1,4 +1,5 @@
 import {
+  AUTO_ACTOR,
   getApprovedSettings,
   getCurrentValuation,
   listValuationRevisions,
@@ -43,6 +44,7 @@ export async function ValuationPanel({ leadId }: { leadId: string }) {
   const market = (cur?.market ?? null) as MarketView | null;
   const reasons = ((cur?.reasons ?? []) as ReasonCode[]).filter(Boolean);
   const closed = cur ? ["offer_confirmed", "rejected", "expired"].includes(cur.status) : false;
+  const automaticOffer = revisions.some((r) => r.createdBy === AUTO_ACTOR && r.status === "offer_confirmed");
   const maxEuros = cur?.maxOfferCents != null ? Math.floor(cur.maxOfferCents / 100) : null;
   const confirmable = cur ? cur.status === "offer_to_confirm" || (cur.status === "preliminary_generated" && cur.decision === "preliminary_offer") : false;
   const confirmAmount = cur ? (cur.status === "offer_to_confirm" ? cur.manualOfferCents : cur.maxOfferCents) : null;
@@ -71,6 +73,12 @@ export async function ValuationPanel({ leadId }: { leadId: string }) {
             Stato: <strong>{VALUATION_STATUS_LABELS[cur.status]}</strong> · revisione {cur.revision} · formula {cur.formulaVersion} ·{" "}
             affidabilità {(cur.confidenceBp / 100).toFixed(0)}%
           </p>
+
+          {automaticOffer && (
+            <p role="status" data-testid="automatic-offer-note" className="rounded-xl bg-paper px-4 py-3 text-sm font-semibold ring-1 ring-asphalt">
+              Offerta generata automaticamente dal motore con i parametri approvati. Non è stata comunicata al cliente: verifica e contattalo tu.
+            </p>
+          )}
 
           {reasons.length > 0 && (
             <ul className="list-disc space-y-0.5 pl-5 text-sm text-asphalt-soft">

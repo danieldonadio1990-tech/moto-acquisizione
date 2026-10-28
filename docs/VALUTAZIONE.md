@@ -130,3 +130,40 @@ fallisce in modo innocuo (il cliente vede la conferma standard, l'errore va nel 
 `tests/valuation-engine.test.ts` (formula, arrotondamenti, limiti, input incoerenti, dati mancanti/scaduti, affidabilità; **fixture
 simulate**), `tests/valuation-service.test.ts` (creazione richiesta, idempotenza, concorrenza, parametri, flusso amministrativo, privacy),
 `tests/valuation-admin.test.ts` (accessi, assenza di dati interni sulle superfici pubbliche, conversioni del modulo).
+
+## 11. Offerta automatica (spenta finché non la accendi tu)
+Il motore può creare da solo l'offerta, ma **solo se** il parametro «Crea l'offerta in automatico quando i dati bastano» è acceso in una versione di
+parametri **approvata** (back office → Valutazione → Parametri → «Offerta automatica»). Di default è spento, e le versioni approvate prima di questo campo
+restano valide e senza automatismo.
+
+**Quando l'offerta si crea** (tutte le condizioni insieme, alla creazione della richiesta):
+parametri approvati e abilitati · modello riconosciuto nel catalogo · dati di mercato presenti, non simulati e non scaduti · nessuna condizione che richiede
+verifica (incidente, non funzionante, problemi meccanici, se così configurato) · affidabilità sopra la soglia dell'offerta · `rivendita − costi − offerta ≥ margine`
+· offerta entro minimo e tetto configurati · importo in euro interi (si arrotonda per difetto, quindi il margine non peggiora).
+Si crea una riga in `offers` (stato «proposta», autore `motore-automatico`), la richiesta passa a «Offerta fatta» (con storico) e la valutazione ottiene la
+revisione 2 «Offerta confermata» (autore `motore-automatico`). Tutto in una transazione con la richiesta bloccata: due esecuzioni simultanee creano una sola offerta.
+
+**Quando NON si crea**, la valutazione resta con il motivo registrato (pannello «Valutazione e offerta» → motivi) e va in verifica manuale: nessun parametro
+approvato · nessun dato di mercato · modello non riconosciuto · dati scaduti · pochi casi o affidabilità bassa (al massimo una fascia) · costi e margine non coperti
+· offerta sotto il minimo · condizioni da verificare · dati incoerenti · parametri cambiati tra calcolo e offerta · richiesta già acquistata (`auto_offer_failed`).
+Un errore tecnico del motore registra comunque la revisione 1 con motivo `engine_error` (prima restava solo il log).
+
+**Non è visibile al cliente.** Il cliente continua a vedere «verifica manuale» finché `VALUATION_PUBLIC_OFFERS` resta spento; la revisione dell'offerta automatica
+non è mai marcata come mostrata. Nessuna email e nessun messaggio al cliente: il pannello avvisa che l'offerta non è stata comunicata. L'interruttore pubblico
+e l'offerta automatica sono indipendenti: **non accendere `VALUATION_PUBLIC_OFFERS` prima di aver verificato i risultati** (con entrambi accesi il cliente vedrebbe l'importo).
+Il ricalcolo dell'amministratore non crea mai offerte da solo, e le richieste già valutate non vengono rivalutate.
+
+**Controllo in sola lettura dello stato in produzione** (SQL Editor di Neon, branch `production`; non scrive nulla):
+```sql
+select
+  (select count(*) from drizzle.__drizzle_migrations) as migrazioni_registrate,
+  to_regclass('public.valuations') is not null as tabelle_motore_presenti,
+  (select count(*) from valuation_settings where status = 'approved') as parametri_approvati,
+  (select count(*) from market_references) as righe_di_mercato;
+```
+Se le tabelle del motore non esistono la query dà un errore: la migrazione `0005` non è applicata. Per capire perché una richiesta di prova non ha avuto l'offerta basta
+il campo «motivi» del suo pannello.
+
+**Decisioni economiche richieste al titolare (nessun valore è stato inventato):** costi fissi e percentuali per moto, margine obiettivo e minimo, offerta minima e
+massima, regime fiscale, soglie di affidabilità e numero minimo di casi, età massima dei dati, e **dati di mercato reali con fonte e data** per le moto da acquistare
+(oggi il catalogo ha solo 24 modelli, in prevalenza scooter: le altre moto restano sempre in verifica manuale).

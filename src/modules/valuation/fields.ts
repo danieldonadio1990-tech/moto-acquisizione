@@ -69,6 +69,17 @@ export const PARAM_GROUPS: FieldGroup[] = [
     ],
   },
   {
+    title: "Offerta automatica",
+    fields: [
+      {
+        path: "automation.autoOffer",
+        label: "Crea l'offerta in automatico quando i dati bastano",
+        kind: "bool",
+        hint: "Solo con risultato «offerta preliminare» che rispetta margine, tetti e affidabilità. Non viene comunicata al cliente.",
+      },
+    ],
+  },
+  {
     title: "Verifica manuale obbligatoria",
     fields: [
       { path: "review.manualIfAccident", label: "Se dichiara incidenti", kind: "bool" },
