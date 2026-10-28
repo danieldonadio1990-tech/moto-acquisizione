@@ -7,6 +7,8 @@ import { DEFAULT_DAILY_LIMIT, loadNotificationConfig } from "./config";
 export type EmailMessage = {
   from: string;
   to: string[];
+  /** Facoltativo: se assente la email non ha Reply-To */
+  replyTo?: string;
   subject: string;
   text: string;
   /** Resend ricorda la chiave per 24 ore: lo stesso invio ripetuto in quella finestra non produce una seconda email */
@@ -42,7 +44,13 @@ export class ResendTransport implements EmailTransport {
           "user-agent": "compro-moto-notifications/1.0",
           "idempotency-key": msg.idempotencyKey,
         },
-        body: JSON.stringify({ from: msg.from, to: msg.to, subject: msg.subject, text: msg.text }),
+        body: JSON.stringify({
+          from: msg.from,
+          to: msg.to,
+          ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
+          subject: msg.subject,
+          text: msg.text,
+        }),
         signal: ctrl.signal,
       });
       if (!res.ok) return { ok: false, code: `http_${res.status}` };
@@ -67,7 +75,7 @@ export function setEmailTransport(t: EmailTransport | null | undefined) {
  * Trasporto in uso, o null se le notifiche non sono configurate.
  * In ambiente di test il trasporto reale NON viene mai creato, nemmeno se la chiave fosse presente nell'ambiente.
  */
-export function getEmailTransport(): { transport: EmailTransport; to: string[]; from: string; dailyLimit: number } | null {
+export function getEmailTransport(): { transport: EmailTransport; to: string[]; from: string; replyTo?: string; dailyLimit: number } | null {
   const cfg = loadNotificationConfig();
   const override = g.__emailTransport;
   if (override) {
@@ -75,9 +83,10 @@ export function getEmailTransport(): { transport: EmailTransport; to: string[]; 
       transport: override,
       to: cfg.enabled ? cfg.to : ["notifiche@example.invalid"],
       from: cfg.enabled ? cfg.from : "Test <test@example.invalid>",
+      replyTo: cfg.enabled ? cfg.replyTo : undefined,
       dailyLimit: cfg.enabled ? cfg.dailyLimit : DEFAULT_DAILY_LIMIT,
     };
   }
   if (process.env.NODE_ENV === "test" || !cfg.enabled) return null;
-  return { transport: new ResendTransport(cfg.apiKey), to: cfg.to, from: cfg.from, dailyLimit: cfg.dailyLimit };
+  return { transport: new ResendTransport(cfg.apiKey), to: cfg.to, from: cfg.from, replyTo: cfg.replyTo, dailyLimit: cfg.dailyLimit };
 }

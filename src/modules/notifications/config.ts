@@ -4,13 +4,14 @@
  *   RESEND_API_KEY      chiave API (segreto: solo nel pannello Netlify o nel proprio .env.local, mai nel repository)
  *   NOTIFY_EMAIL_TO     destinatario/i, separati da virgola (indirizzo reale solo nella variabile, mai nel codice)
  *   NOTIFY_EMAIL_FROM   mittente; se manca si usa il mittente di prova di Resend (vedi docs/NOTIFICHE.md)
+ *   NOTIFY_EMAIL_REPLY_TO  facoltativo: indirizzo Reply-To delle notifiche; se manca l'email non ha Reply-To
  *
  * Una configurazione incompleta o non valida DISATTIVA le notifiche e produce un avviso: non ferma mai il sito
  * (le richieste dei clienti devono continuare ad arrivare).
  */
 export type NotificationConfig =
   | { enabled: false; reasons: string[] }
-  | { enabled: true; apiKey: string; to: string[]; from: string; dailyLimit: number };
+  | { enabled: true; apiKey: string; to: string[]; from: string; replyTo?: string; dailyLimit: number };
 
 /** Mittente di prova di Resend: consegna SOLO all'indirizzo dell'account Resend (vedi docs/NOTIFICHE.md). */
 export const RESEND_TEST_SENDER = "Compriamo Moto <onboarding@resend.dev>";
@@ -38,6 +39,7 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
   const apiKey = e.RESEND_API_KEY?.trim();
   const toRaw = e.NOTIFY_EMAIL_TO?.trim();
   const fromRaw = e.NOTIFY_EMAIL_FROM?.trim();
+  const replyToRaw = e.NOTIFY_EMAIL_REPLY_TO?.trim();
 
   if (!apiKey) reasons.push("RESEND_API_KEY mancante");
   if (!toRaw) reasons.push("NOTIFY_EMAIL_TO mancante");
@@ -50,9 +52,10 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
     reasons.push(`NOTIFY_EMAIL_TO non valido (da 1 a ${MAX_RECIPIENTS} indirizzi email separati da virgola)`);
   }
   if (fromRaw && !FROM_RE.test(fromRaw)) reasons.push('NOTIFY_EMAIL_FROM non valido (es. "Compriamo Moto <notifiche@tuodominio.it>")');
+  if (replyToRaw && !EMAIL_RE.test(replyToRaw)) reasons.push("NOTIFY_EMAIL_REPLY_TO non valido (un solo indirizzo email)");
 
   if (reasons.length) return { enabled: false, reasons };
-  return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, dailyLimit: parseDailyLimit(e).value };
+  return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, ...(replyToRaw ? { replyTo: replyToRaw } : {}), dailyLimit: parseDailyLimit(e).value };
 }
 
 /** Lunghezza minima del token del recupero automatico (generarlo con `openssl rand -hex 32`: 64 caratteri). */
@@ -82,7 +85,7 @@ export function notificationWarnings(e: NodeJS.ProcessEnv = process.env): string
           `Recupero automatico delle notifiche non attivo: NOTIFY_RETRY_TOKEN mancante o più corto di ${MIN_RETRY_TOKEN_LENGTH} caratteri (le notifiche fallite si recuperano solo aprendo il back office).`,
         ];
   }
-  const nothingSet = !e.RESEND_API_KEY?.trim() && !e.NOTIFY_EMAIL_TO?.trim() && !e.NOTIFY_EMAIL_FROM?.trim();
+  const nothingSet = !e.RESEND_API_KEY?.trim() && !e.NOTIFY_EMAIL_TO?.trim() && !e.NOTIFY_EMAIL_FROM?.trim() && !e.NOTIFY_EMAIL_REPLY_TO?.trim();
   return [
     nothingSet
       ? "Notifiche email non configurate (RESEND_API_KEY, NOTIFY_EMAIL_TO): le nuove richieste si vedono solo nel back office."

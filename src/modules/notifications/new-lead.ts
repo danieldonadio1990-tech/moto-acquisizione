@@ -246,7 +246,7 @@ export async function notifyNewLead(leadId: string, opts: { manual?: boolean } =
     try {
       const lead = await loadLeadForEmail(leadId);
       if (!lead) throw new Error("lead non trovato");
-      result = await target.transport.send({ from: target.from, to: target.to, ...buildLeadEmail(lead) });
+      result = await target.transport.send({ from: target.from, to: target.to, replyTo: target.replyTo, ...buildLeadEmail(lead) });
     } catch (err) {
       logError("notifica email", err);
       result = { ok: false, code: "internal" };

@@ -33,7 +33,7 @@ export const CONTACTS = {
    * prefisso internazionale si assume l'Italia (+39). Può essere diverso dal numero WhatsApp.
    */
   phone: "[DA COMPLETARE: telefono]",
-  email: "[DA COMPLETARE: email di contatto]",
+  email: "compriamo.moto.support@gmail.com",
 } as const;
 
 /**
