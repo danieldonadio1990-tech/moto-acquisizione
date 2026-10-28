@@ -396,7 +396,23 @@ describe("5. Trasporto Resend (fetch simulato, nessuna rete)", () => {
     const none = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO }));
     assert.ok(none.enabled && none.replyTo === undefined);
     const bad = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: "non valido" }));
-    assert.equal(bad.enabled, false);
+    // un Reply-To non valido NON spegne le notifiche: viene ignorato e segnalato
+    assert.ok(bad.enabled && bad.replyTo === undefined);
+    for (const v of ["Compriamo Moto <risposte@example.com>", '"risposte@example.com"']) {
+      const c = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: v }));
+      assert.ok(c.enabled && c.replyTo === undefined, v);
+    }
+    const w = cfgmod.notificationWarnings(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: "non valido" })).join(" ");
+    assert.match(w, /NOTIFY_EMAIL_REPLY_TO non valido.*senza Reply-To/);
+  });
+
+  test("errore HTTP: il codice include il solo nome dell'errore di Resend, mai il messaggio", async () => {
+    const stub = (async () =>
+      new Response(JSON.stringify({ name: "validation_error", message: `Testing domain restriction: ${TO}` }), { status: 403 })) as unknown as typeof fetch;
+    const out = await new tr.ResendTransport("dummy-key-not-real", stub).send(msg);
+    assert.deepEqual(out, { ok: false, code: "http_403:validation_error" });
+    const plain = (async () => new Response("<html>", { status: 502 })) as unknown as typeof fetch;
+    assert.deepEqual(await new tr.ResendTransport("dummy-key-not-real", plain).send(msg), { ok: false, code: "http_502" });
   });
 
   test("richiesta ben formata: URL, intestazioni, corpo e chiave di idempotenza", async () => {

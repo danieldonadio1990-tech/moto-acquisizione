@@ -52,10 +52,11 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
     reasons.push(`NOTIFY_EMAIL_TO non valido (da 1 a ${MAX_RECIPIENTS} indirizzi email separati da virgola)`);
   }
   if (fromRaw && !FROM_RE.test(fromRaw)) reasons.push('NOTIFY_EMAIL_FROM non valido (es. "Compriamo Moto <notifiche@tuodominio.it>")');
-  if (replyToRaw && !EMAIL_RE.test(replyToRaw)) reasons.push("NOTIFY_EMAIL_REPLY_TO non valido (un solo indirizzo email)");
+  // Il Reply-To è facoltativo: se non è valido si ignora (con un avviso in notificationWarnings), non si spengono le notifiche
+  const replyTo = replyToRaw && EMAIL_RE.test(replyToRaw) ? replyToRaw : undefined;
 
   if (reasons.length) return { enabled: false, reasons };
-  return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, ...(replyToRaw ? { replyTo: replyToRaw } : {}), dailyLimit: parseDailyLimit(e).value };
+  return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, ...(replyTo ? { replyTo } : {}), dailyLimit: parseDailyLimit(e).value };
 }
 
 /** Lunghezza minima del token del recupero automatico (generarlo con `openssl rand -hex 32`: 64 caratteri). */
@@ -75,6 +76,10 @@ export function notificationWarnings(e: NodeJS.ProcessEnv = process.env): string
   const cfg = loadNotificationConfig(e);
   if (cfg.enabled) {
     const warnings: string[] = [];
+    const replyTo = e.NOTIFY_EMAIL_REPLY_TO?.trim();
+    if (replyTo && !EMAIL_RE.test(replyTo)) {
+      warnings.push("NOTIFY_EMAIL_REPLY_TO non valido (un solo indirizzo email, senza nome né virgolette): ignorato, le notifiche partono senza Reply-To.");
+    }
     if (parseDailyLimit(e).invalid) {
       warnings.push(`NOTIFY_DAILY_LIMIT non valido (numero intero da 0 a 9999): si usa il valore predefinito ${DEFAULT_DAILY_LIMIT}.`);
     }

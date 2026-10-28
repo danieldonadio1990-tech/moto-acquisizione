@@ -241,7 +241,7 @@ Da fare una volta, con credenziali **di prova** e mai con quelle di produzione:
 | `NOTIFY_DAILY_LIMIT` | no | massimo di notifiche al giorno (giorno UTC), predefinito **50**, `0` = nessun limite |
 | `FORM_TOKEN_REQUIRED` | no | gettone anti-bot del modulo: obbligatorio in produzione; `false` lo spegne, `true` lo accende in sviluppo |
 | `NOTIFY_RETRY_TOKEN` | no (senza: nessun recupero automatico) | token della rotta di recupero (**segreto**, ≥ 32 caratteri; `openssl rand -hex 32`). Vedi «Recupero automatico» |
-| `NOTIFY_EMAIL_REPLY_TO` | no | Reply-To delle notifiche (un solo indirizzo). Se manca, nessun Reply-To |
+| `NOTIFY_EMAIL_REPLY_TO` | no | Reply-To delle notifiche (un solo indirizzo, senza nome né virgolette). Se manca **o non è valido**, nessun Reply-To (le notifiche restano attive; avviso nel log di avvio) |
 | `NOTIFY_EMAIL_FROM` | no | mittente, per esempio `Compriamo Moto <notifiche@tuodominio.it>`. Se manca: `Compriamo Moto <onboarding@resend.dev>` |
 
 - **Netlify:** pannello → Site configuration → Environment variables, valore **solo per il contesto Production**
@@ -364,6 +364,14 @@ in nessun file versionato (resta solo nella cronologia Git, che non si modifica)
 
 Indirizzi con funzione diversa, **non** modificati: `ADMIN_EMAIL` (login del back office, `src/db/bootstrap.ts`,
 `scripts/admin-user.ts`) e `NOTIFY_EMAIL_FROM` (mittente).
+
+### Errore 403 «Testing domain restriction» (verificato nei Resend Logs)
+Messaggio di Resend: «The resend.dev domain is for testing and can only send to your own email address. To send to other
+recipients, verify a domain and update the from address to use it.» Causa: mittente `onboarding@resend.dev` (predefinito
+quando `NOTIFY_EMAIL_FROM` manca) verso un destinatario diverso dall'email dell'account Resend. Soluzione: verificare il
+dominio in Resend e impostare su Netlify `NOTIFY_EMAIL_FROM` = `Compriamo Moto <notifiche@compriamo-moto.it>` (nessuna
+modifica al codice: il mittente è solo in variabile). Nel back office l'errore compare ora come `http_403:validation_error`
+(solo il nome dell'errore di Resend, mai il messaggio, che può contenere indirizzi).
 
 ## Fornitori coinvolti (documentazione tecnica, NON l'informativa privacy)
 | Fornitore | Ruolo | Dati trattati |
