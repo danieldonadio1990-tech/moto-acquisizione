@@ -261,6 +261,8 @@ export function Funnel() {
           if (r.status === "saved" || r.status === "duplicate") outcome.set(r.clientPhotoId, { state: "saved" });
           else if (r.status === "error") {
             retryable = true;
+            // il motivo vero (archivio foto o database, con il codice tecnico) si mostra: non va nascosto dietro un messaggio generico
+            failure ??= r.message;
             outcome.set(r.clientPhotoId, { state: "pending", message: r.message });
           } else outcome.set(r.clientPhotoId, { state: "invalid", message: r.message });
         }
