@@ -72,6 +72,12 @@ export const valuationParamsSchema = z
       /** la fascia indicativa va da (offerta massima − questa %) all'offerta massima */
       lowerBp: bp(5000),
     }),
+    /**
+     * Offerta automatica. SPENTA se manca (le versioni approvate prima di questo campo restano valide e senza automatismo).
+     * Con autoOffer acceso, alla creazione della richiesta il motore crea da solo l'offerta (stato «Offerta fatta», NON comunicata
+     * al cliente) ma solo per un risultato «offerta preliminare» che rispetta margine, tetti e soglie di affidabilità.
+     */
+    automation: z.object({ autoOffer: z.boolean() }).default({ autoOffer: false }),
   })
   .superRefine((p, ctx) => {
     const issue = (path: string[], message: string) => ctx.addIssue({ code: "custom", path, message });
@@ -119,4 +125,5 @@ export const HYPOTHETICAL_DRAFT_PARAMS: ValuationParams = {
   },
   review: { manualIfAccident: true, manualIfNotRunning: true, manualIfMechanicalIssues: true },
   range: { lowerBp: 1_000 },
+  automation: { autoOffer: false },
 };
