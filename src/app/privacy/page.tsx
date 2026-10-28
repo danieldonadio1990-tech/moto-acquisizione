@@ -1,27 +1,20 @@
 import type { Metadata } from "next";
 import { BrandMark } from "@/components/BrandMark";
 import Link from "next/link";
-import { isPlaceholder, LEGAL, PRIVACY_POLICY_IS_DRAFT, PRIVACY_POLICY_VERSION, PROVIDERS } from "@/config/business";
+import { LEGAL, PROVIDERS } from "@/config/business";
 
 export const metadata: Metadata = { title: "Informativa privacy", alternates: { canonical: "/privacy" } };
 
 /**
- * BOZZA tecnica, da far verificare a chi segue la privacy dell'azienda prima della pubblicazione.
- * Non costituisce una dichiarazione di conformità legale.
- * Se il testo cambia, aggiornare PRIVACY_POLICY_VERSION in src/config/business.ts.
+ * Informativa privacy. I dati del titolare e dei fornitori vengono da src/config/business.ts (forniti dal titolare). Non è una dichiarazione
+ * di conformità: restano da verificare i punti elencati in docs/FOTO-E-PRIVACY.md. Se il testo cambia, aggiornare PRIVACY_POLICY_VERSION.
+ * Regola: nessun segnaposto, nessuna evidenziazione e nessuna affermazione non verificata (località dei dati, garanzie, tempi) nel testo pubblico.
  */
-
-/**
- * Dati che il titolare deve ancora fornire: nel testo pubblico compaiono come frase normale, senza evidenziazioni né parentesi
- * («ragione sociale (da indicare)»). L'elenco di ciò che manca resta nel log di avvio e in `npm run check:env`.
- */
-function T({ children }: { children: string }) {
-  const m = children.match(/^\[DA (COMPLETARE|CONFERMARE|VERIFICARE):?\s*([^\]]*)\]$/);
-  if (!m) return <>{children}</>;
-  const label = m[1] === "COMPLETARE" ? "da indicare" : m[1] === "CONFERMARE" ? "da confermare" : "da verificare";
-  const what = m[2].replace(/,?\s*es\.[^\]]*$/, "").trim();
-  return <>{what ? `${what} (${label})` : `(${label})`}</>;
-}
+const mail = (a: string) => (
+  <a href={`mailto:${a}`} className="font-semibold underline underline-offset-4">
+    {a}
+  </a>
+);
 
 export default function PrivacyPage() {
   return (
@@ -29,15 +22,16 @@ export default function PrivacyPage() {
       <BrandMark />
       <p className="label mt-10 text-concrete">Privacy</p>
       <h1 className="display mt-2 text-5xl sm:text-6xl">Informativa privacy</h1>
-      {!PRIVACY_POLICY_IS_DRAFT && <p className="mt-3 text-sm text-concrete">Versione {PRIVACY_POLICY_VERSION}</p>}
 
       <div className="mt-8 space-y-8 text-base leading-relaxed text-asphalt-soft [&_h2]:mb-2 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-extrabold [&_h2]:uppercase [&_h2]:leading-none [&_h2]:text-asphalt [&_li]:mt-1.5 [&_ul]:list-disc [&_ul]:pl-5">
         <section>
           <h2>Chi tratta i tuoi dati</h2>
           <p>
-            Titolare del trattamento: <T>{LEGAL.companyName}</T>, <T>{LEGAL.address}</T>,{" "}
-            {isPlaceholder(LEGAL.vatNumber) ? <T>{LEGAL.vatNumber}</T> : `P.IVA ${LEGAL.vatNumber}`}.
-            Contatti per la privacy: <T>{LEGAL.privacyEmail}</T> – PEC: <T>{LEGAL.pec}</T>.
+            Titolare del trattamento: <strong>{LEGAL.holderName}</strong>, {LEGAL.legalForm}, che esercita l&apos;attività di {LEGAL.activity}. Sede legale:{" "}
+            {LEGAL.address}. Partita IVA {LEGAL.vatNumber}. Il sito è gestito direttamente dal titolare.
+          </p>
+          <p className="mt-2">
+            Per qualsiasi domanda sui tuoi dati scrivi a {mail(LEGAL.privacyEmail)} oppure, via PEC, a {mail(LEGAL.pec)}.
           </p>
         </section>
 
@@ -59,10 +53,10 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Dati della trattativa</strong>: offerte, esito, prezzo e data dell&apos;eventuale acquisto, note
-              interne del nostro team sulla tua richiesta.
+              interne sulla tua richiesta.
             </li>
             <li>
-              <strong>Provenienza</strong>: se arrivi da una nostra campagna, i parametri del link (es. il nome della
+              <strong>Provenienza</strong>: se arrivi da un nostro annuncio o link, i parametri del link (es. il nome della
               campagna, &quot;UTM&quot;), salvati insieme alla richiesta.
             </li>
             <li>
@@ -70,8 +64,9 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p className="mt-2">
-            Il nostro database non registra il tuo indirizzo IP. I fornitori che ospitano il sito possono conservare
-            registri tecnici (log) per sicurezza e funzionamento, per un periodo limitato.
+            <strong>Sicurezza.</strong> Il database non registra il tuo indirizzo IP. Per limitare gli abusi, mentre invii il
+            modulo il sito conta i tentativi con codici derivati da indirizzo IP, telefono ed email (non leggibili e non
+            l&apos;indirizzo in chiaro); questi codici restano per la durata del controllo, da pochi minuti a un giorno, e vengono poi rimossi dal sito. I fornitori che ospitano il sito possono conservare registri tecnici (log) per sicurezza e funzionamento.
           </p>
         </section>
 
@@ -82,50 +77,58 @@ export default function PrivacyPage() {
               Valutare la tua moto, ricontattarti e, se vuoi, concludere l&apos;acquisto. Base giuridica: la tua
               richiesta, cioè misure precontrattuali e contratto (art. 6.1.b GDPR).
             </li>
+            <li>Adempiere agli obblighi fiscali e civilistici se acquistiamo la moto (art. 6.1.c GDPR).</li>
             <li>
-              Adempiere agli obblighi fiscali e civilistici se acquistiamo la moto (art. 6.1.c GDPR).
-            </li>
-            <li>
-              Statistiche interne aggregate per capire come migliorare il servizio e quanto rendono le nostre campagne;
+              Statistiche interne aggregate per capire come migliorare il servizio e quanto rendono i nostri annunci;
               sicurezza del sito e prevenzione di abusi. Base giuridica: nostro legittimo interesse (art. 6.1.f GDPR),
               al quale puoi opporti.
             </li>
           </ul>
           <p className="mt-2">
             I dati di contatto e della moto servono per la valutazione: senza, non possiamo rispondere. Le foto sono
-            facoltative. Non usiamo i tuoi dati per pubblicità, non li vendiamo e non prendiamo decisioni automatiche
-            sul prezzo.
+            facoltative. Non usiamo i tuoi dati per pubblicità e non li vendiamo. Il prezzo della moto si stima dai dati
+            della moto e di mercato, non da caratteristiche personali; al momento nessuna offerta ti viene comunicata in
+            modo automatico: ti risponde una persona.
           </p>
         </section>
 
         <section>
-          <h2>Statistiche interne</h2>
+          <h2>Cookie e dati nel tuo browser</h2>
           <p>
-            Contiamo in forma aggregata visite, clic e passaggi del modulo. Non usiamo cookie né strumenti di
-            analisi di terze parti: il browser conserva solo un identificativo casuale, che si cancella quando chiudi la
-            scheda. Questi conteggi non sono collegati al tuo nome né alla tua richiesta.
+            Il sito non usa cookie né strumenti di analisi o pubblicità di terze parti. Mentre compili il modulo, il tuo
+            browser conserva sul tuo dispositivo, solo per la scheda aperta (<em>sessionStorage</em>), i dati che hai inserito, così non li
+            perdi se ricarichi la pagina, insieme a un identificativo casuale e ai parametri del link: tutto si cancella quando chiudi
+            la scheda.
+          </p>
+          <p className="mt-2">
+            Contiamo in forma aggregata visite, clic e passaggi del modulo, con quell&apos;identificativo casuale. Questi
+            conteggi non sono collegati al tuo nome né alla tua richiesta.
           </p>
         </section>
 
         <section>
           <h2>Chi può vedere i dati</h2>
           <ul>
-            <li>Il nostro personale autorizzato, solo per gestire la tua richiesta.</li>
+            <li>Il titolare e, se presenti, le persone da lui autorizzate, solo per gestire la tua richiesta.</li>
             <li>
-              Fornitori tecnici che trattano i dati per nostro conto, come responsabili del trattamento: hosting del
-              hosting del sito: <T>{PROVIDERS.hosting}</T>; database: <T>{PROVIDERS.database}</T>; archivio delle foto:{" "}
-              <T>{PROVIDERS.storage}</T>.
+              Fornitori di servizi tecnici che trattano i dati per nostro conto: <strong>{PROVIDERS.hosting}</strong> (hosting del sito);{" "}
+              <strong>{PROVIDERS.database}</strong> (database con i dati delle richieste, {PROVIDERS.databaseRegion}); <strong>{PROVIDERS.storage}</strong> (archivio
+              delle foto); <strong>{PROVIDERS.notifications}</strong> (invio della notifica interna di nuova richiesta, che contiene il codice della richiesta e i
+              dati della moto ma non i tuoi contatti); <strong>{PROVIDERS.mail}</strong> (posta elettronica con cui gestiamo le richieste e ti scriviamo).
             </li>
             <li>
               <strong>WhatsApp</strong>: se scegli WhatsApp come canale o ci scrivi su WhatsApp, la conversazione passa
-              attraverso il servizio di Meta Platforms Ireland Ltd., che tratta i dati scambiati anche secondo la propria
-              informativa e può trasferirli fuori dall&apos;Unione Europea. Usiamo WhatsApp solo se lo scegli tu: puoi
-              sempre chiedere di essere contattato per telefono o email.
+              attraverso il servizio di Meta Platforms Ireland Ltd., che la tratta anche secondo la propria informativa. Lo usiamo solo se lo scegli
+              tu: puoi sempre chiedere di essere contattato per telefono o email.
             </li>
           </ul>
-          <p className="mt-2">
-            Eventuali trasferimenti di dati fuori dall&apos;UE da parte dei fornitori e relative garanzie: informazione da
-            completare a cura del titolare.
+        </section>
+
+        <section>
+          <h2>Trasferimenti fuori dall&apos;Unione europea</h2>
+          <p>
+            Questa informativa non dichiara se i fornitori trasferiscano dati fuori dallo Spazio economico europeo né con quali garanzie,
+            perché non è stato ancora verificato con ciascuno di loro. Puoi chiedere informazioni aggiornate a {mail(LEGAL.privacyEmail)}.
           </p>
         </section>
 
@@ -133,15 +136,15 @@ export default function PrivacyPage() {
           <h2>Per quanto tempo li conserviamo</h2>
           <ul>
             <li>
-              Richiesta senza acquisto: cancelliamo dati, foto e trattativa entro{" "}
-              <T>[DA CONFERMARE: 12 mesi]</T> dall&apos;ultimo contatto.
+              Richiesta senza acquisto: per il tempo necessario a gestire la richiesta e le eventuali trattative. Il termine
+              oltre il quale cancelliamo dati, foto e trattativa non è ancora stato fissato; finché non lo sarà puoi chiedere la cancellazione in
+              qualsiasi momento (vedi sotto).
             </li>
             <li>
-              Moto acquistata: conserviamo i dati necessari agli obblighi di legge per il periodo previsto dalla
-              normativa fiscale e civilistica <T>[DA CONFERMARE: di norma 10 anni]</T>; le foto non necessarie vengono
-              cancellate prima.
+              Moto acquistata: i dati necessari agli obblighi di legge fiscali e civilistici, per il periodo che la normativa
+              prevede; le foto non necessarie possono essere cancellate prima.
             </li>
-            <li>Statistiche: solo conteggi aggregati e anonimi.</li>
+            <li>Statistiche: solo conteggi aggregati senza collegamento alla tua identità.</li>
           </ul>
         </section>
 
@@ -158,9 +161,9 @@ export default function PrivacyPage() {
         <section>
           <h2>Come chiedere la cancellazione</h2>
           <p>
-            Scrivi a <T>{LEGAL.privacyEmail}</T> indicando il codice della richiesta (lo trovi nella pagina di
-            conferma) oppure email e telefono che hai usato. Potremmo chiederti di confermare la tua identità. Rispondiamo
-            entro 30 giorni: cancelliamo dati di contatto, dati della moto, foto e trattativa, salvo ciò che dobbiamo
+            Scrivi a {mail(LEGAL.privacyEmail)} (o via PEC a {mail(LEGAL.pec)}) indicando il codice della richiesta (lo trovi nella pagina
+            di conferma) oppure email e telefono che hai usato. Potremmo chiederti di confermare la tua identità. Rispondiamo
+            entro un mese: cancelliamo dati di contatto, dati della moto, foto e trattativa, salvo ciò che dobbiamo
             conservare per legge.
           </p>
         </section>
