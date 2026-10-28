@@ -9,13 +9,20 @@ import {
 } from "@/modules/photos/limits";
 import { BodyTimeout, BodyTooLarge, readLimitedBody } from "@/lib/body";
 import { clientIp, rateLimit, RULES, tooManyRequests } from "@/lib/rate-limit";
-import { logError } from "@/lib/log";
+import { logError, logWarn } from "@/lib/log";
 
 /** Tempo massimo della funzione (secondi) sugli hosting serverless */
 export const maxDuration = 60;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const err = (status: number, error: string) => NextResponse.json({ error }, { status });
+/**
+ * Risposta d'errore. Ogni rifiuto lascia nel log una riga con stato e motivo tecnico (nessun dato personale, nessun token):
+ * serve a capire da Netlify perché un caricamento non è andato a buon fine.
+ */
+const err = (status: number, error: string, reason = error) => {
+  logWarn("api/photos", `rifiutata ${status}: ${reason}`);
+  return NextResponse.json({ error }, { status });
+};
 
 /**
  * Upload foto. Ordine dei controlli pensato per non leggere corpi inutili:
@@ -31,26 +38,28 @@ export async function POST(request: Request, ctx: RouteContext<"/api/leads/[id]/
   const byIp = await rateLimit(RULES.photoUploadPerIp, ip);
   if (!byIp.ok) return tooManyRequests(byIp.retryAfterSec);
 
+  // La dimensione dichiarata serve solo a rifiutare subito un corpo evidentemente troppo grande. Alcuni hosting
+  // (proxy, HTTP/2) non la inoltrano: il tetto vero è sul conteggio dei byte realmente ricevuti (readLimitedBody).
   const declared = request.headers.get("content-length");
-  if (!declared) return err(411, "Dimensione della richiesta mancante");
-  if (Number(declared) > MAX_UPLOAD_REQUEST_BYTES) return err(413, "Upload troppo grande");
+  if (declared !== null && !(Number(declared) >= 0)) return err(400, "Richiesta non valida", "content-length non numerico");
+  if (declared !== null && Number(declared) > MAX_UPLOAD_REQUEST_BYTES) return err(413, "Upload troppo grande", `content-length ${declared} oltre il tetto`);
 
-  if (!(await verifyUploadToken(id, token))) return err(403, "Link per le foto non valido o scaduto");
+  if (!(await verifyUploadToken(id, token))) return err(403, "Link per le foto non valido o scaduto", "token non valido");
 
   const byLead = await rateLimit(RULES.photoUploadPerLead, id);
   if (!byLead.ok) return tooManyRequests(byLead.retryAfterSec);
 
   const type = request.headers.get("content-type") ?? "";
-  if (!type.startsWith("multipart/form-data")) return err(415, "Formato richiesta non valido");
+  if (!type.startsWith("multipart/form-data")) return err(415, "Formato richiesta non valido", `content-type inatteso (${type.split(";")[0].slice(0, 40)})`);
 
   let form: FormData;
   try {
     const raw = await readLimitedBody(request, MAX_UPLOAD_REQUEST_BYTES, UPLOAD_BODY_TIMEOUT_MS);
     form = await new Response(raw as BodyInit, { headers: { "content-type": type } }).formData();
   } catch (e) {
-    if (e instanceof BodyTooLarge) return err(413, "Upload troppo grande");
-    if (e instanceof BodyTimeout) return err(408, "Upload troppo lento, riprova");
-    return err(400, "Upload non valido");
+    if (e instanceof BodyTooLarge) return err(413, "Upload troppo grande", "corpo oltre il tetto");
+    if (e instanceof BodyTimeout) return err(408, "Upload troppo lento, riprova", "timeout lettura corpo");
+    return err(400, "Upload non valido", "corpo multipart non leggibile");
   }
 
   const files = form.getAll("photos");

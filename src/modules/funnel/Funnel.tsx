@@ -9,6 +9,7 @@ import { getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { captureAttribution, getAttribution, track } from "@/modules/analytics/client";
 import { postWithRetry } from "./net";
 import { MAX_FILES_PER_REQUEST, UPLOAD_BATCH_BYTES } from "@/modules/photos/limits";
+import { describeUploadFailure } from "./photo-feedback";
 import {
   conditionStepSchema,
   contactStepSchema,
@@ -228,6 +229,8 @@ export function Funnel() {
     const outcome = new Map<string, Pick<PickedPhoto, "state" | "message">>();
     let fatal: string | undefined;
     let retryable = false;
+    /** primo messaggio specifico di un invio fallito (rete, server, limiti): è quello che serve a capire cosa fare */
+    let failure: string | undefined;
     try {
       // a gruppi (max 3 foto e 3 MB per invio); ogni foto ha un id: un retry non crea copie sul server
       for (const [bi, batch] of batchPhotos(toSend).entries()) {
@@ -248,8 +251,10 @@ export function Funnel() {
           },
         );
         if (!res.ok) {
-          if (res.status === 403 || res.status === 429) fatal = res.data?.error ?? "Caricamento non consentito";
-          else retryable = true;
+          const why = describeUploadFailure(res.status, res.data?.error, res.network);
+          failure ??= why.message;
+          if (why.fatal) fatal = why.message;
+          else if (why.retryable) retryable = true;
           continue;
         }
         for (const r of res.data.results) {
@@ -272,6 +277,7 @@ export function Funnel() {
     const pendingLeft = next.filter((p) => p.state === "pending").length;
 
     if (fatal) setPhotoError(fatal);
+    else if (failure) setPhotoError(failure);
     else if (retryable || pendingLeft > 0) {
       setPhotoError('Alcune foto non sono state caricate. Premi di nuovo "Invia le foto": quelle già inviate non vengono ripetute.');
     } else if (invalid > 0) {
