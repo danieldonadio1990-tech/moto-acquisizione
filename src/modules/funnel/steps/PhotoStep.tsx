@@ -3,40 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { StepTitle } from "../ui";
 import { IconCamera } from "@/components/Icons";
 import { MAX_PHOTO_BYTES, MAX_PHOTOS_PER_LEAD } from "@/modules/photos/limits";
+import { compressImage } from "../compress";
 
 const SUGGESTED = ["Davanti", "Dietro", "Lato destro", "Lato sinistro", "Cruscotto con i km", "Eventuali danni"];
 export const MAX_PHOTOS = MAX_PHOTOS_PER_LEAD;
 
 /** id = identificativo stabile della foto, usato dal server per evitare duplicati nei retry */
 export type PickedPhoto = { id: string; file: Blob; url: string; state: "pending" | "saved" | "invalid"; message?: string };
-
-/**
- * Ridimensiona nel browser (max 1800 px, JPEG): upload più veloce anche in 4G e sotto i limiti
- * dell'hosting. Se la foto resta troppo pesante riprova con qualità e dimensione minori.
- */
-async function compress(file: File): Promise<Blob> {
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    let out: Blob | null = null;
-    for (const [side, quality] of [
-      [1800, 0.85],
-      [1600, 0.75],
-      [1280, 0.7],
-    ] as const) {
-      const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.round(bitmap.width * scale);
-      canvas.height = Math.round(bitmap.height * scale);
-      canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      out = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/jpeg", quality));
-      if (out && out.size <= MAX_PHOTO_BYTES) break;
-    }
-    bitmap.close();
-    return out ?? file;
-  } catch {
-    return file; // formato che il browser non sa leggere: decide il server
-  }
-}
 
 export function PhotoStep({
   photos,
@@ -61,14 +34,14 @@ export function PhotoStep({
       .slice(0, room);
     const out: PickedPhoto[] = [];
     for (const f of picked) {
-      const blob = await compress(f);
+      const { blob, resized } = await compressImage(f);
       const tooBig = blob.size > MAX_PHOTO_BYTES;
       out.push({
         id: crypto.randomUUID(),
         file: blob,
         url: URL.createObjectURL(blob),
         state: tooBig ? "invalid" : "pending",
-        message: tooBig ? "Foto troppo pesante" : undefined,
+        message: tooBig ? (resized ? "Foto troppo pesante" : "Non riesco a ridimensionarla: scegline un'altra (JPG o PNG)") : undefined,
       });
     }
     setPhotos((p) => [...p, ...out]);
