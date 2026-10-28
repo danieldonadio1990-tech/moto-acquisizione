@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { BrandMark } from "@/components/BrandMark";
-import { LEGAL, PRIVACY_POLICY_IS_DRAFT, PRIVACY_POLICY_VERSION, PROVIDERS } from "@/config/business";
+import Link from "next/link";
+import { isPlaceholder, LEGAL, PRIVACY_POLICY_IS_DRAFT, PRIVACY_POLICY_VERSION, PROVIDERS } from "@/config/business";
 
 export const metadata: Metadata = { title: "Informativa privacy", alternates: { canonical: "/privacy" } };
 
@@ -10,43 +11,32 @@ export const metadata: Metadata = { title: "Informativa privacy", alternates: { 
  * Se il testo cambia, aggiornare PRIVACY_POLICY_VERSION in src/config/business.ts.
  */
 
-/** Evidenzia i segnaposto "[DA COMPLETARE…]" / "[DA CONFERMARE…]" ancora presenti nel testo. */
+/**
+ * Dati che il titolare deve ancora fornire: nel testo pubblico compaiono come frase normale, senza evidenziazioni né parentesi
+ * («ragione sociale (da indicare)»). L'elenco di ciò che manca resta nel log di avvio e in `npm run check:env`.
+ */
 function T({ children }: { children: string }) {
-  const parts = children.split(/(\[DA (?:COMPLETARE|CONFERMARE|VERIFICARE)[^\]]*\])/g);
-  return (
-    <>
-      {parts.map((p, i) =>
-        /^\[DA /.test(p) ? (
-          <mark key={i} className="rounded bg-notice px-1 font-semibold text-asphalt">
-            {p}
-          </mark>
-        ) : (
-          p
-        ),
-      )}
-    </>
-  );
+  const m = children.match(/^\[DA (COMPLETARE|CONFERMARE|VERIFICARE):?\s*([^\]]*)\]$/);
+  if (!m) return <>{children}</>;
+  const label = m[1] === "COMPLETARE" ? "da indicare" : m[1] === "CONFERMARE" ? "da confermare" : "da verificare";
+  const what = m[2].replace(/,?\s*es\.[^\]]*$/, "").trim();
+  return <>{what ? `${what} (${label})` : `(${label})`}</>;
 }
 
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-2xl px-5 py-10 md:py-16">
       <BrandMark />
-      <h1 className="display mt-10 text-5xl">Informativa privacy</h1>
-      <p className="mt-3 text-sm text-concrete">Versione {PRIVACY_POLICY_VERSION}</p>
+      <p className="label mt-10 text-concrete">Privacy</p>
+      <h1 className="display mt-2 text-5xl sm:text-6xl">Informativa privacy</h1>
+      {!PRIVACY_POLICY_IS_DRAFT && <p className="mt-3 text-sm text-concrete">Versione {PRIVACY_POLICY_VERSION}</p>}
 
-      {PRIVACY_POLICY_IS_DRAFT && (
-        <p role="note" className="mt-6 rounded-xl border-2 border-asphalt bg-notice p-4 text-sm font-semibold">
-          Bozza in revisione: il testo e i dati evidenziati in giallo devono essere completati e verificati prima della
-          pubblicazione.
-        </p>
-      )}
-
-      <div className="mt-8 space-y-7 leading-relaxed text-asphalt-soft [&_h2]:mb-2 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-asphalt [&_li]:mt-1 [&_ul]:list-disc [&_ul]:pl-5">
+      <div className="mt-8 space-y-8 text-base leading-relaxed text-asphalt-soft [&_h2]:mb-2 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-extrabold [&_h2]:uppercase [&_h2]:leading-none [&_h2]:text-asphalt [&_li]:mt-1.5 [&_ul]:list-disc [&_ul]:pl-5">
         <section>
           <h2>Chi tratta i tuoi dati</h2>
           <p>
-            Titolare del trattamento: <T>{LEGAL.companyName}</T>, <T>{LEGAL.address}</T>, P.IVA <T>{LEGAL.vatNumber}</T>.
+            Titolare del trattamento: <T>{LEGAL.companyName}</T>, <T>{LEGAL.address}</T>,{" "}
+            {isPlaceholder(LEGAL.vatNumber) ? <T>{LEGAL.vatNumber}</T> : `P.IVA ${LEGAL.vatNumber}`}.
             Contatti per la privacy: <T>{LEGAL.privacyEmail}</T> – PEC: <T>{LEGAL.pec}</T>.
           </p>
         </section>
@@ -76,7 +66,7 @@ export default function PrivacyPage() {
               campagna, &quot;UTM&quot;), salvati insieme alla richiesta.
             </li>
             <li>
-              <strong>Consenso</strong>: data e ora in cui hai accettato questa informativa e la sua versione.
+              <strong>Presa visione</strong>: data e ora in cui hai confermato di aver letto questa informativa e la sua versione.
             </li>
           </ul>
           <p className="mt-2">
@@ -123,7 +113,7 @@ export default function PrivacyPage() {
             <li>Il nostro personale autorizzato, solo per gestire la tua richiesta.</li>
             <li>
               Fornitori tecnici che trattano i dati per nostro conto, come responsabili del trattamento: hosting del
-              sito <T>{PROVIDERS.hosting}</T>; database <T>{PROVIDERS.database}</T>; archivio delle foto{" "}
+              hosting del sito: <T>{PROVIDERS.hosting}</T>; database: <T>{PROVIDERS.database}</T>; archivio delle foto:{" "}
               <T>{PROVIDERS.storage}</T>.
             </li>
             <li>
@@ -134,8 +124,8 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p className="mt-2">
-            Trasferimenti fuori dall&apos;UE da parte dei fornitori:{" "}
-            <T>[DA VERIFICARE per i fornitori scelti e indicare le garanzie applicate]</T>.
+            Eventuali trasferimenti di dati fuori dall&apos;UE da parte dei fornitori e relative garanzie: informazione da
+            completare a cura del titolare.
           </p>
         </section>
 
@@ -175,6 +165,12 @@ export default function PrivacyPage() {
           </p>
         </section>
       </div>
+
+      <p className="mt-10 border-t border-line pt-6 text-sm">
+        <Link href="/" className="font-semibold underline underline-offset-4">
+          Torna al sito
+        </Link>
+      </p>
     </main>
   );
 }

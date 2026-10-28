@@ -71,7 +71,7 @@ export const contactStepSchema = z.object({
   email: z.string().trim().toLowerCase().email("Email non valida").max(120),
   city: trimmed(80),
   preferredContact: z.enum(["whatsapp", "phone", "email"]),
-  privacyConsent: z.literal(true, { error: "Serve il consenso per ricontattarti" }),
+  privacyConsent: z.literal(true, { error: "Conferma di aver letto l'informativa privacy" }),
 });
 
 export const leadSubmissionSchema = z.object({
