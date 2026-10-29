@@ -80,6 +80,11 @@ export function notificationWarnings(e: NodeJS.ProcessEnv = process.env): string
     if (replyTo && !EMAIL_RE.test(replyTo)) {
       warnings.push("NOTIFY_EMAIL_REPLY_TO non valido (un solo indirizzo email, senza nome né virgolette): ignorato, le notifiche partono senza Reply-To.");
     }
+    if (cfg.from === RESEND_TEST_SENDER) {
+      warnings.push(
+        "NOTIFY_EMAIL_FROM mancante: si usa il mittente di prova di Resend (onboarding@resend.dev), che consegna solo all'email dell'account Resend e risponde 403 verso gli altri destinatari. Per un uso reale verifica un dominio in Resend e imposta NOTIFY_EMAIL_FROM.",
+      );
+    }
     if (parseDailyLimit(e).invalid) {
       warnings.push(`NOTIFY_DAILY_LIMIT non valido (numero intero da 0 a 9999): si usa il valore predefinito ${DEFAULT_DAILY_LIMIT}.`);
     }

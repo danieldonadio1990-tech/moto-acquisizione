@@ -373,6 +373,13 @@ dominio in Resend e impostare su Netlify `NOTIFY_EMAIL_FROM` = `Compriamo Moto <
 modifica al codice: il mittente è solo in variabile). Nel back office l'errore compare ora come `http_403:validation_error`
 (solo il nome dell'errore di Resend, mai il messaggio, che può contenere indirizzi).
 
+**Record DNS richiesti da Resend per `compriamo-moto.it`** (regione EU, forniti dal pannello Resend; i valori vanno sempre
+ricopiati da lì): DKIM TXT `resend._domainkey`; CNAME `send` → `send.forge.rmta.net`; CNAME SPF **`rsend`** →
+`rsend-euw1.forge.rmta.net`. Attenzione al nome: è `rsend`, **non** `resend`. Un CNAME chiamato `resend` non soddisfa il
+controllo SPF di Resend e resta Pending («Missing SPF records»). Su Aruba il campo Host va compilato col solo nome
+(`rsend`), senza `.compriamo-moto.it` e senza punto finale; il valore è la destinazione indicata da Resend. Non toccare
+A, AAAA, MX e TXT esistenti. Dopo l'inserimento: Resend → Domains → «Restart verification».
+
 ## Fornitori coinvolti (documentazione tecnica, NON l'informativa privacy)
 | Fornitore | Ruolo | Dati trattati |
 |---|---|---|

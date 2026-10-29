@@ -404,6 +404,10 @@ describe("5. Trasporto Resend (fetch simulato, nessuna rete)", () => {
     }
     const w = cfgmod.notificationWarnings(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: "non valido" })).join(" ");
     assert.match(w, /NOTIFY_EMAIL_REPLY_TO non valido.*senza Reply-To/);
+    // senza NOTIFY_EMAIL_FROM si segnala il mittente di prova; con un mittente proprio no
+    assert.match(w, /NOTIFY_EMAIL_FROM mancante.*onboarding@resend\.dev.*403/);
+    const own = cfgmod.notificationWarnings(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_FROM: "Compriamo Moto <notifiche@example.com>" })).join(" ");
+    assert.doesNotMatch(own, /NOTIFY_EMAIL_FROM mancante/);
   });
 
   test("errore HTTP: il codice include il solo nome dell'errore di Resend, mai il messaggio", async () => {
