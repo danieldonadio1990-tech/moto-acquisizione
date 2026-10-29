@@ -375,7 +375,7 @@ describe("5. Il token non compare né nei log né nelle risposte", () => {
 
   test("avviso di configurazione senza valori; token valido solo se lungo e senza spazi", () => {
     const e = (o: Record<string, string>) => o as unknown as NodeJS.ProcessEnv;
-    const on = { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO };
+    const on = { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_FROM: "Test <n@example.invalid>" };
     assert.equal(cfgmod.loadRetryToken(e({ NOTIFY_RETRY_TOKEN: TOKEN })), TOKEN);
     assert.equal(cfgmod.loadRetryToken(e({ NOTIFY_RETRY_TOKEN: "Zq9-x" })), null);
     assert.equal(cfgmod.loadRetryToken(e({})), null);
