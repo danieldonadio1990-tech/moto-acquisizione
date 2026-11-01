@@ -9,7 +9,7 @@ import { addOfferInTx, BusinessRuleError, type Tx } from "@/modules/leads/servic
 import { computeValuation } from "./engine";
 import type { PublicValuation } from "./public";
 import { valuationParamsSchema, type ValuationParams } from "./params";
-import type { MarketDataProvider, MarketSnapshot, NormalizedVehicle, ValuationResult, VehicleInput } from "./types";
+import { FORMULA_VERSION, type MarketDataProvider, type MarketSnapshot, type NormalizedVehicle, type ReasonCode, type ValuationResult, type VehicleInput } from "./types";
 
 /**
  * Persistenza e orchestrazione. Il calcolo avviene SEMPRE qui, sul server, da dati letti dal database:
@@ -22,6 +22,9 @@ import type { MarketDataProvider, MarketSnapshot, NormalizedVehicle, ValuationRe
  * ma il cliente vede sempre «verifica manuale». Va acceso solo dopo l'approvazione dei parametri, dei dati di mercato e
  * della formulazione commerciale/legale.
  */
+/** Autore delle revisioni e delle offerte create dal motore (compare nella cronologia e nel back office). */
+export const AUTO_ACTOR = "motore-automatico";
+
 export const publicOffersEnabled = (e: NodeJS.ProcessEnv = process.env) => e.VALUATION_PUBLIC_OFFERS === "true";
 
 // ---- Schema non disponibile (migrazione 0005 non applicata) ------------------------------------------------------------
@@ -68,7 +71,10 @@ export class DbMarketProvider implements MarketDataProvider {
           sql`lower(${marketReferences.brand}) = ${v.brand.toLowerCase()}`,
           lte(marketReferences.yearFrom, v.year),
           gte(marketReferences.yearTo, v.year),
-          v.family ? or(eq(marketReferences.family, v.family), isNull(marketReferences.family)) : isNull(marketReferences.family),
+          // la famiglia si confronta senza distinguere maiuscole e spazi: «sh» e «SH» sono lo stesso modello
+          v.family
+            ? or(sql`lower(trim(${marketReferences.family})) = ${v.family.trim().toLowerCase()}`, isNull(marketReferences.family))
+            : isNull(marketReferences.family),
         ),
       )
       // prima il modello esatto, poi il marchio intero; a parità la rilevazione più recente
@@ -230,13 +236,108 @@ export async function evaluateLeadOnCreate(leadId: string): Promise<PublicValuat
       .values(rowFromResult(leadId, 1, { ...calc.result, reasons }, calc.settingsId, null, disclose))
       .onConflictDoNothing({ target: [valuations.leadId, valuations.revision] })
       .returning();
-    if (inserted[0]) return toPublicValuation(inserted[0]);
+    if (inserted[0]) {
+      // offerta automatica (se abilitata nei parametri approvati): mai prima del salvataggio della valutazione, mai verso il cliente
+      await autoOfferIfEnabled(inserted[0]);
+      return toPublicValuation(inserted[0]);
+    }
     const [first] = await db.select().from(valuations).where(and(eq(valuations.leadId, leadId), eq(valuations.revision, 1)));
     return first ? toPublicValuation(first) : { kind: "manual" };
   } catch (err) {
-    logError(isValuationSchemaUnavailable(err) ? "valutazione alla creazione: tabelle non disponibili (migrazione 0005?)" : "valutazione alla creazione", err);
+    const unavailable = isValuationSchemaUnavailable(err);
+    logError(unavailable ? "valutazione alla creazione: tabelle non disponibili (migrazione 0005?)" : "valutazione alla creazione", err);
+    // ogni richiesta deve avere un esito tracciabile: se le tabelle ci sono, si registra l'errore tecnico (revisione 1, verifica manuale)
+    if (!unavailable) await recordEngineError(leadId);
     return { kind: "manual" };
   }
+}
+
+/** Registra «errore tecnico» come revisione 1, se non ce n'è già una. Non lancia mai: se anche questo fallisce resta solo il log. */
+async function recordEngineError(leadId: string) {
+  try {
+    const db = await getDb();
+    await db
+      .insert(valuations)
+      .values({
+        leadId,
+        revision: 1,
+        kind: "automatic",
+        status: "insufficient_data",
+        decision: "manual_review",
+        reasons: ["engine_error"] satisfies ReasonCode[],
+        confidenceBp: 0,
+        formulaVersion: FORMULA_VERSION,
+        disclosedToCustomer: false,
+        createdBy: null,
+      })
+      .onConflictDoNothing({ target: [valuations.leadId, valuations.revision] });
+  } catch (err) {
+    logError("valutazione: impossibile registrare l'errore tecnico", err);
+  }
+}
+
+// ---- Offerta automatica ------------------------------------------------------------------------------------------------
+type AutoOfferOutcome = "created" | "skipped" | "failed";
+
+/**
+ * Crea l'offerta dalla revisione 1, se e solo se: i parametri APPROVATI in vigore (gli stessi usati per il calcolo) abilitano
+ * l'offerta automatica, il risultato è «offerta preliminare» (mai fascia né verifica manuale), l'importo è in euro interi e
+ * resta dentro i tetti e il margine calcolato. Una sola transazione con la richiesta bloccata: due esecuzioni simultanee
+ * creano una sola offerta. Non comunica nulla al cliente.
+ */
+async function createAutomaticOffer(leadId: string): Promise<AutoOfferOutcome> {
+  const settings = await getApprovedSettings();
+  if (!settings || !settings.params.automation.autoOffer) return "skipped";
+  const db = await getDb();
+  return db.transaction(async (tx): Promise<AutoOfferOutcome> => {
+    const locked = await tx.select({ id: leads.id }).from(leads).where(eq(leads.id, leadId)).for("update");
+    if (locked.length === 0) throw new BusinessRuleError("Richiesta non trovata");
+    const [cur] = await tx.select().from(valuations).where(eq(valuations.leadId, leadId)).orderBy(desc(valuations.revision)).limit(1);
+    // già gestita (offerta già creata o revisione successiva): niente da fare
+    if (!cur || cur.revision !== 1) return "skipped";
+    if (cur.kind !== "automatic" || cur.status !== "preliminary_generated" || cur.decision !== "preliminary_offer") return "failed";
+    // i parametri sono cambiati tra calcolo e offerta: il calcolo non vale più
+    if (cur.settingsId !== settings.id) return "failed";
+    if (cur.maxOfferCents == null || cur.resaleCents == null || cur.costTotalCents == null || cur.marginCents == null) return "failed";
+    const p = settings.params;
+    const cents = Math.floor(cur.maxOfferCents / 100) * 100; // le offerte sono in euro interi (per difetto: il margine non peggiora)
+    if (cents <= 0 || cents < p.offer.minCents || cents > p.offer.maxCents) return "failed";
+    if (cur.resaleCents - cur.costTotalCents - cents < cur.marginCents) return "failed"; // il margine minimo non è mai sacrificato
+    await addOfferInTx(tx, leadId, cents / 100, AUTO_ACTOR);
+    await insertRevisionTx(tx, leadId, (rev) =>
+      carry(
+        cur,
+        { kind: "automatic", status: "offer_confirmed", manualOfferCents: cents, manualReason: "Offerta automatica generata dal motore: non comunicata al cliente" },
+        rev,
+        AUTO_ACTOR,
+      ),
+    );
+    return "created";
+  });
+}
+
+/** Non lancia mai: l'offerta automatica è un di più, non può compromettere la richiesta né la risposta al cliente. */
+async function autoOfferIfEnabled(row: ValuationRow) {
+  if (row.decision !== "preliminary_offer") return;
+  try {
+    const outcome = await createAutomaticOffer(row.leadId);
+    if (outcome === "failed") await markAutoOfferFailed(row.leadId);
+  } catch (err) {
+    logError("offerta automatica", err);
+    try {
+      await markAutoOfferFailed(row.leadId);
+    } catch (e) {
+      logError("offerta automatica: impossibile registrare il motivo", e);
+    }
+  }
+}
+
+/** Registra il motivo e porta la richiesta in verifica manuale (nuova revisione; lo storico resta). */
+async function markAutoOfferFailed(leadId: string) {
+  const cur = await getCurrentValuation(leadId);
+  if (!cur || cur.status === "offer_confirmed") return;
+  const reasons = Array.from(new Set([...((cur.reasons as ReasonCode[]) ?? []), "auto_offer_failed" as ReasonCode]));
+  await insertRevision(leadId, (rev) => carry(cur, { kind: "automatic", status: "manual_review", reasons }, rev, AUTO_ACTOR));
 }
 
 /** Ricalcolo richiesto da un amministratore: nuova revisione automatica, lo storico resta. */

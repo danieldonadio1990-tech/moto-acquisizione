@@ -68,7 +68,9 @@ export type ReasonCode =
   | "margin_insufficient"
   | "offer_below_minimum"
   | "offer_capped"
-  | "public_offers_disabled";
+  | "public_offers_disabled"
+  | "engine_error"
+  | "auto_offer_failed";
 
 export type CostLine = { code: string; label: string; cents: number };
 

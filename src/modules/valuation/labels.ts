@@ -29,6 +29,8 @@ export const REASON_LABELS: Record<ReasonCode, string> = {
   offer_below_minimum: "Offerta calcolata sotto il minimo configurato",
   offer_capped: "Offerta limitata dal tetto massimo",
   public_offers_disabled: "Importo non mostrato al cliente (interruttore spento)",
+  engine_error: "Errore tecnico nel calcolo: la richiesta è salvata, serve una verifica manuale",
+  auto_offer_failed: "L'offerta automatica non è stata creata: serve una verifica manuale",
 };
 
 export const MARKET_KIND_LABELS = { sold: "prezzi di vendita", asking: "prezzi richiesti", internal: "vendite interne", manual: "stima manuale" } as const;
