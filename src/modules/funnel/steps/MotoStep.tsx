@@ -35,7 +35,7 @@ export function MotoStep({
 
   return (
     <>
-      <StepTitle>Che moto hai?</StepTitle>
+      <StepTitle sub="Stai scrivendo direttamente a Compriamo Moto, che acquista la moto: la richiesta non passa da intermediari.">Che moto hai?</StepTitle>
       <div className="space-y-8">
         <Choices
           legend="Marca"

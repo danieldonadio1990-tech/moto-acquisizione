@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { BRAND, siteUrl } from "@/config/business";
+import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
 import { indexingEnabled } from "@/config/seo";
 import "./globals.css";
 
@@ -50,7 +51,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="it" className={`${body.variable} ${display.variable} antialiased`}>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        <OrganizationJsonLd />
+        {children}
+      </body>
     </html>
   );
 }

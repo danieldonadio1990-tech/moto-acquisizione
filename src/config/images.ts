@@ -33,12 +33,15 @@ export type SiteImage = {
 };
 
 export const IMAGES = {
-  /** Hero: moto in una strada di Milano, luce naturale. Consigliato 1600 x 1200 px (4:3). */
-  hero: { src: null, alt: "Moto parcheggiata in una strada di Milano", width: 1600, height: 1200 },
-  /** Card dei modelli: moto ben visibile di lato. Consigliato 1200 x 900 px (4:3). */
-  honda_sh: { src: null, alt: "Honda SH", width: 1200, height: 900 },
-  piaggio_liberty: { src: null, alt: "Piaggio Liberty", width: 1200, height: 900 },
-  kymco_agility: { src: null, alt: "Kymco Agility", width: 1200, height: 900 },
+  /** Hero: fotografia editoriale di una moto in contesto urbano, luce naturale. Consigliato 1600 x 1000 px (16:10). */
+  hero: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1600, height: 1000 },
+  /** Due fotografie di motociclette (taglio editoriale, moto intera o tre quarti). Consigliato 1200 x 900 px (4:3). */
+  moto_1: { src: null, alt: "Motocicletta ripresa di tre quarti", width: 1200, height: 900 },
+  moto_2: { src: null, alt: "Motocicletta ripresa di lato", width: 1200, height: 900 },
+  /** Consegna della moto: due persone vicino a una moto (volti non riconoscibili o con liberatoria). Consigliato 1200 x 900 px (4:3). */
+  consegna: { src: null, alt: "Consegna di una moto tra due persone", width: 1200, height: 900 },
+  /** Dettaglio meccanico (motore, cerchio, manubrio). Consigliato 1200 x 1200 px (1:1). */
+  dettaglio: { src: null, alt: "Dettaglio meccanico di una motocicletta", width: 1200, height: 1200 },
 } as const satisfies Record<string, SiteImage>;
 
 export type ImageKey = keyof typeof IMAGES;

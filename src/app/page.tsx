@@ -5,51 +5,41 @@ import { PhoneButton, WhatsAppButton } from "@/components/ContactButtons";
 import { AdSlot } from "@/components/AdSlot";
 import { StickyCta } from "@/components/StickyCta";
 import { TrackedLink, TrackOnMount } from "@/components/Track";
+import { ProcessDeal, ProcessProposal, ProcessTell } from "@/components/ProcessIcons";
 import { btnPrimary } from "@/components/buttons";
-import { BRAND, contactLinks } from "@/config/business";
+import { LEGAL, contactLinks, isPlaceholder } from "@/config/business";
 import { isGenerated } from "@/config/images";
-import { FAQ, NEEDED, STEPS } from "@/config/home-content";
+import { ADVANTAGES, FAQ, HERO, STEPS, TRANSPARENCY, WHO_BUYS } from "@/config/home-content";
+
+const PROCESS_ICONS = [ProcessTell, ProcessProposal, ProcessDeal];
 
 export default function Home() {
+  const transparency = TRANSPARENCY.filter((t): t is { q: string; answer: string } => t.answer !== null);
+  const holder = isPlaceholder(LEGAL.companyName) ? null : LEGAL.companyName;
+  const motoPhotos = hasPhoto("moto_1") || hasPhoto("moto_2");
   return (
     <>
       <TrackOnMount event="landing_view" />
       <SiteHeader />
 
       <main>
-        {/* HERO: titolo, cartellino (anteprima del modulo) e un solo pulsante */}
+        {/* 1 · HERO: titolo, sottotitolo, un solo pulsante; la fotografia compare solo se presente in src/config/images.ts */}
         <section className="bg-chalk">
-          <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-10 pt-8 sm:px-6 md:grid-cols-[1.2fr_0.8fr] md:gap-14 md:pb-16 md:pt-14 lg:px-8">
+          <div className="mx-auto grid max-w-6xl items-end gap-8 px-4 pb-10 pt-8 sm:px-6 md:grid-cols-[1.25fr_0.75fr] md:gap-14 md:pb-14 md:pt-14 lg:px-8">
             <div className="min-w-0">
-              <p className="label text-concrete">Acquisto moto usate da privati · {BRAND.area}</p>
-              <h1 className="display mt-4 text-[clamp(3.4rem,15vw,6.4rem)] font-black leading-[0.9]">Valuta la tua moto in pochi passaggi.</h1>
-              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-asphalt-soft">
-                Acquistiamo la tua moto direttamente da te. Compili la scheda, la guardiamo e ti ricontattiamo. Della rivendita non devi occuparti tu.
-              </p>
+              <p className="label text-concrete">{HERO.label}</p>
+              <h1 className="display mt-4 text-[clamp(3.4rem,15vw,6.6rem)] font-black leading-[0.9]">{HERO.title}</h1>
+              <p className="mt-5 max-w-[46ch] text-lg leading-relaxed text-asphalt-soft">{HERO.subtitle}</p>
             </div>
-
-            <div className="ticket min-w-0 px-5 pb-5 pt-4" role="group" aria-label="Anteprima della scheda moto">
-              <p className="label text-concrete">Scheda moto · si compila nei passaggi successivi</p>
-              <dl className="mt-2" aria-hidden="true">
-                {["Marca", "Modello", "Anno", "Chilometri"].map((k) => (
-                  <div key={k} className="flex items-baseline justify-between gap-3 border-b border-line/70 py-2.5">
-                    <dt className="label text-[0.7rem] text-concrete">{k}</dt>
-                    <dd className="font-semibold text-concrete/70">—</dd>
-                  </div>
-                ))}
-              </dl>
-              <div className="perf -mx-5 my-4" aria-hidden="true" />
-              <div id="hero-cta">
-                <TrackedLink href="/valuta" event="cta_click" label="hero" className={`${btnPrimary} w-full justify-between`}>
-                  <span>Valuta la tua moto</span>
-                  <span aria-hidden="true">→</span>
-                </TrackedLink>
-              </div>
-              <p className="label mt-3 text-[0.68rem] text-concrete">Gratis · senza impegno · foto facoltative</p>
+            <div id="hero-cta" className="min-w-0 md:pb-2">
+              <TrackedLink href="/valuta" event="cta_click" label="hero" className={`${btnPrimary} w-full justify-between`}>
+                <span>{HERO.cta}</span>
+                <span aria-hidden="true">→</span>
+              </TrackedLink>
+              <p className="label mt-3 text-[0.7rem] text-concrete">{HERO.note}</p>
             </div>
           </div>
 
-          {/* fotografia reale (solo se presente in src/config/images.ts): nessun segnaposto in pagina */}
           {hasPhoto("hero") && (
             <figure className="mx-auto max-w-6xl px-4 pb-10 sm:px-6 md:pb-16 lg:px-8">
               <div className="aspect-[16/10] w-full overflow-hidden md:aspect-[21/8]">
@@ -60,47 +50,112 @@ export default function Home() {
           )}
         </section>
 
-        {/* COME FUNZIONA */}
-        <section id="come-funziona" className="scroll-mt-20 bg-chalk">
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
-            <p className="label text-concrete">Come funziona</p>
-            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Tre passaggi, nessuna rivendita da gestire.</h2>
-            <ol className="mt-8 border-t-2 border-asphalt md:grid md:grid-cols-3 md:gap-8 md:border-t-0">
-              {STEPS.map((s, i) => (
-                <li key={s.title} className="grid grid-cols-[auto_1fr] gap-x-4 border-b border-line py-5 md:block md:border-b-0 md:border-t-2 md:border-asphalt md:pt-4">
-                  <span className="label row-span-2 pt-1 text-concrete md:mb-2 md:block">0{i + 1}</span>
-                  <h3 className="display text-2xl md:mb-2">{s.title}</h3>
-                  <p className="max-w-[56ch] leading-relaxed text-asphalt-soft">{s.body}</p>
-                </li>
-              ))}
-            </ol>
+        {/* 2 · CHI ACQUISTA: fondo scuro per cambiare ritmo; due fotografie di moto se presenti */}
+        <section className="on-dark bg-asphalt text-paper">
+          <div className={`mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:gap-14 md:py-20 lg:px-8 ${motoPhotos ? "md:grid-cols-[1fr_1fr]" : ""}`}>
+            <div>
+              <p className="label text-paper/70">{WHO_BUYS.label}</p>
+              <h2 className="display mt-2 text-4xl sm:text-5xl md:text-7xl">{WHO_BUYS.title}</h2>
+              <p className={`mt-5 text-lg leading-relaxed text-paper/85 md:text-xl ${motoPhotos ? "max-w-[52ch]" : "max-w-[62ch]"}`}>{WHO_BUYS.body}</p>
+              {holder && <p className="mt-4 text-sm text-paper/70">{holder}</p>}
+            </div>
+            {motoPhotos && (
+              <div className="grid grid-cols-2 gap-3">
+                {(["moto_1", "moto_2"] as const).map((id) =>
+                  hasPhoto(id) ? (
+                    <div key={id} className="aspect-[3/4] overflow-hidden">
+                      <SitePhoto id={id} />
+                    </div>
+                  ) : null,
+                )}
+              </div>
+            )}
           </div>
         </section>
 
-        {/* COSA CI SERVE */}
+        {/* 3 · VANTAGGI della vendita diretta */}
         <section className="bg-chalk">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-12 sm:px-6 md:grid-cols-[0.9fr_1.1fr] md:gap-14 md:pb-20 lg:px-8">
+          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[0.8fr_1.2fr] md:gap-14 md:py-20 lg:px-8">
             <div>
-              <p className="label text-concrete">Cosa ci serve</p>
-              <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Pochi dati sulla moto.</h2>
-              <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-asphalt-soft">
-                Ti guidiamo passo dopo passo. Puoi inviare la richiesta anche senza foto.
-              </p>
+              <p className="label text-concrete">Vendita diretta</p>
+              <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Vendere direttamente a chi acquista.</h2>
+              {hasPhoto("dettaglio") && (
+                <div className="mt-6 hidden aspect-square max-w-xs overflow-hidden md:block">
+                  <SitePhoto id="dettaglio" />
+                </div>
+              )}
             </div>
             <ul className="border-t-2 border-asphalt">
-              {NEEDED.map(([k, v]) => (
-                <li key={k} className="flex items-baseline justify-between gap-4 border-b border-line py-3.5 font-semibold">
-                  <span>{k}</span>
-                  <span className="label text-right text-[0.7rem] text-concrete">{v}</span>
+              {ADVANTAGES.map((a, i) => (
+                <li key={a.title} className="grid grid-cols-[auto_1fr] gap-x-4 border-b border-line py-4">
+                  <span className="label pt-1 text-concrete">0{i + 1}</span>
+                  <div>
+                    <h3 className="text-lg font-bold">{a.title}</h3>
+                    <p className="mt-0.5 leading-relaxed text-asphalt-soft">{a.body}</p>
+                  </div>
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        {/* FAQ */}
-        <section id="domande" className="scroll-mt-20 bg-chalk">
-          <div className="mx-auto max-w-6xl px-4 pb-12 sm:px-6 md:pb-20 lg:px-8">
+        {/* 4 · COME FUNZIONA */}
+        <section id="come-funziona" className="scroll-mt-20 bg-paper">
+          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
+            <p className="label text-concrete">Come funziona</p>
+            <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Tre passaggi, un solo acquirente.</h2>
+            <ol className="mt-8 grid gap-4 md:grid-cols-3 md:gap-8">
+              {STEPS.map((s, i) => {
+                const Icon = PROCESS_ICONS[i];
+                return (
+                  <li key={s.title} className="border-t-2 border-asphalt pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="label text-concrete">0{i + 1}</span>
+                      <Icon className="h-14 w-14 text-asphalt" />
+                    </div>
+                    <h3 className="display mt-3 text-2xl sm:text-3xl">{s.title}</h3>
+                    <p className="mt-2 max-w-[44ch] leading-relaxed text-asphalt-soft">{s.body}</p>
+                  </li>
+                );
+              })}
+            </ol>
+            <div id="process-cta" className="mt-10 max-w-sm">
+              <TrackedLink href="/valuta" event="cta_click" label="come-funziona" className={`${btnPrimary} w-full justify-between`}>
+                <span>{HERO.cta}</span>
+                <span aria-hidden="true">→</span>
+              </TrackedLink>
+            </div>
+          </div>
+        </section>
+
+        {/* 5 · TRASPARENZA: solo informazioni confermate (src/config/home-content.ts → TRANSPARENCY) */}
+        {transparency.length > 0 && (
+          <section id="trasparenza" className="scroll-mt-20 bg-chalk">
+            <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[0.9fr_1.1fr] md:gap-14 md:py-20 lg:px-8">
+              <div>
+                <p className="label text-concrete">Trasparenza</p>
+                <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Prima di accettare.</h2>
+                {hasPhoto("consegna") && (
+                  <div className="mt-6 aspect-[4/3] max-w-md overflow-hidden">
+                    <SitePhoto id="consegna" />
+                  </div>
+                )}
+              </div>
+              <dl className="border-t-2 border-asphalt">
+                {transparency.map((t) => (
+                  <div key={t.q} className="border-b border-line py-4">
+                    <dt className="font-bold">{t.q}</dt>
+                    <dd className="mt-1 max-w-[56ch] leading-relaxed text-asphalt-soft">{t.answer}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </section>
+        )}
+
+        {/* 6 · FAQ */}
+        <section id="domande" className="scroll-mt-20 bg-paper">
+          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 md:py-20 lg:px-8">
             <p className="label text-concrete">Domande</p>
             <h2 className="display mt-2 text-4xl sm:text-5xl md:text-6xl">Prima di scriverci.</h2>
             <div className="mt-8 max-w-3xl border-t-2 border-asphalt">
@@ -122,16 +177,16 @@ export default function Home() {
         {/* spazio per partner: spento, non produce nulla (src/config/ads.ts) */}
         <AdSlot id="home-dopo-faq" />
 
-        {/* CTA FINALE */}
+        {/* 7 · CTA FINALE */}
         <section className="on-dark bg-asphalt text-paper">
           <div className="mx-auto flex max-w-6xl flex-col items-start gap-7 px-4 py-12 sm:px-6 md:flex-row md:items-center md:justify-between md:py-16 lg:px-8">
             <p className="display max-w-[14ch] text-5xl sm:text-6xl">Hai una moto da vendere?</p>
             <div id="final-cta" className="w-full md:w-auto md:min-w-[22rem]">
               <TrackedLink href="/valuta" event="cta_click" label="footer" className={`${btnPrimary} w-full justify-between`}>
-                <span>Valuta la tua moto</span>
+                <span>{HERO.cta}</span>
                 <span aria-hidden="true">→</span>
               </TrackedLink>
-              <p className="label mt-3 text-[0.7rem] text-paper/80">Gratis e senza impegno · {BRAND.area}</p>
+              <p className="label mt-3 text-[0.7rem] text-paper/80">{HERO.note}</p>
               {(contactLinks().whatsapp || contactLinks().phone) && (
                 <div className="mt-6 border-t border-paper/20 pt-5">
                   <p className="mb-3 text-sm font-bold text-paper/85">Preferisci parlare con noi?</p>

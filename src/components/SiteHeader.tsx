@@ -26,11 +26,11 @@ export function SiteHeader() {
             href="/valuta"
             event="cta_click"
             label="header"
-            ariaLabel="Valuta la tua moto"
+            ariaLabel="Vendi la tua moto"
             className={`${btnPrimarySm} hidden whitespace-nowrap min-[380px]:inline-flex`}
           >
-            <span className="sm:hidden">Valuta</span>
-            <span className="hidden sm:inline">Valuta la tua moto</span>
+            <span className="sm:hidden">Vendi</span>
+            <span className="hidden sm:inline">Vendi la tua moto</span>
           </TrackedLink>
         </nav>
       </div>

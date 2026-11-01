@@ -41,9 +41,9 @@ export function StickyCta({ watchId, hideId }: { watchId: string; hideId: string
     >
       <div className="flex gap-2">
         <TrackedLink href="/valuta" event="cta_click" label="sticky" className={`${btnPrimary} min-w-0 flex-1 whitespace-nowrap px-4 max-[359px]:px-3 max-[359px]:text-sm`}>
-          <span className="max-[359px]:hidden">Valuta la tua moto</span>
+          <span className="max-[359px]:hidden">Vendi la tua moto</span>
           <span aria-hidden className="hidden max-[359px]:inline">
-            Valuta la moto
+            Vendi la moto
           </span>
         </TrackedLink>
         <WhatsAppButton from="sticky" size="icon" className="max-[359px]:w-12" />
