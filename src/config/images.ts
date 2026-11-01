@@ -36,8 +36,8 @@ export type SiteImage = {
 };
 
 export const IMAGES = {
-  /** Hero desktop/tablet: fotografia editoriale di una moto in contesto urbano, luce naturale. 1600 x 1000 px (16:10). */
-  hero: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1600, height: 1000, focal: "50% 60%" },
+  /** Hero desktop/tablet: grande fotografia della moto a destra del testo, cornice 4:3. Moto intera, luce naturale. 1600 x 1200 px. */
+  hero: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1600, height: 1200, focal: "50% 60%" },
   /** Hero smartphone (verticale, 4:5): la moto al centro, spazio libero in basso. 1080 x 1350 px. Se manca si usa `hero` ritagliata. */
   hero_mobile: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1080, height: 1350, focal: "50% 60%" },
   /** Fotografie editoriali di motociclette, verticali (4:5): moto intera o di tre quarti. 1200 x 1500 px. */

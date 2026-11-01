@@ -349,3 +349,14 @@ test("mobile first: menu, CTA sempre in intestazione, hero verticale, carosello,
   assert.match(photo, /capture="environment"/);
   assert.match(photo, /Scegli dalla galleria/);
 });
+
+test("hero: desktop con testo a sinistra e immagine a destra (pannello di marca se manca la foto), smartphone con pulsante nella prima schermata", () => {
+  const home = readFileSync("src/app/page.tsx", "utf8");
+  assert.match(home, /md:grid-cols-\[1fr_1\.05fr\]/);
+  assert.match(home, /md:order-last/, "la figura sta a destra da tablet in su");
+  assert.match(home, /<BrandSymbol tone="dark"/, "senza foto il pannello usa il simbolo originale del marchio");
+  assert.match(home, /md:aspect-\[4\/3\]/, "stessa cornice con e senza foto");
+  assert.match(home, /calc\(100svh-64px-310px\)/, "su smartphone la foto occupa lo spazio che resta dopo il testo");
+  assert.match(home, /order-3 mt-4 md:order-4/, "su smartphone il pulsante viene subito dopo il titolo");
+  assert.match(readFileSync("src/config/images.ts", "utf8"), /hero:\s*\{[^}]*width: 1600, height: 1200/);
+});

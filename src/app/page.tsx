@@ -7,6 +7,7 @@ import { StickyCta } from "@/components/StickyCta";
 import { TrackedLink, TrackOnMount } from "@/components/Track";
 import { ProcessDeal, ProcessProposal, ProcessTell } from "@/components/ProcessIcons";
 import { ADVANTAGE_ICONS } from "@/components/AdvantageIcons";
+import { BrandSymbol } from "@/components/brand/BrandSymbol";
 import { btnPrimary } from "@/components/buttons";
 import { LEGAL, contactLinks, isPlaceholder } from "@/config/business";
 import { isGenerated } from "@/config/images";
@@ -26,39 +27,59 @@ export default function Home() {
       <SiteHeader />
 
       <main>
-        {/* 1 · HERO. Smartphone: fotografia verticale a tutta larghezza in alto (moto protagonista), poi testo e CTA sotto, mai sopra
-            la fotografia. Tablet/desktop: titolo e CTA, fotografia orizzontale sotto. Senza foto resta solo la parte di testo. */}
-        <section className="flex flex-col bg-chalk">
-          <div className="mx-auto grid w-full max-w-6xl items-end gap-6 px-4 pb-8 pt-6 sm:px-6 md:grid-cols-[1.25fr_0.75fr] md:gap-14 md:pb-14 md:pt-14 lg:px-8">
-            <div className="min-w-0">
-              <p className="label text-concrete">{HERO.label}</p>
-              <h1 className="display mt-3 text-balance text-[clamp(3.2rem,14.5vw,6.6rem)] font-black leading-[0.92] md:mt-4">{HERO.title}</h1>
-              <p className="mt-4 max-w-[46ch] text-lg leading-relaxed text-asphalt-soft md:mt-5">{HERO.subtitle}</p>
-            </div>
-            <div id="hero-cta" className="min-w-0 md:pb-2">
-              <TrackedLink href="/valuta" event="cta_click" label="hero" className={`${btnPrimary} w-full justify-between`}>
-                <span>{HERO.cta}</span>
-                <span aria-hidden="true">→</span>
-              </TrackedLink>
-              {/* smartphone: due indicazioni ben leggibili; da tablet la riga unica */}
-              <ul className="mt-3 flex flex-wrap gap-2 md:hidden">
-                <li className="rounded-full bg-asphalt px-3.5 py-1.5 text-sm font-bold text-paper">Risposta entro {RESPONSE_TIME}</li>
-                <li className="rounded-full bg-paper px-3.5 py-1.5 text-sm font-bold text-asphalt ring-1 ring-line">{AREA}</li>
-              </ul>
-              <p className="label mt-3 hidden text-[0.7rem] text-concrete md:block">{HERO.note}</p>
-            </div>
-          </div>
-
-          {heroPhoto && (
-            <figure className="order-first md:order-none md:mx-auto md:w-full md:max-w-6xl md:px-6 md:pb-16 lg:px-8">
-              <div className="aspect-[4/5] max-h-[42svh] w-full overflow-hidden md:aspect-[21/8] md:max-h-none">
-                <ResponsivePhoto mobile="hero_mobile" desktop="hero" priority />
-              </div>
-              {(isGenerated("hero") || isGenerated("hero_mobile")) && (
+        {/* 1 · HERO. Desktop: testo e CTA a sinistra, grande fotografia della moto a destra (senza foto: pannello grafite con il simbolo
+            del marchio e tre fatti confermati, stessa cornice, così il layout non cambia quando arriva la foto).
+            Smartphone: fotografia in alto, alta quanto resta dello schermo dopo il testo, così il pulsante cade nella prima schermata;
+            ordine del testo: titolo, pulsante, indicazioni, poi sottotitolo. Senza foto resta solo il testo. */}
+        <section className="bg-chalk">
+          <div className="mx-auto grid w-full max-w-6xl md:grid-cols-[1fr_1.05fr] md:items-center md:gap-12 md:px-6 md:py-14 lg:gap-16 lg:px-8 lg:py-16">
+            <figure className="order-first min-w-0 md:order-last">
+              {heroPhoto ? (
+                <div className="h-[clamp(240px,calc(100svh-64px-310px),500px)] w-full overflow-hidden md:h-auto md:aspect-[4/3] md:shadow-[10px_10px_0_var(--color-plate)]">
+                  <ResponsivePhoto mobile="hero_mobile" desktop="hero" priority />
+                </div>
+              ) : (
+                <div
+                  className="relative hidden aspect-[4/3] w-full overflow-hidden bg-asphalt text-paper md:block md:shadow-[10px_10px_0_var(--color-plate)]"
+                  role="group"
+                  aria-label="Compriamo Moto in breve"
+                >
+                  <BrandSymbol tone="dark" className="absolute left-1/2 top-[44%] h-auto w-[62%] -translate-x-1/2 -translate-y-1/2" />
+                  <ul className="absolute inset-x-0 bottom-0 grid grid-cols-3 border-t border-paper/20 text-center">
+                    {["Acquisto diretto", `Risposta ${RESPONSE_TIME}`, AREA].map((t) => (
+                      <li key={t} className="label px-2 py-4 text-[0.7rem] text-paper/90 [&:not(:first-child)]:border-l [&:not(:first-child)]:border-paper/20">
+                        {t}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {heroPhoto && (isGenerated("hero") || isGenerated("hero_mobile")) && (
                 <figcaption className="mt-2 px-4 text-xs font-semibold text-concrete md:px-0">Immagine illustrativa</figcaption>
               )}
             </figure>
-          )}
+
+            <div className="flex min-w-0 flex-col px-4 pb-8 pt-4 sm:px-6 md:px-0 md:py-0">
+              <p className="label order-1 text-concrete md:hidden">Acquisto diretto di moto usate</p>
+              <p className="label order-1 hidden text-concrete md:block">{HERO.label}</p>
+              <h1 className="display order-2 mt-2 text-balance text-[clamp(3rem,13.5vw,6rem)] font-black leading-[0.92] md:mt-4 md:text-[clamp(3.6rem,6vw,6rem)]">
+                {HERO.title}
+              </h1>
+              <p className="order-4 mt-4 max-w-[46ch] text-lg leading-relaxed text-asphalt-soft md:order-3 md:mt-5">{HERO.subtitle}</p>
+              <div id="hero-cta" className="order-3 mt-4 md:order-4 md:mt-7 md:max-w-sm">
+                <TrackedLink href="/valuta" event="cta_click" label="hero" className={`${btnPrimary} w-full justify-between`}>
+                  <span>{HERO.cta}</span>
+                  <span aria-hidden="true">→</span>
+                </TrackedLink>
+                {/* smartphone: due indicazioni ben leggibili; da tablet la riga unica */}
+                <ul className="mt-3 flex flex-wrap gap-2 md:hidden">
+                  <li className="rounded-full bg-asphalt px-3.5 py-1.5 text-sm font-bold text-paper">Risposta entro {RESPONSE_TIME}</li>
+                  <li className="rounded-full bg-paper px-3.5 py-1.5 text-sm font-bold text-asphalt ring-1 ring-line">{AREA}</li>
+                </ul>
+                <p className="label mt-3 hidden text-[0.7rem] text-concrete md:block">{HERO.note}</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* 2 · CHI ACQUISTA: fondo scuro per cambiare ritmo; due fotografie di moto se presenti */}

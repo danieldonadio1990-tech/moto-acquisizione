@@ -8,7 +8,7 @@ il lavoro (gli archivi di immagini non sono raggiungibili dall'ambiente di svilu
 | Chiave in `src/config/images.ts` | Dove compare | Soggetto | Formato |
 |---|---|---|---|
 | `hero_mobile` | **smartphone**: in cima alla home, a tutta larghezza (alta al massimo il 42% dello schermo) | Moto protagonista al centro, spazio libero in basso; il testo sta sotto la foto, non sopra | **verticale 4:5, 1080 x 1350 px** |
-| `hero` | tablet/desktop, sotto il titolo | Fotografia editoriale di una moto in contesto urbano, luce naturale, taglio da brand automotive (non concessionaria) | orizzontale 16:10, 1600 x 1000 px |
+| `hero` | tablet/desktop: grande immagine a destra del testo, in cornice con ombra gialla | Moto intera in contesto urbano, luce naturale, taglio da brand automotive (non concessionaria); moto al centro-destra, spazio libero attorno | orizzontale 4:3, 1600 x 1200 px |
 | `moto_1`, `moto_2` | sezione «L'acquirente siamo noi»: su smartphone fanno parte del carosello a scorrimento, da tablet sono affiancate | Motociclette intere o di tre quarti, luce coerente | verticale 4:5, 1200 x 1500 px |
 | `dettaglio` | carosello su smartphone; da tablet accanto ai vantaggi | Dettaglio meccanico: motore, cerchio o manubrio | verticale 4:5, 1200 x 1500 px |
 | `consegna` | sezione «Prima di accettare» (su smartphone a tutta larghezza) | Consegna di una moto tra due persone (volti non riconoscibili o con liberatoria) | 4:3, 1200 x 900 px |

@@ -49,7 +49,7 @@ for (const { w, h, phone } of WIDTHS) {
       });
       expect(lines).toBeLessThanOrEqual(4);
       await expect(page.getByRole("banner").getByRole("link", { name: "Vendi la tua moto" })).toBeVisible();
-      await expect(page.getByText("Milano e provincia").first()).toBeVisible();
+      await expect(page.getByText("Milano e provincia").filter({ visible: true }).first()).toBeVisible();
       expect(await smallTargets(page)).toEqual([]);
       await page.screenshot({ path: `${OUT}/home-${w}.png`, fullPage: true });
     });

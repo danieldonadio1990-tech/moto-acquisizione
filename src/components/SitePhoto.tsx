@@ -55,7 +55,7 @@ export function ResponsivePhoto({ mobile, desktop, priority = false }: { mobile:
   if (!IMAGES[m].src || !IMAGES[d].src) return null;
   const build = (id: ImageKey, sizes: string) =>
     getImageProps({ src: IMAGES[id].src!, alt: IMAGES[id].alt, width: IMAGES[id].width, height: IMAGES[id].height, sizes, priority }).props;
-  const dp = build(d, "(min-width: 1152px) 1152px, 100vw");
+  const dp = build(d, "(min-width: 1152px) 600px, (min-width: 768px) 50vw, 100vw");
   const mp = build(m, "100vw");
   return (
     <picture>
