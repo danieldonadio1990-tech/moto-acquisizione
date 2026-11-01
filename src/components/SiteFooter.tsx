@@ -27,34 +27,34 @@ export function SiteFooter() {
           )}
         </div>
         {(contacts.whatsapp || contacts.phone || email) && (
-          <div className="flex flex-col gap-3 text-sm font-bold">
+          <div className="flex flex-col text-sm font-bold">
             <p className="text-xs uppercase tracking-wider text-concrete">Contatti</p>
             {contacts.phone && (
-              <a href={contacts.phone.href} className="underline-offset-4 hover:underline">
+              <a href={contacts.phone.href} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
                 Telefono {contacts.phone.label}
               </a>
             )}
             {contacts.whatsapp && (
-              <a href={contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
+              <a href={contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
                 WhatsApp
               </a>
             )}
             {email && (
-              <a href={`mailto:${email}`} className="underline-offset-4 hover:underline">
+              <a href={`mailto:${email}`} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
                 {email}
               </a>
             )}
           </div>
         )}
-        <nav aria-label="Informazioni" className="flex flex-col gap-3 text-sm font-bold">
-          <Link href="/#come-funziona" className="underline-offset-4 hover:underline">
+        <nav aria-label="Informazioni" className="flex flex-col text-sm font-bold">
+          <Link href="/#come-funziona" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
             Come funziona
           </Link>
-          <Link href="/valuta" className="underline-offset-4 hover:underline">
+          <Link href="/valuta" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
             Vendi la tua moto
           
        </Link>
-          <Link href="/privacy" className="underline-offset-4 hover:underline">
+          <Link href="/privacy" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">
             Informativa privacy
           
        </Link>

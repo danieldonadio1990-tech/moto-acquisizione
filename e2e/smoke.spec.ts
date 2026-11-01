@@ -48,7 +48,7 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
 
   // Foto
   await expect(page.getByRole("heading", { name: "Aggiungi qualche foto" })).toBeVisible();
-  await page.locator("input[type=file]").setInputFiles([PHOTO, PHOTO]);
+  await page.locator("input[type=file]:not([capture])").setInputFiles([PHOTO, PHOTO]);
   await expect(page.getByText("2/12 foto")).toBeVisible();
   await page.getByRole("button", { name: "Invia le foto" }).click();
   await expect(page.getByRole("heading", { name: "Richiesta ricevuta" })).toBeVisible({ timeout: 30_000 });

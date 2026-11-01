@@ -322,3 +322,30 @@ test("icone del processo: tre SVG nel codice, decorative, nessun file esterno", 
   for (const n of ["ProcessTell", "ProcessProposal", "ProcessDeal"]) assert.match(icons, new RegExp(`export const ${n}`));
   assert.match(icons, /"aria-hidden": true/);
 });
+
+test("mobile first: menu, CTA sempre in intestazione, hero verticale, carosello, vantaggi a schede, barra del modulo sopra la tastiera", () => {
+  const header = readFileSync("src/components/SiteHeader.tsx", "utf8");
+  assert.match(header, /<MobileMenu \/>/);
+  assert.doesNotMatch(header, /min-\[380px\]:inline-flex/, "la CTA dell'intestazione non deve sparire sugli smartphone stretti");
+  const menu = readFileSync("src/components/MobileMenu.tsx", "utf8");
+  assert.match(menu, /aria-expanded/);
+  assert.match(menu, /Escape/);
+  assert.match(menu, /min-h-14/);
+  const home = readFileSync("src/app/page.tsx", "utf8");
+  assert.match(home, /ResponsivePhoto mobile="hero_mobile" desktop="hero"/);
+  assert.match(home, /snap-x snap-mandatory/);
+  assert.match(home, /id="vantaggi"/);
+  assert.match(home, /grid-cols-2/);
+  assert.match(home, /RESPONSE_TIME/);
+  const cfg = readFileSync("src/config/images.ts", "utf8");
+  assert.match(cfg, /hero_mobile:\s*\{[^}]*width: 1080, height: 1350/);
+  for (const id of ["moto_1", "moto_2", "dettaglio"]) assert.match(cfg, new RegExp(`${id}:\\s*\\{[^}]*height: 1500`), `${id} verticale 4:5`);
+  const funnel = readFileSync("src/modules/funnel/Funnel.tsx", "utf8");
+  assert.match(funnel, /visualViewport/);
+  assert.match(funnel, /var\(--kb-inset, 0px\)/);
+  assert.match(funnel, /env\(safe-area-inset-bottom\)/);
+  assert.match(readFileSync("src/app/layout.tsx", "utf8"), /viewportFit: "cover"/);
+  const photo = readFileSync("src/modules/funnel/steps/PhotoStep.tsx", "utf8");
+  assert.match(photo, /capture="environment"/);
+  assert.match(photo, /Scegli dalla galleria/);
+});

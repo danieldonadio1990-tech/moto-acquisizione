@@ -106,7 +106,33 @@ function batchPhotos(list: PickedPhoto[]): PickedPhoto[][] {
   return out;
 }
 
+/**
+ * Barra fissa in basso e tastiera: quando compare la tastiera su smartphone la barra deve restare sopra, non finire sotto.
+ * `visualViewport` dà l'altezza davvero visibile (Android Chrome ridimensiona solo quella; iOS Safari lascia il layout intatto):
+ * la differenza con `innerHeight` è lo spazio occupato dalla tastiera ed è usata come distanza dal basso (`--kb-inset`).
+ */
+function useKeyboardInset() {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      root.style.setProperty("--kb-inset", inset > 80 ? `${inset}px` : "0px"); // sotto 80 px non è la tastiera (barre del browser)
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      root.style.removeProperty("--kb-inset");
+    };
+  }, []);
+}
+
 export function Funnel() {
+  useKeyboardInset();
   const { state, update, reset, ready } = useFunnelState();
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -319,7 +345,7 @@ export function Funnel() {
             <Link
               href="/"
               onClick={() => leadCreated && reset()}
-              className="rounded-lg px-2 py-2 text-sm font-bold text-concrete underline-offset-4 hover:text-asphalt hover:underline"
+              className="flex min-h-11 items-center rounded-lg px-3 text-base font-bold text-concrete underline-offset-4 hover:text-asphalt hover:underline"
             >
               Esci
             </Link>
@@ -354,6 +380,13 @@ export function Funnel() {
         onSubmit={(e) => {
           e.preventDefault();
           if (!submitting) next();
+        }}
+        // il campo toccato va al centro dello schermo visibile: né sotto la barra fissa né sotto la tastiera (attesa: la tastiera si anima)
+        onFocusCapture={(e) => {
+          const t = e.target;
+          if (!(t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement)) return;
+          if (t instanceof HTMLInputElement && ["checkbox", "radio", "file", "hidden"].includes(t.type)) return;
+          window.setTimeout(() => t.scrollIntoView({ block: "center", behavior: "smooth" }), 280);
         }}
         noValidate
       >
@@ -394,7 +427,7 @@ export function Funnel() {
         </div>
 
         {!isDone && (
-          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 shadow-[0_-6px_20px_rgba(32,37,43,0.10)] backdrop-blur">
+          <div style={{ bottom: "var(--kb-inset, 0px)" }} className="fixed inset-x-0 z-20 border-t border-line bg-paper/95 shadow-[0_-6px_20px_rgba(32,37,43,0.10)] backdrop-blur">
             <div className="mx-auto max-w-xl px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3">
               <div className="flex gap-3">
                 {canGoBack && (

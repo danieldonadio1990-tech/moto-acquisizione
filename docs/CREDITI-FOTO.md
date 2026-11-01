@@ -5,6 +5,7 @@ Da compilare per **ogni** fotografia pubblicata. Una foto senza riga completa in
 | Chiave | File | Soggetto | Autore | Fonte (link alla pagina di origine) | Licenza | Credito mostrato nel sito | Verificata il / da |
 |---|---|---|---|---|---|---|---|
 | `hero` | — | — | — | — | — | — | — |
+| `hero_mobile` | — | — | — | — | — | — | — |
 | `moto_1` | — | — | — | — | — | — | — |
 | `moto_2` | — | — | — | — | — | — | — |
 | `consegna` | — | — | — | — | — | — | — |

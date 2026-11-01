@@ -4,16 +4,21 @@
 composizione pulita di colori e tipografia. Le fotografie reali con licenza verificata **non erano scaricabili** durante
 il lavoro (gli archivi di immagini non sono raggiungibili dall'ambiente di sviluppo) e non ne sono state inventate.
 
-## Quali foto servono (5)
+## Quali foto servono (6) — progettate per lo smartphone prima che per il desktop
 | Chiave in `src/config/images.ts` | Dove compare | Soggetto | Formato |
 |---|---|---|---|
-| `hero` | sotto il titolo della home | Fotografia editoriale di una moto in contesto urbano, luce naturale, taglio da brand automotive (non concessionaria) | 1600 x 1000 px (16:10) |
-| `moto_1`, `moto_2` | sezione «L'acquirente siamo noi» | Due fotografie di motociclette, intere o di tre quarti, luce coerente | 1200 x 900 px (4:3) |
-| `consegna` | sezione «Prima di accettare» | Consegna di una moto tra due persone (volti non riconoscibili o con liberatoria) | 1200 x 900 px (4:3) |
-| `dettaglio` | sezione dei vantaggi (da tablet in su) | Dettaglio meccanico: motore, cerchio o manubrio | 1200 x 1200 px (1:1) |
+| `hero_mobile` | **smartphone**: in cima alla home, a tutta larghezza (alta al massimo il 42% dello schermo) | Moto protagonista al centro, spazio libero in basso; il testo sta sotto la foto, non sopra | **verticale 4:5, 1080 x 1350 px** |
+| `hero` | tablet/desktop, sotto il titolo | Fotografia editoriale di una moto in contesto urbano, luce naturale, taglio da brand automotive (non concessionaria) | orizzontale 16:10, 1600 x 1000 px |
+| `moto_1`, `moto_2` | sezione «L'acquirente siamo noi»: su smartphone fanno parte del carosello a scorrimento, da tablet sono affiancate | Motociclette intere o di tre quarti, luce coerente | verticale 4:5, 1200 x 1500 px |
+| `dettaglio` | carosello su smartphone; da tablet accanto ai vantaggi | Dettaglio meccanico: motore, cerchio o manubrio | verticale 4:5, 1200 x 1500 px |
+| `consegna` | sezione «Prima di accettare» (su smartphone a tutta larghezza) | Consegna di una moto tra due persone (volti non riconoscibili o con liberatoria) | 4:3, 1200 x 900 px |
 
-Finché `src` è `null` lo slot non compare e la pagina non ha vuoti. Le tre icone del processo sono SVG nel codice
-(`src/components/ProcessIcons.tsx`): non servono file.
+**Punto focale:** ogni voce di `images.ts` ha `focal` (e, se serve, `focalMobile`), per esempio `"50% 60%"` = centro, 60% dall'alto.
+Serve a decidere cosa resta nel ritaglio quando lo stesso scatto è mostrato in formati diversi. Se `hero_mobile` manca si usa
+`hero` ritagliata dal punto focale; se manca `hero` su desktop si usa `hero_mobile`.
+
+Finché `src` è `null` lo slot non compare e la pagina non ha vuoti. Le icone del processo e dei vantaggi sono SVG nel codice
+(`ProcessIcons.tsx`, `AdvantageIcons.tsx`): non servono file.
 
 ## Requisiti
 - Fotografie **reali**: niente immagini generate con AI, illustrazioni, mockup, rendering o foto stock palesemente
