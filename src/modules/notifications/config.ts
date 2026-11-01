@@ -59,6 +59,16 @@ export function loadNotificationConfig(e: NodeJS.ProcessEnv = process.env): Noti
   return { enabled: true, apiKey: apiKey!, to, from: fromRaw || RESEND_TEST_SENDER, ...(replyTo ? { replyTo } : {}), dailyLimit: parseDailyLimit(e).value };
 }
 
+/**
+ * Mittente effettivamente in uso e da dove viene (per il back office: mostra cosa legge DAVVERO il server, senza segreti).
+ * `fromEnv` = NOTIFY_EMAIL_FROM presente e valida nell'ambiente del processo; altrimenti si usa il mittente di prova.
+ */
+export function notificationSenderInfo(e: NodeJS.ProcessEnv = process.env): { address: string; fromEnv: boolean } {
+  const raw = e.NOTIFY_EMAIL_FROM?.trim();
+  const from = raw && FROM_RE.test(raw) ? raw : RESEND_TEST_SENDER;
+  return { address: from.match(/<([^>]+)>/)?.[1] ?? from, fromEnv: from !== RESEND_TEST_SENDER };
+}
+
 /** Lunghezza minima del token del recupero automatico (generarlo con `openssl rand -hex 32`: 64 caratteri). */
 export const MIN_RETRY_TOKEN_LENGTH = 32;
 
