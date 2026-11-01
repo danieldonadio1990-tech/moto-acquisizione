@@ -5,6 +5,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { canonicalBrand, listBrands, listModels, MAIN_BRANDS, OTHER_MODEL_ID } from "@/modules/catalog";
 import { CATALOG } from "@/modules/catalog/data";
+import { TRANSPARENCY } from "@/config/home-content";
+import { indexingEnabled } from "@/config/seo";
 import {
   BRAND,
   buildContactLinks,
@@ -14,6 +16,7 @@ import {
   hasWhatsapp,
   isPlaceholder,
   missingBusinessData,
+  PRIVACY_POLICY_IS_DRAFT,
   phoneTelHref,
   whatsappLink,
   WHATSAPP_MESSAGE,
@@ -132,16 +135,28 @@ test("Vespa non è una marca separata: nel modulo resta sotto Piaggio con sugger
 });
 
 // ---- Redesign: home, immagini segnaposto, footer ------------------------------------------------------------------------
-test("home: messaggio principale, CTA e sezioni previste, senza promesse non verificate", () => {
+test("home: posizionamento di acquisto diretto, CTA e sezioni previste, senza promesse non confermate", () => {
   const home = readFileSync("src/app/page.tsx", "utf8") + readFileSync("src/config/home-content.ts", "utf8");
-  assert.match(home, /Valuta la tua moto[\s\S]{0,80}in pochi passaggi\./);
-  assert.match(home, /Della rivendita non devi occuparti tu/);
-  assert.match(home, /gestione successiva è a nostro carico/);
-  assert.match(home, /Acquistiamo la tua moto direttamente da te/);
-  assert.match(home, /Valuta la tua moto/);
-  for (const id of ["come-funziona", "domande"]) assert.match(home, new RegExp(`id="${id}"`));
-  // niente promesse di tempi, garanzie, recensioni o volumi
-  assert.doesNotMatch(home.replace(/\/\*[\s\S]*?\*\//g, ""), /garantit|in giornata|entro \d|24 ?ore|subito il pagamento|recension|testimonianz|clienti soddisfatti|\d+ moto acquistate/i);
+  assert.match(home, /La tua moto, la acquistiamo noi\./);
+  assert.match(home, /Niente annunci, niente ricerca di acquirenti\. Raccontaci della tua moto e ricevi una nostra proposta d'acquisto\./);
+  assert.match(home, /Acquisto diretto di moto usate · \$\{AREA\}/);
+  assert.match(home, /Vendi la tua moto/);
+  assert.match(home, /Risposta entro \$\{RESPONSE_TIME\} · \$\{AREA\}/);
+  assert.match(home, /RESPONSE_TIME = "24-48 ore"/);
+  for (const s of ["Raccontaci la tua moto", "Ricevi la nostra proposta", "Concludiamo l'acquisto"]) assert.ok(home.includes(s), s);
+  for (const s of ["Un solo interlocutore", "Nessun annuncio da pubblicare", "Nessuna ricerca di acquirenti", "Valuti la proposta prima di decidere", "Trattativa diretta"]) assert.ok(home.includes(s), s);
+  assert.match(home, /non viene inoltrata a intermediari/);
+  assert.match(home, /definiamo insieme dove e come effettuare la consegna della moto/);
+  for (const id of ["come-funziona", "domande", "trasparenza"]) assert.match(home, new RegExp(`id="${id}"`));
+  // il vecchio posizionamento non c'è più
+  assert.doesNotMatch(home, /Valuta la tua moto in pochi passaggi|Della rivendita non devi occuparti|gestione successiva è a nostro carico/);
+  // niente promesse non confermate: «gratis», pagamento, costi di ritiro, passaggio di proprietà, garanzie, recensioni, volumi
+  const code = home.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.doesNotMatch(code, /\bgratis|gratuit|garantit|in giornata|pagamento immediato|ritiro gratuito|recension|testimonianz|clienti soddisfatti|\d+ moto acquistate/i);
+  // le informazioni non confermate restano nascoste (answer: null) e non finiscono in pagina
+  const hidden = TRANSPARENCY.filter((t) => t.answer === null).map((t) => t.q);
+  assert.deepEqual(hidden, ["Come formuliamo la proposta", "Pagamento", "Passaggio di proprietà"]);
+  assert.match(home, /answer !== null/);
 });
 
 test("immagini: nessuna illustrazione o immagine sintetica; foto solo se vere, esistenti e con credito", () => {
@@ -167,7 +182,7 @@ test("immagini: una hero generata richiede file ad alta risoluzione, flag genera
     assert.doesNotMatch(hero, /Milano/, "l'alt di un'immagine generata non deve citare un luogo reale");
   }
   // i modelli specifici non usano mai immagini generate
-  for (const id of ["honda_sh", "piaggio_liberty", "kymco_agility"]) {
+  for (const id of ["moto_1", "moto_2", "consegna", "dettaglio"]) {
     const line = cfg.match(new RegExp(`${id}:\\s*\\{([^}]*)\\}`))![1];
     assert.doesNotMatch(line, /generated:\s*true/, id);
   }
@@ -269,8 +284,41 @@ test("testi per il cliente: «moto» (mai «mezzo») e nessuna limitazione a sco
     assert.doesNotMatch(txt, /\bscooter\b|soprattutto scooter|solo scooter|\b125 ?cc\b(?!")/i, `${f}: il servizio riguarda tutte le moto`);
   }
   const home = readFileSync("src/app/page.tsx", "utf8") + readFileSync("src/config/home-content.ts", "utf8");
-  assert.match(home, /gestione successiva/);
-  assert.match(home, /non devi occuparti|Della rivendita non devi occuparti tu/i);
+  assert.match(home, /acquistiamo noi/);
   const biz = readFileSync("src/config/business.ts", "utf8");
   assert.doesNotMatch(biz.replace(/\/\*[\s\S]*?\*\//g, ""), /scooter|\bmezz[oi]\b/i);
+});
+
+test("modulo e conferma: CTA, modello di acquisto diretto e cosa succede dopo, senza dire che la moto è già acquistata", () => {
+  const funnel = ["MotoStep", "ContactStep", "DoneStep"].map((n) => readFileSync(`src/modules/funnel/steps/${n}.tsx`, "utf8")).join("\n");
+  assert.match(funnel, /direttamente a Compriamo Moto/);
+  assert.match(funnel, /entro 24-48 ore/);
+  assert.match(funnel, /Non è ancora un acquisto concluso/);
+  assert.match(funnel, /Richiesta ricevuta/);
+  assert.match(funnel, /definiamo insieme dove e come effettuare la consegna della moto/);
+  assert.doesNotMatch(funnel, /abbiamo acquistato|moto è stata acquistata|appuntamento per vedere la moto/i);
+  for (const f of ["src/components/SiteHeader.tsx", "src/components/StickyCta.tsx", "src/components/SiteFooter.tsx", "src/app/not-found.tsx"]) {
+    const t = readFileSync(f, "utf8");
+    assert.match(t, /Vendi la (tua )?moto/, f);
+    assert.doesNotMatch(t, /Valuta la (tua )?moto/, f);
+  }
+});
+
+test("SEO: titolo, descrizione e dati strutturati nuovi; l'indicizzazione resta spenta con la privacy in bozza", () => {
+  assert.match(BRAND.tagline, /Vendere la moto a Milano/);
+  assert.match(BRAND.description, /Compriamo moto usate direttamente dai proprietari a Milano e provincia/);
+  assert.match(readFileSync("src/app/layout.tsx", "utf8"), /<OrganizationJsonLd \/>/);
+  const layout = readFileSync("src/components/OrganizationJsonLd.tsx", "utf8");
+  assert.match(layout, /application\/ld\+json/);
+  assert.match(layout, /"@type": "Organization"/);
+  assert.doesNotMatch(layout, /LocalBusiness|PostalAddress|streetAddress/);
+  assert.match(readFileSync("src/app/opengraph-image.alt.txt", "utf8"), /La tua moto, la acquistiamo noi/);
+  assert.ok(PRIVACY_POLICY_IS_DRAFT, "finché l'informativa è in bozza l'indicizzazione deve restare spenta");
+  assert.equal(indexingEnabled(), false);
+});
+
+test("icone del processo: tre SVG nel codice, decorative, nessun file esterno", () => {
+  const icons = readFileSync("src/components/ProcessIcons.tsx", "utf8");
+  for (const n of ["ProcessTell", "ProcessProposal", "ProcessDeal"]) assert.match(icons, new RegExp(`export const ${n}`));
+  assert.match(icons, /"aria-hidden": true/);
 });

@@ -16,7 +16,7 @@ export function SiteFooter() {
         <div>
           <BrandMark size="sm" />
           <p className="mt-4 max-w-[40ch] text-sm leading-relaxed text-concrete">
-            Acquisto di moto usate da privati. {BRAND.area}.
+            Acquisto diretto di moto usate dai proprietari. {BRAND.area}.
           </p>
           {(company || vat) && (
             <p className="mt-2 text-sm text-concrete">
@@ -51,7 +51,7 @@ export function SiteFooter() {
             Come funziona
           </Link>
           <Link href="/valuta" className="underline-offset-4 hover:underline">
-            Valuta la tua moto
+            Vendi la tua moto
           
        </Link>
           <Link href="/privacy" className="underline-offset-4 hover:underline">

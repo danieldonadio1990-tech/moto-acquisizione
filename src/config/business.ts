@@ -20,9 +20,9 @@ export const BRAND = {
   /** Area servita, mostrata nei testi */
   area: "Milano e provincia",
   /** Testo usato in titolo e descrizione per i motori di ricerca e la condivisione */
-  tagline: "Valuta la tua moto in pochi passaggi",
+  tagline: "Vendere la moto a Milano: acquisto diretto",
   description:
-    "Vendi la tua moto a Milano: la compriamo direttamente da te, ti guidiamo in una procedura chiara e, dopo la vendita, della rivendita non devi occuparti tu.",
+    "Compriamo moto usate direttamente dai proprietari a Milano e provincia. Niente annunci: raccontaci della tua moto e ricevi una nostra proposta d'acquisto.",
 } as const;
 
 export const CONTACTS = {

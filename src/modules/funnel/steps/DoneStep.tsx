@@ -34,17 +34,13 @@ export function DoneStep({
   );
 
   const hasAmount = valuation.kind !== "manual";
-  const NEXT = hasAmount
-    ? [
-        "Verifichiamo i dati e le condizioni della tua moto.",
-        "Ti ricontattiamo ai recapiti che ci hai lasciato per confermare o aggiornare la valutazione.",
-        "Se troviamo un accordo, fissiamo un appuntamento per vedere la moto.",
-      ]
-    : [
-        "Controlliamo i dati della tua moto.",
-        "Ti ricontattiamo con una valutazione, oppure ti chiediamo qualche informazione in più.",
-        "Se troviamo un accordo, fissiamo un appuntamento per vedere la moto.",
-      ];
+  const NEXT = [
+    "Analizziamo le informazioni sulla tua moto.",
+    hasAmount
+      ? "Ti ricontattiamo entro 24-48 ore ai recapiti che ci hai lasciato per confermare o aggiornare la valutazione."
+      : "Ti ricontattiamo entro 24-48 ore ai recapiti che ci hai lasciato, con una proposta d'acquisto o per chiederti qualche informazione in più.",
+    "Se raggiungiamo un accordo, definiamo insieme dove e come effettuare la consegna della moto.",
+  ];
 
   return (
     <div>
@@ -79,8 +75,8 @@ export function DoneStep({
         </p>
       ) : (
         <p className="mt-4 max-w-[52ch] text-lg leading-snug text-asphalt-soft">
-          Abbiamo ricevuto i dati della tua moto{motoLabel ? `: ${motoLabel}` : ""}. Per darti un importo affidabile ci serve una
-          verifica dei dati: ti ricontatteremo noi.
+          Abbiamo ricevuto la richiesta per la tua moto{motoLabel ? `: ${motoLabel}` : ""}. Non è ancora un acquisto concluso:
+          Compriamo Moto analizzerà le informazioni e ti ricontatterà entro 24-48 ore.
         </p>
       )}
 

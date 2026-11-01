@@ -27,7 +27,7 @@ export function ContactStep({
 }) {
   return (
     <>
-      <StepTitle sub="Li usiamo solo per ricontattarti su questa moto.">Come ti ricontattiamo?</StepTitle>
+      <StepTitle sub="Ti ricontattiamo noi, direttamente, entro 24-48 ore. Li usiamo solo per questa moto.">Come ti ricontattiamo?</StepTitle>
       <div className="space-y-5">
         <div className="grid gap-5 sm:grid-cols-2">
           <TextField
@@ -107,7 +107,7 @@ export function ContactStep({
                 informativa privacy
               </Link>
               .
-              <span className="mt-1 block text-sm text-concrete">Usiamo i tuoi dati solo per valutare la moto e ricontattarti.</span>
+              <span className="mt-1 block text-sm text-concrete">Usiamo i tuoi dati solo per valutare la moto e ricontattarti: la richiesta resta a Compriamo Moto.</span>
             </span>
           </label>
           {errors.privacyConsent && <FieldError>{errors.privacyConsent}</FieldError>}

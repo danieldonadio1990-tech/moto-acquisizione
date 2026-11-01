@@ -4,16 +4,16 @@
 composizione pulita di colori e tipografia. Le fotografie reali con licenza verificata **non erano scaricabili** durante
 il lavoro (gli archivi di immagini non sono raggiungibili dall'ambiente di sviluppo) e non ne sono state inventate.
 
-## Quali foto servono (4)
-| Chiave in `src/config/images.ts` | Soggetto | Formato |
-|---|---|---|
-| `hero` | **Scooter in una strada di Milano**, contesto urbano credibile e luce naturale. Nessun monumento, insegna o marchio di terzi in evidenza; persone non riconoscibili | 1600 x 1200 px (4:3) |
-| `honda_sh` | **Honda SH** (SH125i / SH150i / SH350i), ripresa di lato o tre quarti, mezzo intero e pulito | 1200 x 900 px (4:3) |
-| `piaggio_liberty` | **Piaggio Liberty**, stessa ripresa | 1200 x 900 px (4:3) |
-| `kymco_agility` | **Kymco Agility**, stessa ripresa | 1200 x 900 px (4:3) |
+## Quali foto servono (5)
+| Chiave in `src/config/images.ts` | Dove compare | Soggetto | Formato |
+|---|---|---|---|
+| `hero` | sotto il titolo della home | Fotografia editoriale di una moto in contesto urbano, luce naturale, taglio da brand automotive (non concessionaria) | 1600 x 1000 px (16:10) |
+| `moto_1`, `moto_2` | sezione «L'acquirente siamo noi» | Due fotografie di motociclette, intere o di tre quarti, luce coerente | 1200 x 900 px (4:3) |
+| `consegna` | sezione «Prima di accettare» | Consegna di una moto tra due persone (volti non riconoscibili o con liberatoria) | 1200 x 900 px (4:3) |
+| `dettaglio` | sezione dei vantaggi (da tablet in su) | Dettaglio meccanico: motore, cerchio o manubrio | 1200 x 1200 px (1:1) |
 
-Per uno stile coerente: stessa luce (giorno, non controluce), stessa inquadratura per le tre foto dei modelli, sfondo
-urbano semplice, mezzo in buone condizioni.
+Finché `src` è `null` lo slot non compare e la pagina non ha vuoti. Le tre icone del processo sono SVG nel codice
+(`src/components/ProcessIcons.tsx`): non servono file.
 
 ## Requisiti
 - Fotografie **reali**: niente immagini generate con AI, illustrazioni, mockup, rendering o foto stock palesemente

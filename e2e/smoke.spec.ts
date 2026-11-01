@@ -17,8 +17,8 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
 
   // Landing
   await page.goto("/?utm_source=smoke&utm_medium=test&utm_campaign=e2e");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Valuta la tua moto in pochi passaggi");
-  await page.getByRole("link", { name: "Valuta la tua moto" }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("La tua moto, la acquistiamo noi.");
+  await page.getByRole("link", { name: "Vendi la tua moto" }).first().click();
   await expect(page).toHaveURL(/\/valuta$/);
 
   // Step 1–3
@@ -42,7 +42,7 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
   await page.getByRole("textbox", { name: "Email" }).fill("smoke-test@example.invalid");
   await page.getByLabel("Comune").fill("Milano");
   await page.getByRole("button", { name: "Invia richiesta" }).click();
-  await expect(page.getByText("Serve il consenso per ricontattarti")).toBeVisible();
+  await expect(page.getByText("Conferma di aver letto l'informativa privacy")).toBeVisible();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Invia richiesta" }).click();
 
@@ -98,13 +98,13 @@ test("pagine di servizio: 404, robots, sitemap, privacy", async ({ page, request
   expect((await request.get("/robots.txt")).status()).toBe(200);
   expect((await request.get("/sitemap.xml")).status()).toBe(200);
   await page.goto("/privacy");
-  await expect(page.getByText(/Versione/)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Informativa privacy" })).toBeVisible();
 });
 
 test("home pubblica: contenuti, nessun segnaposto in pagina, nessun link WhatsApp, nessuno scroll orizzontale", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Valuta la tua moto in pochi passaggi.");
-  for (const h of ["Come funziona", "Quale moto vuoi vendere?", "Domande"]) {
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("La tua moto, la acquistiamo noi.");
+  for (const h of ["Tre passaggi, un solo acquirente.", "Prima di accettare.", "Prima di scriverci."]) {
     await expect(page.getByRole("heading", { name: h })).toBeVisible();
   }
   const text = await page.locator("body").innerText();
