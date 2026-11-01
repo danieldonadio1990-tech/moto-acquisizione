@@ -396,7 +396,61 @@ describe("5. Trasporto Resend (fetch simulato, nessuna rete)", () => {
     const none = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO }));
     assert.ok(none.enabled && none.replyTo === undefined);
     const bad = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: "non valido" }));
-    assert.equal(bad.enabled, false);
+    // un Reply-To non valido NON spegne le notifiche: viene ignorato e segnalato
+    assert.ok(bad.enabled && bad.replyTo === undefined);
+    for (const v of ["Compriamo Moto <risposte@example.com>", '"risposte@example.com"']) {
+      const c = cfgmod.loadNotificationConfig(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: v }));
+      assert.ok(c.enabled && c.replyTo === undefined, v);
+    }
+    const w = cfgmod.notificationWarnings(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_REPLY_TO: "non valido" })).join(" ");
+    assert.match(w, /NOTIFY_EMAIL_REPLY_TO non valido.*senza Reply-To/);
+    // senza NOTIFY_EMAIL_FROM si segnala il mittente di prova; con un mittente proprio no
+    assert.match(w, /NOTIFY_EMAIL_FROM mancante.*onboarding@resend\.dev.*403/);
+    const own = cfgmod.notificationWarnings(env({ RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: TO, NOTIFY_EMAIL_FROM: "Compriamo Moto <notifiche@example.com>" })).join(" ");
+    assert.doesNotMatch(own, /NOTIFY_EMAIL_FROM mancante/);
+  });
+
+  test("mittente in uso: da NOTIFY_EMAIL_FROM se presente, altrimenti mittente di prova", async () => {
+    const own = cfgmod.notificationSenderInfo(env({ NOTIFY_EMAIL_FROM: " Compriamo Moto <notifiche@compriamo-moto.it> " }));
+    assert.deepEqual(own, { address: "notifiche@compriamo-moto.it", fromEnv: true });
+    assert.deepEqual(cfgmod.notificationSenderInfo(env({})), { address: "onboarding@resend.dev", fromEnv: false });
+    // il campo `from` inviato a Resend è esattamente quello della variabile (trasporto reale, fetch simulato)
+    const bodies: { from: string; reply_to?: string }[] = [];
+    const prevFetch = globalThis.fetch;
+    const prevEnv = { ...process.env };
+    const prevNodeEnv = process.env.NODE_ENV;
+    globalThis.fetch = (async (_u: unknown, init: RequestInit) => {
+      bodies.push(JSON.parse(String(init.body)));
+      return new Response('{"id":"x"}', { status: 200 });
+    }) as unknown as typeof fetch;
+    Object.assign(process.env, {
+      RESEND_API_KEY: "dummy-key-not-real",
+      NOTIFY_EMAIL_TO: TO,
+      NOTIFY_EMAIL_FROM: "Compriamo Moto <notifiche@compriamo-moto.it>",
+      NOTIFY_EMAIL_REPLY_TO: "compriamo.moto.support@gmail.com",
+    });
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    tr.setEmailTransport(null);
+    try {
+      const t = tr.getEmailTransport()!;
+      await t.transport.send({ from: t.from, to: t.to, replyTo: t.replyTo, subject: "s", text: "t", idempotencyKey: "k" });
+      assert.equal(bodies[0].from, "Compriamo Moto <notifiche@compriamo-moto.it>");
+      assert.equal(bodies[0].reply_to, "compriamo.moto.support@gmail.com");
+    } finally {
+      globalThis.fetch = prevFetch;
+      for (const k of Object.keys(process.env)) if (!(k in prevEnv)) delete process.env[k];
+      Object.assign(process.env, prevEnv);
+      (process.env as Record<string, string | undefined>).NODE_ENV = prevNodeEnv;
+    }
+  });
+
+  test("errore HTTP: il codice include il solo nome dell'errore di Resend, mai il messaggio", async () => {
+    const stub = (async () =>
+      new Response(JSON.stringify({ name: "validation_error", message: `Testing domain restriction: ${TO}` }), { status: 403 })) as unknown as typeof fetch;
+    const out = await new tr.ResendTransport("dummy-key-not-real", stub).send(msg);
+    assert.deepEqual(out, { ok: false, code: "http_403:validation_error" });
+    const plain = (async () => new Response("<html>", { status: 502 })) as unknown as typeof fetch;
+    assert.deepEqual(await new tr.ResendTransport("dummy-key-not-real", plain).send(msg), { ok: false, code: "http_502" });
   });
 
   test("richiesta ben formata: URL, intestazioni, corpo e chiave di idempotenza", async () => {

@@ -8,6 +8,7 @@ import { PRIORITY_LABELS } from "@/modules/buybox/match";
 import { whatsappLink } from "@/config/business";
 import { canOfferManualRetry, emailNotificationsConfigured, MAX_ATTEMPTS, recentManualRetries } from "@/modules/notifications/new-lead";
 import { describeNotification } from "@/modules/notifications/status";
+import { notificationSenderInfo } from "@/modules/notifications/config";
 import {
   CONTACT_LABELS,
   formatDate,
@@ -90,6 +91,7 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
 
   const notificationsConfigured = emailNotificationsConfigured();
   const notification = describeNotification(lead, formatDateTime, MAX_ATTEMPTS, notificationsConfigured);
+  const sender = notificationSenderInfo();
   const canRetryNotification = canOfferManualRetry(lead);
   const manualRetries = await recentManualRetries(lead.id);
 
@@ -151,6 +153,10 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
                 {notification.label}
               </span>
               {notification.detail && <span className="ml-2 text-concrete">{notification.detail}</span>}
+              <span className="ml-2 text-concrete">
+                Mittente in uso: {sender.address}
+                {sender.fromEnv ? "" : " (NOTIFY_EMAIL_FROM non letta dal server: mittente di prova)"}
+              </span>
             </p>
             {canRetryNotification && <RetryNotificationForm leadId={lead.id} exhausted={lead.notificationAttempts >= MAX_ATTEMPTS} />}
             {manualRetries.length > 0 && (

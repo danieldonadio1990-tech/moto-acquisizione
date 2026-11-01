@@ -53,7 +53,12 @@ export class ResendTransport implements EmailTransport {
         }),
         signal: ctrl.signal,
       });
-      if (!res.ok) return { ok: false, code: `http_${res.status}` };
+      if (!res.ok) {
+        // Solo il NOME dell'errore di Resend (es. validation_error): il messaggio può contenere indirizzi email.
+        const err = (await res.json().catch(() => null)) as { name?: unknown } | null;
+        const name = typeof err?.name === "string" && /^[a-z_]{1,30}$/.test(err.name) ? err.name : null;
+        return { ok: false, code: name ? `http_${res.status}:${name}` : `http_${res.status}` };
+      }
       const data = (await res.json().catch(() => null)) as { id?: unknown } | null;
       return { ok: true, id: typeof data?.id === "string" ? data.id : undefined };
     } catch (err) {

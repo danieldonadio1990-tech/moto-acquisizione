@@ -403,7 +403,7 @@ describe("4. Limite giornaliero delle notifiche", () => {
     for (const id of ids) assert.equal(await nl.notifyNewLead(id), "sent");
     assert.equal(p.sent.length, 4);
     const e = (o: Record<string, string>) => o as unknown as NodeJS.ProcessEnv;
-    const on = { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: "a@example.invalid", NOTIFY_RETRY_TOKEN: "t".repeat(40) };
+    const on = { RESEND_API_KEY: "k", NOTIFY_EMAIL_TO: "a@example.invalid", NOTIFY_EMAIL_FROM: "Test <n@example.invalid>", NOTIFY_RETRY_TOKEN: "t".repeat(40) };
     assert.equal(cfgmod.parseDailyLimit(e({})).value, 50);
     assert.deepEqual(cfgmod.parseDailyLimit(e({ NOTIFY_DAILY_LIMIT: "abc" })), { value: 50, invalid: true });
     assert.deepEqual(cfgmod.parseDailyLimit(e({ NOTIFY_DAILY_LIMIT: "-3" })), { value: 50, invalid: true });
