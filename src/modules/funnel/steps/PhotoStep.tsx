@@ -21,6 +21,7 @@ export function PhotoStep({
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => () => photos.forEach((p) => URL.revokeObjectURL(p.url)), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -47,6 +48,7 @@ export function PhotoStep({
     setPhotos((p) => [...p, ...out]);
     setBusy(false);
     if (inputRef.current) inputRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
   }
 
   return (
@@ -96,19 +98,42 @@ export function PhotoStep({
           </div>
         ))}
         {photos.length < MAX_PHOTOS && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-asphalt bg-plate/10 font-bold text-asphalt transition-colors hover:bg-plate/25 ${
-              photos.length === 0 ? "col-span-3 min-h-36" : "aspect-square"
-            }`}
-          >
-            <IconCamera className="h-8 w-8" />
-            <span className="text-sm">{busy ? "Preparo…" : photos.length === 0 ? "Aggiungi foto" : "Aggiungi"}</span>
-          </button>
+          <>
+            {/* due strade, entrambe a tutta altezza dito: fotocamera (si scatta e si carica) o galleria (anche più foto insieme) */}
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              disabled={busy}
+              className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-asphalt bg-plate/10 font-bold text-asphalt transition-colors hover:bg-plate/25 ${
+                photos.length === 0 ? "col-span-3 min-h-28 sm:col-span-3" : "aspect-square"
+              }`}
+            >
+              <IconCamera className="h-8 w-8" />
+              <span className="text-sm">{busy ? "Preparo…" : "Scatta una foto"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+              className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-asphalt bg-paper font-bold text-asphalt transition-colors hover:bg-plate/25 ${
+                photos.length === 0 ? "col-span-3 min-h-20" : "aspect-square"
+              }`}
+            >
+              <span className="text-sm">{photos.length === 0 ? "Scegli dalla galleria" : "Galleria"}</span>
+            </button>
+          </>
         )}
       </div>
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => onPick(e.target.files)}
+      />
       <input
         ref={inputRef}
         type="file"

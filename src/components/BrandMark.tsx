@@ -37,7 +37,7 @@ export function BrandMark({
     return mark;
   }
   return (
-    <Link href={href} aria-label={`${BRAND.name} — home`} className="inline-flex rounded-sm">
+    <Link href={href} aria-label={`${BRAND.name} — home`} className="inline-flex min-h-11 items-center rounded-sm">
       {mark}
     </Link>
   );

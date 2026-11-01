@@ -21,6 +21,9 @@ export type PhotoCredit = {
 export type SiteImage = {
   src: string | null;
   alt: string;
+  /** punto focale (CSS object-position, es. "50% 70%") per il ritaglio su desktop e, se indicato, su smartphone */
+  focal?: string;
+  focalMobile?: string;
   /** dimensioni reali del file quando `src` è impostato */
   width: number;
   height: number;
@@ -33,15 +36,17 @@ export type SiteImage = {
 };
 
 export const IMAGES = {
-  /** Hero: fotografia editoriale di una moto in contesto urbano, luce naturale. Consigliato 1600 x 1000 px (16:10). */
-  hero: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1600, height: 1000 },
-  /** Due fotografie di motociclette (taglio editoriale, moto intera o tre quarti). Consigliato 1200 x 900 px (4:3). */
-  moto_1: { src: null, alt: "Motocicletta ripresa di tre quarti", width: 1200, height: 900 },
-  moto_2: { src: null, alt: "Motocicletta ripresa di lato", width: 1200, height: 900 },
-  /** Consegna della moto: due persone vicino a una moto (volti non riconoscibili o con liberatoria). Consigliato 1200 x 900 px (4:3). */
+  /** Hero desktop/tablet: grande fotografia della moto a destra del testo, cornice 4:3. Moto intera, luce naturale. 1600 x 1200 px. */
+  hero: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1600, height: 1200, focal: "50% 60%" },
+  /** Hero smartphone (verticale, 4:5): la moto al centro, spazio libero in basso. 1080 x 1350 px. Se manca si usa `hero` ritagliata. */
+  hero_mobile: { src: null, alt: "Moto in una strada di città, ripresa di lato con luce naturale", width: 1080, height: 1350, focal: "50% 60%" },
+  /** Fotografie editoriali di motociclette, verticali (4:5): moto intera o di tre quarti. 1200 x 1500 px. */
+  moto_1: { src: null, alt: "Motocicletta ripresa di tre quarti", width: 1200, height: 1500, focal: "50% 55%" },
+  moto_2: { src: null, alt: "Motocicletta ripresa di lato", width: 1200, height: 1500, focal: "50% 55%" },
+  /** Consegna della moto: due persone vicino a una moto (volti non riconoscibili o con liberatoria). 1200 x 900 px (4:3). */
   consegna: { src: null, alt: "Consegna di una moto tra due persone", width: 1200, height: 900 },
-  /** Dettaglio meccanico (motore, cerchio, manubrio). Consigliato 1200 x 1200 px (1:1). */
-  dettaglio: { src: null, alt: "Dettaglio meccanico di una motocicletta", width: 1200, height: 1200 },
+  /** Dettaglio meccanico (motore, cerchio, manubrio), verticale (4:5). 1200 x 1500 px. */
+  dettaglio: { src: null, alt: "Dettaglio meccanico di una motocicletta", width: 1200, height: 1500, focal: "50% 50%" },
 } as const satisfies Record<string, SiteImage>;
 
 export type ImageKey = keyof typeof IMAGES;

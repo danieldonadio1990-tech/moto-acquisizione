@@ -164,3 +164,10 @@ body {
     transform: rotate(-1.2deg);
   }
 }
+
+/* Campi del modulo: quando il browser li porta in vista non finiscono sotto la barra fissa in basso */
+input,
+select,
+textarea {
+  scroll-margin-block: 8rem 11rem;
+}
