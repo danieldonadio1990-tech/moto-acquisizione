@@ -9,7 +9,7 @@ import { ProcessDeal, ProcessProposal, ProcessTell } from "@/components/ProcessI
 import { ADVANTAGE_ICONS } from "@/components/AdvantageIcons";
 import { BrandSymbol } from "@/components/brand/BrandSymbol";
 import { btnPrimary } from "@/components/buttons";
-import { LEGAL, contactLinks, isPlaceholder } from "@/config/business";
+import { contactLinks } from "@/config/business";
 import { isGenerated } from "@/config/images";
 import { ADVANTAGES, AREA, FAQ, HERO, RESPONSE_TIME, STEPS, TRANSPARENCY, WHO_BUYS } from "@/config/home-content";
 
@@ -17,7 +17,6 @@ const PROCESS_ICONS = [ProcessTell, ProcessProposal, ProcessDeal];
 
 export default function Home() {
   const transparency = TRANSPARENCY.filter((t): t is { q: string; answer: string } => t.answer !== null);
-  const holder = isPlaceholder(LEGAL.companyName) ? null : LEGAL.companyName;
   const motoPhotos = hasPhoto("moto_1") || hasPhoto("moto_2");
   const heroPhoto = hasPhoto("hero") || hasPhoto("hero_mobile");
   const rail = (["moto_1", "moto_2", "dettaglio"] as const).filter(hasPhoto);
@@ -89,7 +88,6 @@ export default function Home() {
               <p className="label text-paper/70">{WHO_BUYS.label}</p>
               <h2 className="display mt-2 text-4xl sm:text-5xl md:text-7xl">{WHO_BUYS.title}</h2>
               <p className={`mt-5 text-lg leading-relaxed text-paper/85 md:text-xl ${motoPhotos ? "max-w-[52ch]" : "max-w-[62ch]"}`}>{WHO_BUYS.body}</p>
-              {holder && <p className="mt-4 text-sm text-paper/70">{holder}</p>}
             </div>
             {motoPhotos && (
               <div className="hidden grid-cols-2 gap-3 md:grid">

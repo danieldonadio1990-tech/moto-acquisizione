@@ -50,11 +50,26 @@ async function unapply0005() {
   await exec(`delete from drizzle.__drizzle_migrations where created_at = ${when("0005_valuation_engine")}`);
 }
 
+/**
+ * Le procedure di verifica di 0005 descrivono il passaggio 5 → 6 migrazioni. La 0006 (email al cliente, consenso marketing) è
+ * indipendente e viene applicata dopo: qui la si toglie dal database temporaneo per riprodurre lo stato «migrata fino alla 0005».
+ * La 0006 ha i propri test (tests/customer-email-marketing.test.ts).
+ */
+async function unapply0006() {
+  await exec("drop table if exists marketing_consents");
+  await exec("alter table leads drop constraint if exists leads_customer_email_status_valid");
+  for (const c of ["customer_email_status", "customer_email_attempts", "customer_email_claimed_at", "customer_email_sent_at", "customer_email_error"]) {
+    await exec(`alter table leads drop column if exists ${c}`);
+  }
+  await exec(`delete from drizzle.__drizzle_migrations where created_at = ${when("0006_email_cliente_consenso_marketing")}`);
+}
+
 before(async () => {
   dbmod = await import("@/db/client");
   orm = await import("drizzle-orm");
   schema = await import("@/db/schema");
-  await dbmod.getDb(); // applica le migrazioni (0000–0005) sul database temporaneo
+  await dbmod.getDb(); // applica le migrazioni (0000–0006) sul database temporaneo
+  await unapply0006(); // stato di partenza delle procedure di 0005: migrato fino alla 0005
 });
 after(async () => {
   await dbmod.closeDb();
@@ -63,7 +78,7 @@ after(async () => {
 
 describe("presupposti codificati negli script coincidono con il repository", () => {
   test("il registro: 5 migrazioni prima (ultima 0004), 6 dopo (ultima 0005), con i valori del journal", () => {
-    assert.equal(journal.entries.length, 6);
+    assert.ok(journal.entries.length >= 6); // dopo la 0005 possono seguire altre migrazioni indipendenti (0006…)
     assert.ok(PRE.includes(String(when("0004_rate_limit_and_throttled"))));
     assert.ok(POST.includes(String(when("0005_valuation_engine"))));
     assert.match(PRE, /n = 5/);
@@ -179,14 +194,12 @@ describe("esecuzione su database temporaneo", () => {
   test("le richieste possono AUMENTARE tra pre e post senza invalidare l'esito; le colonne di leads non cambiano", async () => {
     const before = await run(POST);
     const leadsBefore = Number(byN(before, 20).dettaglio);
-    const { createLead } = await import("@/modules/leads/service");
-    await createLead({
-      submissionId: crypto.randomUUID(),
-      motorcycle: { brand: "Honda", modelId: "honda-sh", year: 2019, displacement: 125 },
-      mileage: 1000,
-      condition: { isRunning: true, accident: "no", mechanicalIssues: "no", maintenance: "yes" },
-      contact: { firstName: "Prova", lastName: "Script", phone: "+393339990000", email: "script@example.invalid", city: "Milano", preferredContact: "email", privacyConsent: true },
-    } as never);
+    // richiesta inserita con SQL puro: lo schema Drizzle include già le colonne della 0006, qui tolte di proposito
+    await exec(`insert into motorcycles (id, brand, model, year) values ('00000000-0000-4000-8000-0000000000a1', 'Honda', 'SH', 2019)`);
+    await exec(`insert into customers (id, first_name, last_name, phone, email, city, privacy_consent_at, privacy_policy_version)
+      values ('00000000-0000-4000-8000-0000000000b1', 'Prova', 'Script', '+393339990000', 'script@example.invalid', 'Milano', now(), 'test')`);
+    await exec(`insert into leads (id, code, motorcycle_id, customer_id, mileage, is_running, accident, mechanical_issues, maintenance, preferred_contact)
+      values ('00000000-0000-4000-8000-0000000000c1', 'SCRIPT', '00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000b1', 1000, true, 'no', 'no', 'yes', 'email')`);
     const after_ = await run(POST);
     assert.equal(Number(byN(after_, 20).dettaglio), leadsBefore + 1);
     assert.equal(byN(after_, 98).ok, true);
@@ -200,5 +213,21 @@ describe("esecuzione su database temporaneo", () => {
     await run(PRE);
     await run(POST);
     assert.equal(await snap(), a);
+  });
+});
+
+describe("0006 (email al cliente, consenso marketing) su un database già migrato fino alla 0005", () => {
+  test("le richieste esistenti restano e sono marcate «skipped» (nessuna email retroattiva); nuova tabella vuota", async () => {
+    const SQL0006 = readFileSync("drizzle/0006_email_cliente_consenso_marketing.sql", "utf8");
+    const before = Number((await run("select count(*)::int as n, true as ok, 0 as \"n2\" from leads").catch(() => [{ n: 0 }]))[0].n);
+    assert.ok(before >= 1, "serve almeno una richiesta esistente");
+    for (const stmt of SQL0006.split("--> statement-breakpoint").map((x) => x.trim()).filter(Boolean)) await exec(stmt);
+    const db = await dbmod.getDb();
+    const rows = (await db.execute(orm.sql`select customer_email_status as s, count(*)::int as n from leads group by 1`)) as unknown as { s: string; n: number }[] | { rows: { s: string; n: number }[] };
+    const list = Array.isArray(rows) ? rows : rows.rows;
+    assert.deepEqual(list.map((r) => r.s), ["skipped"]);
+    assert.equal(list[0].n, before);
+    const reg = (await db.execute(orm.sql`select count(*)::int as n from marketing_consents`)) as unknown as { n: number }[] | { rows: { n: number }[] };
+    assert.equal((Array.isArray(reg) ? reg : reg.rows)[0].n, 0);
   });
 });

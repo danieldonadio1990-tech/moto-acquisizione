@@ -72,6 +72,8 @@ export const contactStepSchema = z.object({
   city: trimmed(80),
   preferredContact: z.enum(["whatsapp", "phone", "email"]),
   privacyConsent: z.literal(true, { error: "Conferma di aver letto l'informativa privacy" }),
+  /** Consenso marketing: FACOLTATIVO, mai preselezionato. Assente o false = non acconsente; l'invio della richiesta non ne dipende. */
+  marketingConsent: z.boolean().optional(),
 });
 
 export const leadSubmissionSchema = z.object({

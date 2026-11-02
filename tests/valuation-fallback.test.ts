@@ -33,6 +33,7 @@ delete process.env.VALUATION_PUBLIC_OFFERS;
 class Provider implements EmailTransport {
   sent: EmailMessage[] = [];
   async send(m: EmailMessage): Promise<SendResult> {
+    if (m.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     this.sent.push(m);
     return { ok: true };
   }

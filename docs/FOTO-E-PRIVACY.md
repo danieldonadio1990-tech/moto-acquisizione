@@ -33,7 +33,7 @@ Dati forniti e confermati dal titolare (in `src/config/business.ts`): Donadio Lu
 Via F.lli Bronzetti 8, 20129 Milano (MI), partita IVA 13723400969, PEC lucadonadio4@pec.it, email per la privacy compriamo.moto.support@gmail.com; attività: commercio al dettaglio
 online di motocicli e ciclomotori per corrispondenza; sito gestito direttamente.
 
-L'informativa **resta una bozza** (`PRIVACY_POLICY_VERSION = "draft-4"`: il sito resta non indicizzabile dai motori di ricerca finché è una bozza) perché mancano questi punti, che
+L'informativa **resta una bozza** (`PRIVACY_POLICY_VERSION = "draft-5"`: il sito resta non indicizzabile dai motori di ricerca finché è una bozza) perché mancano questi punti, che
 il testo pubblico non dichiara:
 1. **Conservazione**: nessun periodo è stato deliberato dal titolare (il codice non cancella nulla da solo: la cancellazione è manuale con `npm run privacy:erase`). Il testo usa solo criteri.
 2. **Trasferimenti fuori dallo Spazio economico europeo e garanzie** per Netlify, Neon, Supabase, Resend e Gmail: non verificati.

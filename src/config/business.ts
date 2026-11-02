@@ -81,7 +81,7 @@ export const PROVIDERS = {
  * Resta "draft-…" finché il testo e i dati sopra non sono completati e approvati;
  * poi passare a "1.0" (e incrementare a ogni modifica del testo).
  */
-export const PRIVACY_POLICY_VERSION = "draft-4";
+export const PRIVACY_POLICY_VERSION = "draft-5";
 
 // ----------------------------------------------------------------------------
 // Funzioni di supporto (non contengono dati: non serve modificarle)

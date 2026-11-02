@@ -43,7 +43,7 @@ test("landing → funnel → foto → admin → offerta → acquisto", async ({ 
   await page.getByLabel("Comune").fill("Milano");
   await page.getByRole("button", { name: "Invia richiesta" }).click();
   await expect(page.getByText("Conferma di aver letto l'informativa privacy")).toBeVisible();
-  await page.getByRole("checkbox").check();
+  await page.getByRole("checkbox", { name: /informativa privacy/ }).check();
   await page.getByRole("button", { name: "Invia richiesta" }).click();
 
   // Foto

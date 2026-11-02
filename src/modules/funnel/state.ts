@@ -32,6 +32,8 @@ export type FunnelState = {
     city: string;
     preferredContact: "whatsapp" | "phone" | "email";
     privacyConsent: boolean;
+    /** consenso marketing facoltativo: parte sempre non spuntato */
+    marketingConsent?: boolean;
   };
   /** chiave di idempotenza dell'invio: generata al primo tentativo, riusata nei retry */
   submissionId?: string;
@@ -58,6 +60,7 @@ export const initialState: FunnelState = {
     city: "",
     preferredContact: "phone",
     privacyConsent: false,
+    marketingConsent: false,
   },
   photosSent: 0,
 };

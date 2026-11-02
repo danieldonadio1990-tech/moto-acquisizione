@@ -55,8 +55,38 @@ export const customers = pgTable("customers", {
   createdAt: createdAt(),
 });
 
+/**
+ * Consenso marketing (facoltativo, mai preselezionato): REGISTRO a sola aggiunta, una riga per ogni scelta.
+ * La scelta in vigore è l'ultima riga del cliente. Si documentano data, versione del testo mostrato e stato:
+ * granted = consenso dato, declined = casella lasciata vuota nel modulo, revoked = consenso revocato in seguito.
+ * Nessuna comunicazione promozionale se l'ultima riga non è «granted» (src/modules/marketing/consent.ts).
+ */
+export const MARKETING_CONSENT_STATUSES = ["granted", "declined", "revoked"] as const;
+export type MarketingConsentStatus = (typeof MARKETING_CONSENT_STATUSES)[number];
+
+export const marketingConsents = pgTable(
+  "marketing_consents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: uuid("customer_id").notNull().references(() => customers.id),
+    status: text("status", { enum: MARKETING_CONSENT_STATUSES }).notNull(),
+    /** Versione del testo della casella (src/modules/marketing/consent.ts): serve a provare che cosa ha visto il cliente */
+    textVersion: text("text_version").notNull(),
+    /** Dove è stata espressa la scelta: «modulo» (invio della richiesta) o «email»/«back_office» per una revoca */
+    source: text("source").notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("marketing_consents_customer_idx").on(t.customerId, t.decidedAt),
+    check("marketing_consents_status_valid", sql`${t.status} in ('granted','declined','revoked')`),
+  ],
+);
+
 export const NOTIFICATION_STATUSES = ["pending", "sending", "sent", "failed", "skipped", "throttled"] as const;
 export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
+
+export const CUSTOMER_EMAIL_STATUSES = ["pending", "sending", "sent", "failed", "skipped"] as const;
+export type CustomerEmailStatus = (typeof CUSTOMER_EMAIL_STATUSES)[number];
 
 export const leads = pgTable(
   "leads",
@@ -98,6 +128,17 @@ export const leads = pgTable(
     notificationSentAt: timestamp("notification_sent_at", { withTimezone: true }),
     /** Solo un codice sintetico (timeout, http_403…): mai il contenuto della risposta del provider */
     notificationError: text("notification_error"),
+    /**
+     * Email di conferma AL CLIENTE (src/modules/notifications/customer-confirmation.ts): stesso schema della notifica interna.
+     * pending → sending (prenotata) → sent | failed; «skipped» = richieste precedenti a questa funzione (nessun invio retroattivo).
+     * La prenotazione è un UPDATE condizionale: un retry dell'invio non produce una seconda email.
+     */
+    customerEmailStatus: text("customer_email_status", { enum: CUSTOMER_EMAIL_STATUSES }).notNull().default("pending"),
+    customerEmailAttempts: integer("customer_email_attempts").notNull().default(0),
+    customerEmailClaimedAt: timestamp("customer_email_claimed_at", { withTimezone: true }),
+    customerEmailSentAt: timestamp("customer_email_sent_at", { withTimezone: true }),
+    /** Solo un codice sintetico (timeout, http_403…) */
+    customerEmailError: text("customer_email_error"),
     /** Attribuzione marketing (per costo per lead / CAC per canale) */
     utmSource: text("utm_source"),
     utmMedium: text("utm_medium"),
@@ -110,6 +151,7 @@ export const leads = pgTable(
     index("leads_created_idx").on(t.createdAt),
     check("leads_photo_count_range", sql`${t.photoCount} between 0 and 12`),
     check("leads_mileage_range", sql`${t.mileage} between 0 and 400000`),
+    check("leads_customer_email_status_valid", sql`${t.customerEmailStatus} in ('pending','sending','sent','failed','skipped')`),
     check(
       "leads_notification_status_valid",
       sql`${t.notificationStatus} in ('pending','sending','sent','failed','skipped','throttled')`,

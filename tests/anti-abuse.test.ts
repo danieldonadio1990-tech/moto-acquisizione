@@ -34,6 +34,7 @@ class Provider implements EmailTransport {
   sent: EmailMessage[] = [];
   attempts = 0;
   async send(msg: EmailMessage): Promise<SendResult> {
+    if (msg.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     this.attempts++;
     if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
     if (this.mode === "fail") return { ok: false, code: "http_503" };
