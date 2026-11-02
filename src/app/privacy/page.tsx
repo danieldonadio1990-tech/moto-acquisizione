@@ -64,7 +64,7 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong>Scelta sul consenso marketing</strong> (casella facoltativa del modulo): se l&apos;hai data oppure no, la data, la versione del testo che hai
-              visto e, se la revochi, la data della revoca.
+              visto e, se la revochi, la data della revoca (vedi «Per quanto tempo li conserviamo»).
             </li>
           </ul>
           <p className="mt-2">
@@ -159,8 +159,12 @@ export default function PrivacyPage() {
               prevede; le foto non necessarie possono essere cancellate prima.
             </li>
             <li>
-              Consenso marketing: la registrazione della scelta (data, versione del testo, stato) resta finché serve a documentarla. Non abbiamo ancora fissato un termine
-              dopo la revoca; se chiedi la cancellazione della richiesta, cancelliamo anche questa registrazione.
+              Consenso marketing: la registrazione della scelta (data, versione del testo, stato) resta collegata alla tua richiesta finché la conserviamo.
+              Se chiedi la cancellazione della richiesta, la cancelliamo ma <strong>conserviamo una prova minima pseudonimizzata</strong> del consenso o della revoca:
+              solo lo stato, la versione del testo, l&apos;origine, la data e un codice irreversibile (HMAC) del tuo indirizzo email, senza nome, telefono, email in chiaro né
+              collegamento alla richiesta. Serve a dimostrare, se necessario, che il consenso c&apos;era o che la revoca è stata rispettata, e a non reinserirti in elenchi
+              promozionali se hai revocato. <strong>Non è un dato anonimo</strong>: chi dispone della chiave può verificare se un indirizzo noto vi compare. Il periodo di
+              conservazione di questa prova non è ancora stato fissato (da definire): finché non lo sarà non la cancelliamo in automatico; puoi comunque scriverci per esercitare i tuoi diritti.
             </li>
             <li>Statistiche: solo conteggi aggregati senza collegamento alla tua identità.</li>
           </ul>

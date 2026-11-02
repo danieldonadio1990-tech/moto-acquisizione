@@ -1,5 +1,5 @@
 {
-  "id": "98fcf2a6-a21f-4d02-b1fa-e748d1b99e07",
+  "id": "3a1a816f-1e0a-4201-83c6-ef0278b0b9ac",
   "prevId": "72c05a26-a945-4ace-8e41-54f7017a3a34",
   "version": "7",
   "dialect": "postgresql",
@@ -928,6 +928,96 @@
         "market_references_kind_valid": {
           "name": "market_references_kind_valid",
           "value": "\"market_references\".\"kind\" in ('sold','asking','internal','manual')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.marketing_consent_evidence": {
+      "name": "marketing_consent_evidence",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "subject_hash": {
+          "name": "subject_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash_key_id": {
+          "name": "hash_key_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text_version": {
+          "name": "text_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "marketing_consent_evidence_subject_idx": {
+          "name": "marketing_consent_evidence_subject_idx",
+          "columns": [
+            {
+              "expression": "subject_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "decided_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "marketing_consent_evidence_status_valid": {
+          "name": "marketing_consent_evidence_status_valid",
+          "value": "\"marketing_consent_evidence\".\"status\" in ('granted','declined','revoked')"
         }
       },
       "isRLSEnabled": false

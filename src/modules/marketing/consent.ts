@@ -3,6 +3,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { customers, marketingConsents, type MarketingConsentStatus } from "@/db/schema";
 import { MARKETING_CONSENT_VERSION } from "./text";
+import { latestEvidence, recordEvidenceOnly } from "./evidence";
 
 /**
  * Registro del consenso marketing (tabella a sola aggiunta). La scelta in vigore è l'ULTIMA riga del cliente;
@@ -34,22 +35,31 @@ export async function revokeMarketingConsent(email: string, source: "email" | "b
     .where(sql`lower(${customers.email}) = lower(${email})`)
     .orderBy(desc(customers.createdAt))
     .limit(1);
-  if (!latest) return { revoked: 0 };
+  if (!latest) {
+    // nessuna richiesta attiva (per esempio già cancellata): resta la sola prova minima, così la soppressione vale comunque
+    await recordEvidenceOnly(email, "revoked", MARKETING_CONSENT_VERSION, source);
+    return { revoked: 1 };
+  }
   await db.insert(marketingConsents).values({ customerId: latest.id, status: "revoked", textVersion: MARKETING_CONSENT_VERSION, source });
   return { revoked: 1 };
 }
 
-/** Scelta in vigore per un indirizzo email (ultima riga tra tutte le richieste con quell'email); null = nessuna scelta registrata. */
+/**
+ * Scelta in vigore per un indirizzo email: l'ULTIMA tra le righe attive (richieste con quell'email) e la prova minima conservata dopo una
+ * cancellazione. null = nessuna scelta registrata.
+ */
 export async function currentMarketingStatus(email: string): Promise<MarketingConsentStatus | null> {
   const db = await getDb();
-  const [row] = await db
-    .select({ status: marketingConsents.status })
+  const [live] = await db
+    .select({ status: marketingConsents.status, decidedAt: marketingConsents.decidedAt })
     .from(marketingConsents)
     .innerJoin(customers, eq(customers.id, marketingConsents.customerId))
     .where(sql`lower(${customers.email}) = lower(${email})`)
     .orderBy(desc(marketingConsents.decidedAt), desc(marketingConsents.id))
     .limit(1);
-  return row?.status ?? null;
+  const kept = await latestEvidence(email);
+  if (live && kept) return kept.decidedAt.getTime() > live.decidedAt.getTime() ? kept.status : live.status;
+  return live?.status ?? kept?.status ?? null;
 }
 
 export async function hasMarketingConsent(email: string): Promise<boolean> {
@@ -73,7 +83,10 @@ export async function listMarketingRecipients(): Promise<{ email: string; firstN
     .from(marketingConsents)
     .innerJoin(customers, eq(customers.id, marketingConsents.customerId))
     .orderBy(sql`lower(${customers.email})`, desc(marketingConsents.decidedAt), desc(marketingConsents.id));
-  return latest.filter((r) => r.status === "granted").map((r) => ({ email: r.email, firstName: r.firstName, consentedAt: r.decidedAt, textVersion: r.textVersion }));
+  const granted = latest.filter((r) => r.status === "granted");
+  // lista di soppressione: chi ha revocato (anche dopo la cancellazione di una richiesta) non compare, salvo un nuovo consenso successivo alla revoca
+  const allowed = new Set(await withoutRevokedAfter(granted.map((r) => ({ email: r.email, since: r.decidedAt }))));
+  return granted.filter((r) => allowed.has(r.email)).map((r) => ({ email: r.email, firstName: r.firstName, consentedAt: r.decidedAt, textVersion: r.textVersion }));
 }
 
 /** Storico completo di una richiesta/cliente, per documentare il consenso (data, versione del testo, stato, origine). */
@@ -84,4 +97,15 @@ export async function consentHistory(customerId: string) {
     .from(marketingConsents)
     .where(and(eq(marketingConsents.customerId, customerId)))
     .orderBy(desc(marketingConsents.decidedAt));
+}
+
+/** Esclude gli indirizzi la cui prova conservata riporta una revoca PIÙ RECENTE della data indicata (il consenso attivo). */
+async function withoutRevokedAfter(items: { email: string; since: Date }[]): Promise<string[]> {
+  const out: string[] = [];
+  for (const it of items) {
+    const kept = await latestEvidence(it.email);
+    const suppressed = kept?.status === "revoked" && kept.decidedAt.getTime() >= it.since.getTime();
+    if (!suppressed) out.push(it.email);
+  }
+  return out;
 }

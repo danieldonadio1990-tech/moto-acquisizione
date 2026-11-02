@@ -82,6 +82,35 @@ export const marketingConsents = pgTable(
   ],
 );
 
+/**
+ * Prova MINIMA e pseudonimizzata del consenso marketing, conservata dopo la cancellazione di una richiesta (src/modules/marketing/evidence.ts).
+ * Nessun nome, telefono, email in chiaro né collegamento alla richiesta (nessuna chiave esterna): solo il codice irreversibile
+ * dell'email (HMAC-SHA256 con chiave segreta, quindi NON anonima: chi ha la chiave può verificare un indirizzo noto), lo stato, la versione del
+ * testo, l'origine e la data della scelta. Serve a documentare un consenso o una revoca e a non reinserire in elenchi promozionali chi ha revocato.
+ * Periodo di conservazione: DECISIONE APERTA (da definire con il consulente privacy): nessuna cancellazione automatica finché non è approvato.
+ */
+export const marketingConsentEvidence = pgTable(
+  "marketing_consent_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** HMAC-SHA256 (esadecimale) dell'email in minuscolo */
+    subjectHash: text("subject_hash").notNull(),
+    /** Quale chiave ha prodotto il codice (per poterla cambiare in futuro senza perdere la verificabilità) */
+    hashKeyId: text("hash_key_id").notNull(),
+    status: text("status", { enum: MARKETING_CONSENT_STATUSES }).notNull(),
+    textVersion: text("text_version").notNull(),
+    source: text("source").notNull(),
+    /** Data della scelta originale */
+    decidedAt: timestamp("decided_at", { withTimezone: true }).notNull(),
+    /** Quando il registro completo è stato ridotto a questa prova (cancellazione della richiesta) o la revoca è stata registrata */
+    archivedAt: timestamp("archived_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("marketing_consent_evidence_subject_idx").on(t.subjectHash, t.decidedAt),
+    check("marketing_consent_evidence_status_valid", sql`${t.status} in ('granted','declined','revoked')`),
+  ],
+);
+
 export const NOTIFICATION_STATUSES = ["pending", "sending", "sent", "failed", "skipped", "throttled"] as const;
 export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 

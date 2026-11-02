@@ -1,7 +1,8 @@
 import "server-only";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { customers, events, leadPhotos, leads, marketingConsents, motorcycles } from "@/db/schema";
+import { customers, events, leadPhotos, leads, motorcycles } from "@/db/schema";
+import { reduceConsentsToEvidence } from "@/modules/marketing/evidence";
 import { getPhotoStorage } from "@/modules/photos/storage";
 import { normalizeItalianPhone } from "@/modules/leads/validation";
 
@@ -104,7 +105,8 @@ export async function eraseLead(leadId: string): Promise<ErasureReport> {
     await tx.delete(motorcycles).where(eq(motorcycles.id, lead.motorcycleId));
     const stillUsed = await tx.select({ id: leads.id }).from(leads).where(eq(leads.customerId, lead.customerId));
     if (stillUsed.length === 0) {
-      await tx.delete(marketingConsents).where(eq(marketingConsents.customerId, lead.customerId)); // il registro dei consensi segue il cliente
+      // il registro dei consensi NON si butta: si riduce alla prova minima pseudonimizzata (stato, versione del testo, origine, data, HMAC dell'email)
+      await reduceConsentsToEvidence(tx, lead.customerId);
       await tx.delete(customers).where(eq(customers.id, lead.customerId));
     }
     return ev.length;

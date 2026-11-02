@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type { EmailMessage, EmailTransport, SendResult } from "@/modules/notifications/transport";
 
 const TMP = mkdtempSync(path.join(tmpdir(), "moto-custmail-test-"));
@@ -404,26 +404,23 @@ describe("4. Consenso marketing: nessuna comunicazione senza consenso", () => {
     assert.match(m.html, /non una comunicazione promozionale/);
     assert.doesNotMatch(m.html + m.text, /\bsconto\b|iscriviti|newsletter|offerte speciali/i);
   });
-
-  test("la cancellazione di una richiesta elimina anche il registro dei consensi del cliente", async () => {
-    fresh();
-    const sub = submission({ marketingConsent: true });
-    const lead = await svc.createLead(sub as never);
-    const customerId = (await row(lead.id)).customerId;
-    assert.equal((await mk.consentHistory(customerId)).length, 1);
-    await erasure.eraseLead(lead.id);
-    assert.equal((await mk.consentHistory(customerId)).length, 0);
-  });
 });
 
 describe("5. Migrazione 0006 (additiva) e schema", () => {
   const SQL = readFileSync("drizzle/0006_email_cliente_consenso_marketing.sql", "utf8");
   const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: { idx: number; tag: string }[] };
 
+  test("la prova minima è una tabella senza chiavi esterne: nessun collegamento alla richiesta", () => {
+    assert.match(SQL, /CREATE TABLE "marketing_consent_evidence"/);
+    const block = SQL.slice(SQL.indexOf('CREATE TABLE "marketing_consent_evidence"'), SQL.indexOf('CREATE TABLE "marketing_consents"'));
+    assert.doesNotMatch(block, /REFERENCES|FOREIGN KEY|customer_id|lead_id/i);
+  });
+
   test("solo CREATE/ADD/UPDATE: nessun DROP, nessuna colonna rinominata, nessun DELETE/TRUNCATE", () => {
     const code = SQL.replace(/--.*$/gm, "").replace(/ON DELETE no action ON UPDATE no action/g, "");
     assert.doesNotMatch(code, /\bDROP\b|\bDELETE\b|\bTRUNCATE\b|RENAME/i);
     assert.match(code, /CREATE TABLE "marketing_consents"/);
+    assert.equal((code.match(/CREATE TABLE/g) ?? []).length, 2);
     assert.equal((code.match(/ADD COLUMN/g) ?? []).length, 5);
   });
 
@@ -490,5 +487,177 @@ describe("6. Modulo, homepage e informativa", () => {
     assert.equal(biz.PRIVACY_POLICY_IS_DRAFT, true);
     const seo = await import("@/config/seo");
     assert.equal(seo.indexingEnabled(), false);
+  });
+});
+
+describe("7. Cancellazione: prova minima pseudonimizzata del consenso", () => {
+  const derived = () => createHmac("sha256", process.env.SESSION_SECRET!).update("marketing-consent-evidence/v1").digest("hex");
+  const hmacOf = (email: string, secret = derived()) => createHmac("sha256", secret).update(email.trim().toLowerCase()).digest("hex");
+  let ev: typeof import("@/modules/marketing/evidence");
+  before(async () => {
+    ev = await import("@/modules/marketing/evidence");
+  });
+  const evidenceRows = async () => (await dbmod.getDb()).select().from(schema.marketingConsentEvidence);
+  const mk2 = async (marketingConsent?: boolean) => {
+    fresh();
+    const sub = submission(marketingConsent === undefined ? {} : { marketingConsent });
+    const lead = await svc.createLead(sub as never);
+    const l = await row(lead.id);
+    return { sub, lead, customerId: l.customerId };
+  };
+
+  test("cancellazione: il registro collegato sparisce, la prova minima resta (consenso dato, non dato, revocato)", async () => {
+    for (const [choice, expected] of [[true, "granted"], [false, "declined"]] as const) {
+      const { sub, lead, customerId } = await mk2(choice);
+      const before = (await evidenceRows()).length;
+      await erasure.eraseLead(lead.id);
+      assert.equal((await mk.consentHistory(customerId)).length, 0, "nessun registro collegato alla richiesta");
+      const rows = (await evidenceRows()).filter((r) => r.subjectHash === hmacOf(sub.contact.email));
+      assert.equal((await evidenceRows()).length, before + 1);
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].status, expected);
+      assert.equal(rows[0].textVersion, txt.MARKETING_CONSENT_VERSION);
+      assert.equal(rows[0].source, "modulo");
+      assert.ok(Math.abs(Date.now() - rows[0].decidedAt.getTime()) < 120_000);
+    }
+    // consenso poi revocato: la cancellazione conserva ENTRAMBE le righe, in ordine
+    const { sub, lead } = await mk2(true);
+    await new Promise((r) => setTimeout(r, 5));
+    await mk.revokeMarketingConsent(sub.contact.email, "email");
+    await erasure.eraseLead(lead.id);
+    const rows = (await evidenceRows()).filter((r) => r.subjectHash === hmacOf(sub.contact.email)).sort((a, b) => a.decidedAt.getTime() - b.decidedAt.getTime());
+    assert.deepEqual(rows.map((r) => [r.status, r.source]), [["granted", "modulo"], ["revoked", "email"]]);
+  });
+
+  test("dalla prova ridotta NON si recuperano email, nome, telefono, codice o identificativi: né in chiaro né come colonne", async () => {
+    const { sub, lead, customerId } = await mk2(true);
+    await erasure.eraseLead(lead.id);
+    const db = await dbmod.getDb();
+    const cols = (await db.execute(orm.sql`select column_name from information_schema.columns where table_name = 'marketing_consent_evidence' order by 1`)) as unknown as { column_name: string }[] | { rows: { column_name: string }[] };
+    const names = (Array.isArray(cols) ? cols : cols.rows).map((c) => c.column_name);
+    assert.deepEqual(names, ["archived_at", "decided_at", "hash_key_id", "id", "source", "status", "subject_hash", "text_version"]);
+    const fks = (await db.execute(orm.sql`select count(*)::int as n from information_schema.table_constraints where table_name = 'marketing_consent_evidence' and constraint_type = 'FOREIGN KEY'`)) as unknown as { n: number }[] | { rows: { n: number }[] };
+    assert.equal((Array.isArray(fks) ? fks : fks.rows)[0].n, 0, "nessuna chiave esterna");
+    const dump = JSON.stringify(await evidenceRows());
+    for (const secret of [sub.contact.email, sub.contact.email.split("@")[0], "Mario", "Verdi", "+393331234567", "3331234567", lead.id, customerId, lead.code, "Milano"]) {
+      assert.ok(!dump.includes(secret), `la prova contiene «${secret}»`);
+    }
+    // il codice è esadecimale a 64 caratteri: non reversibile
+    assert.match((await evidenceRows())[0].subjectHash, /^[0-9a-f]{64}$/);
+  });
+
+  test("HMAC: verificabile con la chiave, insensibile a maiuscole e spazi, diverso per indirizzi e chiavi diverse", async () => {
+    const { sub, lead } = await mk2(true);
+    await erasure.eraseLead(lead.id);
+    const h = ev.hashSubject(sub.contact.email);
+    assert.equal(h.hash, hmacOf(sub.contact.email));
+    assert.equal(h.keyId, "session-1");
+    assert.equal(ev.hashSubject(`  ${sub.contact.email.toUpperCase()} `).hash, h.hash);
+    assert.notEqual(ev.hashSubject("altro@example.com").hash, h.hash);
+    assert.ok((await ev.latestEvidence(sub.contact.email)) !== null);
+    // chiave dedicata: codice e identificativo diversi; le prove prodotte con un'altra chiave non vengono scambiate per proprie
+    process.env.CONSENT_EVIDENCE_KEY = "k".repeat(40);
+    try {
+      const h2 = ev.hashSubject(sub.contact.email);
+      assert.equal(h2.keyId, "env-1");
+      assert.equal(h2.hash, hmacOf(sub.contact.email, "k".repeat(40)));
+      assert.notEqual(h2.hash, h.hash);
+      assert.equal(await ev.latestEvidence(sub.contact.email), null);
+    } finally {
+      delete process.env.CONSENT_EVIDENCE_KEY;
+    }
+    process.env.CONSENT_EVIDENCE_KEY = "corta";
+    try {
+      assert.equal(ev.hashSubject(sub.contact.email).keyId, "session-1", "chiave troppo corta ignorata");
+    } finally {
+      delete process.env.CONSENT_EVIDENCE_KEY;
+    }
+  });
+
+  test("lista di soppressione: chi ha revocato e poi ha cancellato la richiesta non rientra in alcun elenco", async () => {
+    const { sub, lead } = await mk2(true);
+    assert.ok((await mk.listMarketingRecipients()).some((r) => r.email === sub.contact.email));
+    await new Promise((r) => setTimeout(r, 5));
+    await mk.revokeMarketingConsent(sub.contact.email, "email");
+    await erasure.eraseLead(lead.id);
+    assert.equal(await mk.currentMarketingStatus(sub.contact.email), "revoked");
+    assert.equal(await mk.hasMarketingConsent(sub.contact.email), false);
+    const other = email();
+    assert.deepEqual(await ev.withoutRevoked([sub.contact.email, other, sub.contact.email.toUpperCase()]), [other]);
+    assert.ok(!(await mk.listMarketingRecipients()).some((r) => r.email === sub.contact.email));
+  });
+
+  test("reinserimento: una vecchia richiesta con consenso NON riporta in elenco chi ha poi revocato; un NUOVO consenso espresso dopo la revoca sì", async () => {
+    fresh();
+    const addr = email();
+    const l1 = await svc.createLead(submission({ email: addr, marketingConsent: true }) as never);
+    await new Promise((r) => setTimeout(r, 5));
+    await mk.revokeMarketingConsent(addr, "email");
+    // la prima richiesta viene cancellata e ne resta la prova (granted + revoked)
+    await erasure.eraseLead(l1.id);
+    assert.ok(!(await mk.listMarketingRecipients()).some((r) => r.email === addr));
+    // «ritorno» di un'altra vecchia richiesta con lo stesso indirizzo creata PRIMA della revoca: simulata con una data anteriore
+    const old = await svc.createLead(submission({ email: addr, marketingConsent: true }) as never);
+    const db = await dbmod.getDb();
+    await db.update(schema.marketingConsents).set({ decidedAt: new Date(Date.now() - 3_600_000) }).where(orm.eq(schema.marketingConsents.customerId, (await row(old.id)).customerId));
+    assert.ok(!(await mk.listMarketingRecipients()).some((r) => r.email === addr), "consenso più vecchio della revoca: resta soppresso");
+    // nuovo consenso esplicito, successivo alla revoca
+    await new Promise((r) => setTimeout(r, 5));
+    await svc.createLead(submission({ email: addr, marketingConsent: true }) as never);
+    assert.ok((await mk.listMarketingRecipients()).some((r) => r.email === addr));
+  });
+
+  test("revoca chiesta DOPO la cancellazione (nessuna richiesta attiva): resta solo la prova minima e la soppressione vale", async () => {
+    const { sub, lead } = await mk2(true);
+    await erasure.eraseLead(lead.id);
+    const before = (await evidenceRows()).length;
+    assert.deepEqual(await mk.revokeMarketingConsent(sub.contact.email, "email"), { revoked: 1 });
+    assert.equal((await evidenceRows()).length, before + 1);
+    assert.equal(await mk.currentMarketingStatus(sub.contact.email), "revoked");
+  });
+
+  test("richieste già esistenti (prima della 0006, senza righe nel registro): la cancellazione funziona e non crea nessuna prova", async () => {
+    const { lead, customerId } = await mk2();
+    const db = await dbmod.getDb();
+    await db.delete(schema.marketingConsents).where(orm.eq(schema.marketingConsents.customerId, customerId));
+    await db.update(schema.leads).set({ customerEmailStatus: "skipped" }).where(orm.eq(schema.leads.id, lead.id));
+    const before = (await evidenceRows()).length;
+    const rep = await erasure.eraseLead(lead.id);
+    assert.ok(rep.code);
+    assert.equal((await evidenceRows()).length, before);
+  });
+
+  test("la cancellazione resta atomica: se la riduzione del registro fallisce, la richiesta NON viene cancellata", async () => {
+    const { lead } = await mk2(true);
+    const db = await dbmod.getDb();
+    await db.execute(orm.sql`alter table marketing_consent_evidence rename to mce_x`);
+    try {
+      await assert.rejects(() => erasure.eraseLead(lead.id));
+      assert.ok(await row(lead.id), "la richiesta è ancora presente");
+    } finally {
+      await db.execute(orm.sql`alter table mce_x rename to marketing_consent_evidence`);
+    }
+  });
+
+  test("NESSUNA cancellazione automatica della prova: periodo di conservazione ancora da definire (decisione aperta, documentata)", () => {
+    const files = [
+      "src/modules/marketing/evidence.ts",
+      "src/modules/marketing/consent.ts",
+      "src/modules/privacy/erasure.ts",
+    ].map((f) => readFileSync(f, "utf8")).join("\n");
+    assert.doesNotMatch(files.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""), /retain_?until|retention|purge|expires?_?at|delete\(marketingConsentEvidence\)/i);
+    const docs = readFileSync("docs/EMAIL-CLIENTE-E-CONSENSO.md", "utf8");
+    assert.match(docs, /DECISIONE APERTA/);
+    assert.match(docs, /nessuna\s+cancellazione\s+automatica/i);
+    assert.doesNotMatch(docs + readFileSync("src/app/privacy/page.tsx", "utf8"), /\b(5|10|cinque|dieci) anni\b/i);
+  });
+
+  test("informativa: spiega la prova minima pseudonimizzata (non anonima), senza indicare un periodo", () => {
+    const page = readFileSync("src/app/privacy/page.tsx", "utf8");
+    assert.match(page, /prova minima/i);
+    assert.match(page, /pseudonimizzat/i);
+    assert.match(page, /non (è|sono) (un dato )?anonim/i);
+    assert.match(page, /periodo[\s\S]{0,200}(da definire|non è ancora stato fissato|non abbiamo ancora fissato)/i);
+    assert.doesNotMatch(page, /dati anonimi|resta anonim/i);
   });
 });

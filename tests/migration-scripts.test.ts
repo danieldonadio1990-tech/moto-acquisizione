@@ -57,6 +57,7 @@ async function unapply0005() {
  */
 async function unapply0006() {
   await exec("drop table if exists marketing_consents");
+  await exec("drop table if exists marketing_consent_evidence");
   await exec("alter table leads drop constraint if exists leads_customer_email_status_valid");
   for (const c of ["customer_email_status", "customer_email_attempts", "customer_email_claimed_at", "customer_email_sent_at", "customer_email_error"]) {
     await exec(`alter table leads drop column if exists ${c}`);
