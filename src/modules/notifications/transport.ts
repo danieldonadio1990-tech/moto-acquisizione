@@ -11,6 +11,8 @@ export type EmailMessage = {
   replyTo?: string;
   subject: string;
   text: string;
+  /** Facoltativo: versione HTML (email al cliente). Il testo semplice resta sempre presente come alternativa. */
+  html?: string;
   /** Resend ricorda la chiave per 24 ore: lo stesso invio ripetuto in quella finestra non produce una seconda email */
   idempotencyKey: string;
 };
@@ -50,6 +52,7 @@ export class ResendTransport implements EmailTransport {
           ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
           subject: msg.subject,
           text: msg.text,
+          ...(msg.html ? { html: msg.html } : {}),
         }),
         signal: ctrl.signal,
       });

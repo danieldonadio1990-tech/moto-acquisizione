@@ -5,6 +5,7 @@ import { readLimitedBody, BodyTimeout, BodyTooLarge } from "@/lib/body";
 import { clientIp, rateLimit, RULES, tooManyRequests } from "@/lib/rate-limit";
 import { logError } from "@/lib/log";
 import { notifyNewLead } from "@/modules/notifications/new-lead";
+import { sendCustomerConfirmation } from "@/modules/notifications/customer-confirmation";
 import { checkFormToken, formTokenRequired } from "@/modules/leads/form-token";
 import { evaluateLeadOnCreate } from "@/modules/valuation/service";
 
@@ -38,7 +39,9 @@ export async function POST(request: Request) {
     // Notifica email DOPO il salvataggio. Non lancia eccezioni e non cambia la risposta: se l'email non parte
     // il lead è comunque salvato e la notifica viene ritentata (retry del browser o back office).
     // Un retry dello stesso invio (duplicate) riprova solo se la notifica non risulta già inviata.
-    await notifyNewLead(lead.id).catch(() => {});
+    // In parallelo (stessi 4 secondi di attesa massima), ciascuna senza mai lanciare errori verso il cliente. L'email di conferma al cliente
+    // è un messaggio di servizio: prenotata nel database, quindi un retry non produce doppioni.
+    await Promise.all([notifyNewLead(lead.id).catch(() => {}), sendCustomerConfirmation(lead.id).catch(() => {})]);
     // Prima valutazione, calcolata sul server da dati del database. Non lancia mai eccezioni: se il motore non ha dati
     // sufficienti (o non è abilitato) il cliente riceve «verifica manuale». Un retry restituisce la valutazione già salvata.
     const valuation = await evaluateLeadOnCreate(lead.id);

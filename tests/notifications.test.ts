@@ -37,6 +37,7 @@ class FakeTransport implements EmailTransport {
   mode: Mode = "ok";
   delayMs = 0;
   async send(msg: Sent) {
+    if (msg.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     this.attempts++;
     if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
     if (this.mode === "throw") throw new Error("provider giù");
@@ -594,6 +595,7 @@ class IdempotentProvider implements EmailTransport {
   /** simula «email accettata dal provider ma risposta persa» (timeout) per le prossime N chiamate */
   loseReplies = 0;
   async send(msg: Sent) {
+    if (msg.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     this.attempts.push(msg);
     const body = JSON.stringify({ from: msg.from, to: msg.to, subject: msg.subject, text: msg.text });
     const prev = this.seen.get(msg.idempotencyKey);

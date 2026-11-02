@@ -34,6 +34,7 @@ class Provider implements EmailTransport {
   seen = new Map<string, string>();
   deliveries = 0;
   async send(msg: EmailMessage): Promise<SendResult> {
+    if (msg.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     this.attempts.push(msg);
     if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
     if (this.mode === "throw") throw new Error("provider giù");
@@ -332,6 +333,7 @@ class Scripted implements EmailTransport {
   seen = new Set<string>();
   constructor(private plan: { delay: number; ok: boolean }[]) {}
   async send(msg: EmailMessage): Promise<SendResult> {
+    if (msg.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     const step = this.plan[this.calls++] ?? { delay: 0, ok: true };
     await new Promise((r) => setTimeout(r, step.delay));
     if (!step.ok) return { ok: false, code: "http_503" };

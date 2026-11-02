@@ -62,6 +62,10 @@ export default function PrivacyPage() {
             <li>
               <strong>Presa visione</strong>: data e ora in cui hai confermato di aver letto questa informativa e la sua versione.
             </li>
+            <li>
+              <strong>Scelta sul consenso marketing</strong> (casella facoltativa del modulo): se l&apos;hai data oppure no, la data, la versione del testo che hai
+              visto e, se la revochi, la data della revoca (vedi «Per quanto tempo li conserviamo»).
+            </li>
           </ul>
           <p className="mt-2">
             <strong>Sicurezza.</strong> Il database non registra il tuo indirizzo IP. Per limitare gli abusi, mentre invii il
@@ -77,7 +81,17 @@ export default function PrivacyPage() {
               Valutare la tua moto, ricontattarti e, se vuoi, concludere l&apos;acquisto. Base giuridica: la tua
               richiesta, cioè misure precontrattuali e contratto (art. 6.1.b GDPR).
             </li>
+            <li>
+              Inviarti, dopo l&apos;invio della richiesta, un&apos;<strong>email di conferma di ricezione</strong> con il codice della richiesta e il riepilogo della tua moto.
+              È un messaggio di servizio legato alla tua richiesta, non pubblicitario (art. 6.1.b GDPR).
+            </li>
             <li>Adempiere agli obblighi fiscali e civilistici se acquistiamo la moto (art. 6.1.c GDPR).</li>
+            <li>
+              Inviarti via email novità, offerte e comunicazioni promozionali di Compriamo Moto, <strong>solo se spunti la casella facoltativa</strong> del modulo.
+              Base giuridica: il tuo consenso (art. 6.1.a GDPR). La casella non è mai preselezionata e puoi inviare la richiesta anche senza spuntarla: la
+              valutazione non cambia. Puoi <strong>revocare il consenso in qualsiasi momento</strong> scrivendo a {mail(LEGAL.privacyEmail)}; la revoca non
+              pregiudica la liceità dei trattamenti fatti prima. Senza il tuo consenso non ti inviamo comunicazioni promozionali.
+            </li>
             <li>
               Statistiche interne aggregate per capire come migliorare il servizio e quanto rendono i nostri annunci;
               sicurezza del sito e prevenzione di abusi. Base giuridica: nostro legittimo interesse (art. 6.1.f GDPR),
@@ -86,7 +100,7 @@ export default function PrivacyPage() {
           </ul>
           <p className="mt-2">
             I dati di contatto e della moto servono per la valutazione: senza, non possiamo rispondere. Le foto sono
-            facoltative. Non usiamo i tuoi dati per pubblicità e non li vendiamo. Il prezzo della moto si stima dai dati
+            facoltative. Non vendiamo i tuoi dati e non li usiamo per pubblicità di terzi; le nostre comunicazioni promozionali le riceverai solo se dai il consenso. Il prezzo della moto si stima dai dati
             della moto e di mercato, non da caratteristiche personali; al momento nessuna offerta ti viene comunicata in
             modo automatico: ti risponde una persona.
           </p>
@@ -114,7 +128,7 @@ export default function PrivacyPage() {
               Fornitori di servizi tecnici che trattano i dati per nostro conto: <strong>{PROVIDERS.hosting}</strong> (hosting del sito);{" "}
               <strong>{PROVIDERS.database}</strong> (database con i dati delle richieste, {PROVIDERS.databaseRegion}); <strong>{PROVIDERS.storage}</strong> (archivio
               delle foto); <strong>{PROVIDERS.notifications}</strong> (invio della notifica interna di nuova richiesta, che contiene il codice della richiesta e i
-              dati della moto ma non i tuoi contatti); <strong>{PROVIDERS.mail}</strong> (posta elettronica con cui gestiamo le richieste e ti scriviamo).
+              dati della moto ma non i tuoi contatti, e dell&apos;email di conferma che ricevi tu, che contiene il tuo indirizzo email, il tuo nome e il riepilogo della moto); <strong>{PROVIDERS.mail}</strong> (posta elettronica con cui gestiamo le richieste e ti scriviamo).
             </li>
             <li>
               <strong>WhatsApp</strong>: se scegli WhatsApp come canale o ci scrivi su WhatsApp, la conversazione passa
@@ -144,6 +158,14 @@ export default function PrivacyPage() {
               Moto acquistata: i dati necessari agli obblighi di legge fiscali e civilistici, per il periodo che la normativa
               prevede; le foto non necessarie possono essere cancellate prima.
             </li>
+            <li>
+              Consenso marketing: la registrazione della scelta (data, versione del testo, stato) resta collegata alla tua richiesta finché la conserviamo.
+              Se chiedi la cancellazione della richiesta, la cancelliamo ma <strong>conserviamo una prova minima pseudonimizzata</strong> del consenso o della revoca:
+              solo lo stato, la versione del testo, l&apos;origine, la data e un codice irreversibile (HMAC) del tuo indirizzo email, senza nome, telefono, email in chiaro né
+              collegamento alla richiesta. Serve a dimostrare, se necessario, che il consenso c&apos;era o che la revoca è stata rispettata, e a non reinserirti in elenchi
+              promozionali se hai revocato. <strong>Non è un dato anonimo</strong>: chi dispone della chiave può verificare se un indirizzo noto vi compare. Il periodo di
+              conservazione di questa prova non è ancora stato fissato (da definire): finché non lo sarà non la cancelliamo in automatico; puoi comunque scriverci per esercitare i tuoi diritti.
+            </li>
             <li>Statistiche: solo conteggi aggregati senza collegamento alla tua identità.</li>
           </ul>
         </section>
@@ -153,7 +175,7 @@ export default function PrivacyPage() {
           <p>
             Puoi chiedere in ogni momento di accedere ai tuoi dati, correggerli, cancellarli, limitarne l&apos;uso,
             riceverli in un formato leggibile (portabilità) e opporti ai trattamenti basati sul nostro legittimo
-            interesse. Puoi anche presentare reclamo al Garante per la protezione dei dati personali
+            interesse. Dove il trattamento si basa sul consenso (comunicazioni promozionali) puoi revocarlo quando vuoi. Puoi anche presentare reclamo al Garante per la protezione dei dati personali
             (garanteprivacy.it).
           </p>
         </section>

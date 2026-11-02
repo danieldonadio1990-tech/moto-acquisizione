@@ -38,6 +38,7 @@ class Provider implements EmailTransport {
   /** consegne reali: stessa chiave = una sola (come l'idempotenza di Resend) */
   delivered = new Set<string>();
   async send(msg: EmailMessage): Promise<SendResult> {
+    if (msg.idempotencyKey.startsWith("lead-confirm-")) return { ok: true as const, id: "fake-confirm" }; // email al cliente: provata in tests/customer-email-marketing.test.ts
     this.attempts++;
     if (this.delayMs) await new Promise((r) => setTimeout(r, this.delayMs));
     if (this.mode === "throw") throw new Error("provider giù");

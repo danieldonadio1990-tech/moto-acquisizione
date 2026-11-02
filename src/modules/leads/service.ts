@@ -17,6 +17,7 @@ import { matchBuyBox } from "@/modules/buybox/match";
 import { recordEvent } from "@/modules/analytics/server";
 import { getPhotoStorage } from "@/modules/photos/storage";
 import { PRIVACY_POLICY_VERSION } from "@/config/business";
+import { recordFormChoice } from "@/modules/marketing/consent";
 import { serverConfig } from "@/config/env";
 import type { LeadSubmission } from "./validation";
 import { CLOSED_STATUSES, type LeadStatus } from "./statuses";
@@ -94,6 +95,8 @@ export async function createLead(input: LeadSubmission): Promise<CreatedLead> {
           privacyPolicyVersion: PRIVACY_POLICY_VERSION,
         })
         .returning({ id: customers.id });
+      // scelta sul consenso marketing, registrata con data e versione del testo nella stessa transazione della richiesta
+      await recordFormChoice(tx, customer.id, c.marketingConsent === true);
 
       let code = newCode();
       for (let i = 0; i < 5; i++) {

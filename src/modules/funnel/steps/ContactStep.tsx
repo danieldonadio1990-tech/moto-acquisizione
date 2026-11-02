@@ -1,4 +1,5 @@
 "use client";
+import { MARKETING_CONSENT_TEXT } from "@/modules/marketing/text";
 import Link from "next/link";
 import { Choices, FieldError, StepTitle, TextField } from "../ui";
 import type { FunnelState } from "../state";
@@ -107,10 +108,26 @@ export function ContactStep({
                 informativa privacy
               </Link>
               .
-              <span className="mt-1 block text-sm text-concrete">Usiamo i tuoi dati solo per valutare la moto e ricontattarti: la richiesta resta a Compriamo Moto.</span>
+              <span className="mt-1 block text-sm text-concrete">Usiamo i tuoi dati solo per valutare la moto, ricontattarti e confermarti la ricezione della richiesta: resta a Compriamo Moto.</span>
             </span>
           </label>
           {errors.privacyConsent && <FieldError>{errors.privacyConsent}</FieldError>}
+        </div>
+
+        <div>
+          <label className="flex min-h-12 cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              name="marketingConsent"
+              checked={contact.marketingConsent === true}
+              onChange={(e) => onChange({ marketingConsent: e.target.checked })}
+              className="mt-0.5 h-6 w-6 shrink-0 accent-plate"
+            />
+            <span className="leading-snug">
+              {MARKETING_CONSENT_TEXT}
+              <span className="mt-1 block text-sm text-concrete">Facoltativo: puoi inviare la richiesta anche senza.</span>
+            </span>
+          </label>
         </div>
 
         {submitError && (
