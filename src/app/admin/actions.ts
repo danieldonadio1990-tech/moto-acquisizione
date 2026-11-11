@@ -13,7 +13,7 @@ import {
   undoPurchase,
   updateNotes,
 } from "@/modules/leads/service";
-import { LEAD_STATUSES } from "@/modules/leads/statuses";
+import { SELECTABLE_STATUSES } from "@/modules/leads/statuses";
 import { clientIp } from "@/lib/rate-limit";
 import { isValuationSchemaUnavailable } from "@/db/errors";
 import { MAX_ATTEMPTS, manualRetryNotification } from "@/modules/notifications/new-lead";
@@ -29,6 +29,8 @@ import {
   setManualOffer,
 } from "@/modules/valuation/service";
 import { decimalToHundredths, paramsFromForm } from "@/modules/valuation/fields";
+import { addComparable, saveAppraisal, setComparableIncluded } from "@/modules/appraisal/service";
+import { appraisalInputSchema, comparableInputSchema, exclusionReasonSchema } from "@/modules/appraisal/validation";
 
 export type ActionState = { ok?: boolean; error?: string; email?: string } | null;
 
@@ -77,7 +79,8 @@ export async function changeStatusAction(_: ActionState, form: FormData): Promis
   try {
     const admin = await requireAdmin();
     const leadId = uuid.parse(form.get("leadId"));
-    const status = z.enum(LEAD_STATUSES).parse(form.get("status"));
+    // solo gli stati del flusso attuale: quelli storici restano leggibili ma non si possono più impostare
+    const status = z.enum(SELECTABLE_STATUSES, { error: "Stato non valido" }).parse(form.get("status"));
     await changeStatus(leadId, status, admin.email);
     refresh();
     return { ok: true };
@@ -273,6 +276,69 @@ export async function addMarketReferenceAction(_: ActionState, form: FormData): 
       },
       admin.email,
     );
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Scheda di valutazione interna (comparabili e revisioni). Ogni azione parte da requireAdmin(); gli importi arrivano in euro
+// interi e il calcolo avviene sul server (src/modules/appraisal): dal browser arrivano solo i valori inseriti a mano.
+// ---------------------------------------------------------------------------------------------------------------------------
+const formText = (form: FormData, name: string) => String(form.get(name) ?? "");
+
+export async function addComparableAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const leadId = uuid.parse(form.get("leadId"));
+    const input = comparableInputSchema.parse({
+      url: formText(form, "url"),
+      priceCents: formText(form, "price"),
+      brand: formText(form, "brand"),
+      model: formText(form, "model"),
+      year: formText(form, "year"),
+      mileage: formText(form, "mileage"),
+      location: formText(form, "location"),
+      condition: formText(form, "condition"),
+      description: formText(form, "description"),
+      sellerType: formText(form, "sellerType") || "unknown",
+    });
+    await addComparable(leadId, input, admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function setComparableIncludedAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const leadId = uuid.parse(form.get("leadId"));
+    const comparableId = uuid.parse(form.get("comparableId"));
+    const include = form.get("include") === "true";
+    const reason = include ? null : exclusionReasonSchema.parse(formText(form, "reason"));
+    await setComparableIncluded(leadId, comparableId, include, reason, admin.email);
+    refresh();
+    return { ok: true };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+export async function saveAppraisalAction(_: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const admin = await requireAdmin();
+    const leadId = uuid.parse(form.get("leadId"));
+    const names = [
+      "comparablesValueCents", "comparablesValueNote", "resaleValueCents", "resaleValueNote", "discountCents", "manualFirstOfferCents",
+      "firstOfferReason", "targetPriceCents", "targetPriceNote", "declaredAskingPriceCents", "accessories", "cosmeticCondition", "defects",
+      "maintenanceRecords", "revisionNote",
+    ] as const;
+    const input = appraisalInputSchema.parse(Object.fromEntries(names.map((n) => [n, formText(form, n)])));
+    await saveAppraisal(leadId, input, admin.email);
     refresh();
     return { ok: true };
   } catch (err) {

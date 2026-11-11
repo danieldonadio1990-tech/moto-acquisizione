@@ -38,3 +38,17 @@ export function isValuationSchemaUnavailable(err: unknown): boolean {
   }
   return false;
 }
+
+const APPRAISAL_TABLES = /\b(lead_comparables|lead_appraisals)\b/;
+
+/** Come isValuationSchemaUnavailable, per le tabelle della scheda di valutazione (migrazione 0008 non applicata). */
+export function isAppraisalSchemaUnavailable(err: unknown): boolean {
+  for (const e of chain(err)) {
+    const code = (e as { code?: unknown }).code;
+    if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) {
+      if (code !== "42P01" && code !== "42501") return false;
+      return APPRAISAL_TABLES.test(String((e as { message?: unknown }).message ?? ""));
+    }
+  }
+  return false;
+}

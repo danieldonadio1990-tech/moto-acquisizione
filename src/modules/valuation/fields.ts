@@ -4,7 +4,8 @@ import type { ValuationParams } from "./params";
  * Campi del modulo «Parametri economici» (back office). Gli importi si scrivono in euro e le percentuali in %, il database
  * conserva centesimi e punti base. Conversioni con aritmetica su stringhe/interi: nessun errore di virgola mobile.
  */
-export type FieldKind = "eur" | "pct" | "int" | "bool" | "basis";
+/** eur_opt: importo facoltativo, campo vuoto = «non configurato» (null), MAI zero */
+export type FieldKind = "eur" | "eur_opt" | "pct" | "int" | "bool" | "basis";
 export type Field = { path: string; label: string; kind: FieldKind; hint?: string };
 export type FieldGroup = { title: string; fields: Field[] };
 
@@ -69,6 +70,18 @@ export const PARAM_GROUPS: FieldGroup[] = [
     ],
   },
   {
+    title: "Scheda di valutazione con i comparabili",
+    fields: [
+      { path: "appraisal.marginCents", label: "Margine lordo obiettivo", kind: "eur_opt", hint: "Vuoto = non configurato: il massimo sostenibile non si calcola." },
+      { path: "appraisal.preparationContingencyCents", label: "Fondo preparazione e imprevisti", kind: "eur_opt" },
+      { path: "appraisal.transportCents", label: "Trasporto (massimo previsto)", kind: "eur_opt" },
+      { path: "appraisal.transferAndOtherCents", label: "Passaggio di proprietà e altri costi", kind: "eur_opt", hint: "Da configurare: finché è vuoto il massimo sostenibile non si calcola." },
+      { path: "appraisal.firstOfferDiscountMinCents", label: "Sconto prima offerta: minimo", kind: "eur_opt", hint: "Sotto il valore dei comparabili." },
+      { path: "appraisal.firstOfferDiscountMaxCents", label: "Sconto prima offerta: massimo", kind: "eur_opt" },
+      { path: "appraisal.firstOfferDiscountDefaultCents", label: "Sconto prima offerta: proposto", kind: "eur_opt", hint: "Facoltativo: se vuoto si sceglie nella scheda." },
+    ],
+  },
+  {
     title: "Verifica manuale obbligatoria",
     fields: [
       { path: "review.manualIfAccident", label: "Se dichiara incidenti", kind: "bool" },
@@ -112,6 +125,14 @@ export function paramsFromForm(get: (name: string) => string | null): { params: 
       setPath(params, f.path, raw === "on" || raw === "true");
     } else if (f.kind === "basis") {
       setPath(params, f.path, raw);
+    } else if (f.kind === "eur_opt") {
+      // vuoto = non configurato (null); un valore presente deve essere valido
+      if (raw === null || raw.trim() === "") setPath(params, f.path, null);
+      else {
+        const h = decimalToHundredths(raw);
+        if (h === null) errors.push(`${f.label}: valore non valido (lascia vuoto se non è configurato)`);
+        else setPath(params, f.path, h);
+      }
     } else if (f.kind === "int") {
       if (raw === null || !/^\d{1,6}$/.test(raw.trim())) errors.push(`${f.label}: numero intero non valido`);
       else setPath(params, f.path, Number(raw.trim()));
@@ -129,7 +150,8 @@ export function formValuesFromParams(p: ValuationParams): Record<string, string>
   const out: Record<string, string> = {};
   for (const f of ALL_FIELDS) {
     const v = getPath(p, f.path);
-    out[f.path] = f.kind === "eur" || f.kind === "pct" ? hundredthsToDecimal(Number(v)) : String(v);
+    if (f.kind === "eur_opt") out[f.path] = v === null || v === undefined ? "" : hundredthsToDecimal(Number(v));
+    else out[f.path] = f.kind === "eur" || f.kind === "pct" ? hundredthsToDecimal(Number(v)) : String(v);
   }
   return out;
 }

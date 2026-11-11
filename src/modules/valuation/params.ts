@@ -10,6 +10,29 @@ import { z } from "zod";
  */
 const cents = z.number().int().min(0).max(100_000_000);
 const bp = (max = 10_000) => z.number().int().min(0).max(max);
+/** Importo che può essere «non configurato» (null): MAI trattato come zero. */
+const centsOrNull = cents.nullable();
+
+/**
+ * Parametri della SCHEDA DI VALUTAZIONE con i comparabili (src/modules/appraisal). Separati dai costi del motore automatico:
+ * ogni voce può essere «non configurata» (null) e in quel caso il massimo sostenibile NON si calcola (nessun costo vale zero
+ * per difetto). Facoltativo: le versioni approvate prima di questa funzione non lo hanno e la scheda lo segnala.
+ */
+export const appraisalParamsSchema = z.object({
+  /** margine lordo obiettivo per scooter */
+  marginCents: centsOrNull,
+  /** fondo preparazione e imprevisti (voce unica) */
+  preparationContingencyCents: centsOrNull,
+  /** trasporto (importo massimo previsto) */
+  transportCents: centsOrNull,
+  /** passaggio di proprietà e altri costi: da configurare, mai presunto gratuito */
+  transferAndOtherCents: centsOrNull,
+  /** sconto della prima offerta rispetto al valore dei comparabili: intervallo ammesso e valore proposto */
+  firstOfferDiscountMinCents: centsOrNull,
+  firstOfferDiscountMaxCents: centsOrNull,
+  firstOfferDiscountDefaultCents: centsOrNull,
+});
+export type AppraisalParams = z.infer<typeof appraisalParamsSchema>;
 
 export const valuationParamsSchema = z
   .object({
@@ -72,6 +95,7 @@ export const valuationParamsSchema = z
       /** la fascia indicativa va da (offerta massima − questa %) all'offerta massima */
       lowerBp: bp(5000),
     }),
+    appraisal: appraisalParamsSchema.optional(),
   })
   .superRefine((p, ctx) => {
     const issue = (path: string[], message: string) => ctx.addIssue({ code: "custom", path, message });
@@ -81,9 +105,32 @@ export const valuationParamsSchema = z
     }
     if (p.margin.targetCents <= 0 && p.margin.minPctBp <= 0) issue(["margin", "targetCents"], "Serve un margine obiettivo maggiore di zero");
     if (p.offer.maxCents <= 0) issue(["offer", "maxCents"], "Serve un tetto massimo di offerta maggiore di zero");
+    const a = p.appraisal;
+    if (a) {
+      const { firstOfferDiscountMinCents: lo, firstOfferDiscountMaxCents: hi, firstOfferDiscountDefaultCents: def } = a;
+      if (lo !== null && hi !== null && lo > hi) issue(["appraisal", "firstOfferDiscountMinCents"], "Lo sconto minimo non può superare il massimo");
+      if (def !== null && (lo === null || hi === null)) issue(["appraisal", "firstOfferDiscountDefaultCents"], "Per lo sconto proposto servono minimo e massimo");
+      if (def !== null && lo !== null && hi !== null && (def < lo || def > hi)) {
+        issue(["appraisal", "firstOfferDiscountDefaultCents"], "Lo sconto proposto deve stare tra il minimo e il massimo");
+      }
+    }
   });
 
 export type ValuationParams = z.infer<typeof valuationParamsSchema>;
+
+/**
+ * Scheda di valutazione: valori del modello economico COMUNICATI DAL TITOLARE (10/11/2026), da approvare come nuova versione dei
+ * parametri. Passaggio di proprietà/altri costi e sconto proposto NON sono stati indicati: restano «non configurati» (null).
+ */
+export const APPRAISAL_MODEL_DRAFT: AppraisalParams = {
+  marginCents: 80_000,
+  preparationContingencyCents: 10_000,
+  transportCents: 5_000,
+  transferAndOtherCents: null,
+  firstOfferDiscountMinCents: 30_000,
+  firstOfferDiscountMaxCents: 40_000,
+  firstOfferDiscountDefaultCents: null,
+};
 
 /**
  * BOZZA IPOTETICA: valori di partenza per compilare il modulo di configurazione, NON dati di mercato e NON approvati.
@@ -119,4 +166,5 @@ export const HYPOTHETICAL_DRAFT_PARAMS: ValuationParams = {
   },
   review: { manualIfAccident: true, manualIfNotRunning: true, manualIfMechanicalIssues: true },
   range: { lowerBp: 1_000 },
+  appraisal: APPRAISAL_MODEL_DRAFT,
 };

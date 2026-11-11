@@ -12,7 +12,7 @@ import { STATUS_LABELS, type LeadStatus } from "./statuses";
  * NON contiene nome, telefono o email: solo dati della moto, comune, provenienza e trattativa.
  */
 
-const QUALIFIED: LeadStatus[] = ["interesting", "appointment", "offer_made", "accepted", "purchased"];
+const QUALIFIED: LeadStatus[] = ["interesting", "offer_prepared", "offer_made", "awaiting_response", "accepted", "appointment", "purchased"];
 
 export type DatasetRow = {
   codice: string;
@@ -102,7 +102,8 @@ export async function buildDataset(): Promise<DatasetRow[]> {
       foto: lead.photoCount,
       buy_box: bb ? PRIORITY_LABELS[bb.priority] : "No",
       stato_attuale: STATUS_LABELS[lead.status],
-      qualificazione: qualified ? "Interessante" : lead.status === "not_interesting" ? "Non interessante" : "Da valutare",
+      // «Non interessato / rifiutata» (flusso 0008) senza qualificazione precedente equivale al vecchio «Non interessante»
+      qualificazione: qualified ? "Interessante" : lead.status === "not_interesting" || lead.status === "rejected" ? "Non interessante" : "Da valutare",
       appuntamento: seen.has("appointment") ? "Sì" : "No",
       ultima_offerta: leadOffers[0]?.amount ?? "",
       offerta_accettata: accepted?.amount ?? "",

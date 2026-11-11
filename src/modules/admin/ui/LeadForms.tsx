@@ -10,7 +10,7 @@ import {
   undoPurchaseAction,
   type ActionState,
 } from "@/app/admin/actions";
-import { LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
+import { isLegacyStatus, SELECTABLE_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 
 const input =
   "h-11 w-full rounded-lg border-2 border-line bg-paper px-3 outline-none focus:border-asphalt disabled:opacity-60";
@@ -55,7 +55,13 @@ export function StatusForm({ leadId, status }: { leadId: string; status: LeadSta
           className={input}
           disabled={status === "purchased"}
         >
-          {LEAD_STATUSES.filter((s) => s !== "purchased" || status === "purchased").map((s) => (
+          {/* stato storico attuale: si mostra (non selezionabile di nuovo) finché non se ne sceglie uno del flusso attuale */}
+          {isLegacyStatus(status) && (
+            <option value={status} disabled>
+              {STATUS_LABELS[status]}
+            </option>
+          )}
+          {SELECTABLE_STATUSES.filter((s) => s !== "purchased" || status === "purchased").map((s) => (
             <option key={s} value={s}>
               {STATUS_LABELS[s]}
             </option>
@@ -123,7 +129,7 @@ export function OfferForm({ leadId, disabled }: { leadId: string; disabled?: boo
           {pending ? "…" : "Registra"}
         </button>
       </div>
-      <Feedback state={state} okText="Offerta registrata" />
+      <Feedback state={state} okText="Offerta registrata: stato «Offerta preparata». Quando la comunichi al cliente imposta «Offerta inviata»." />
     </form>
   );
 }
