@@ -327,8 +327,9 @@ describe("migrazione 0008", () => {
   test("registrata dopo la 0007, additiva", () => {
     const journal = JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: { tag: string }[] };
     const tags = journal.entries.map((e) => e.tag);
-    assert.equal(tags.at(-1), "0008_scheda_valutazione");
-    assert.equal(tags.at(-2), "0007_foto_temporanee_email");
+    const idx = tags.indexOf("0008_scheda_valutazione");
+    assert.ok(idx > 0, "la migrazione 0008 deve essere nel registro");
+    assert.equal(tags[idx - 1], "0007_foto_temporanee_email");
     const sql = readFileSync("drizzle/0008_scheda_valutazione.sql", "utf8");
     // istruzioni distruttive (non le clausole «ON DELETE cascade / ON UPDATE no action» delle chiavi esterne)
     const statements = sql.replace(/^--.*$/gm, "").split("--> statement-breakpoint").map((s) => s.trim());
