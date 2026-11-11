@@ -3,13 +3,17 @@
 --   psql "<URL diretta>" -v ON_ERROR_STOP=1 -f scripts/migration-0005/pre-check.sql
 -- Risultato: una tabella di controlli. Se l'ultima riga (ESITO) è `false`, NON migrare. Se lo schema drizzle non esiste
 -- la query stessa va in errore: è già un motivo per non migrare.
-with m as (
-  select count(*)::int as n, max(created_at) as last from drizzle.__drizzle_migrations
-), checks(ord, controllo, ok, dettaglio) as (
+-- Controlli 3-4: puntuali sulla riga del journal di 0004/0005 (per data di applicazione), non sul conteggio totale delle
+-- migrazioni registrate: restano validi anche se in futuro vengono applicate altre migrazioni dopo la 0005.
+with checks(ord, controllo, ok, dettaglio) as (
   select 1, 'versione PostgreSQL >= 14', current_setting('server_version_num')::int >= 140000, current_setting('server_version')
   union all select 2, 'ruolo e database (solo nomi)', true, current_user || ' @ ' || current_database()
-  union all select 3, 'migrazioni registrate = 5 (0000–0004)', (select n = 5 from m), (select n::text from m)
-  union all select 4, 'ultima migrazione registrata = 0004_rate_limit_and_throttled', (select last = 1792676806531 from m), (select last::text from m)
+  union all select 3, 'migrazione 0005_valuation_engine non ancora registrata',
+    not exists (select 1 from drizzle.__drizzle_migrations where created_at = 1793054993829),
+    (select count(*)::text from drizzle.__drizzle_migrations where created_at = 1793054993829)
+  union all select 4, 'migrazione 0004_rate_limit_and_throttled registrata, 0005 non ancora applicata',
+    exists (select 1 from drizzle.__drizzle_migrations where created_at = 1792676806531)
+    and not exists (select 1 from drizzle.__drizzle_migrations where created_at = 1793054993829), ''
   union all select 5, 'tabelle del motore ancora ASSENTI (0005 non applicata né parziale)',
     to_regclass('public.valuations') is null and to_regclass('public.market_references') is null and to_regclass('public.valuation_settings') is null,
     concat_ws(', ', coalesce(to_regclass('public.valuations')::text, '-'), coalesce(to_regclass('public.market_references')::text, '-'), coalesce(to_regclass('public.valuation_settings')::text, '-'))

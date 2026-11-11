@@ -233,10 +233,10 @@ describe("tabelle del motore ASSENTI: il resto continua a funzionare", () => {
     const { id } = (await res.json()) as { id: string };
     await svc.addOffer(id, 1800, "admin@example.invalid");
     const d = await svc.getLeadDetail(id);
-    assert.equal(d!.lead.status, "offer_made");
+    assert.equal(d!.lead.status, "offer_prepared");
     assert.equal(d!.offers.length, 1);
-    await svc.changeStatus(id, "contacted", "admin@example.invalid");
-    assert.equal((await svc.getLeadDetail(id))!.lead.status, "contacted");
+    await svc.changeStatus(id, "evaluated", "admin@example.invalid");
+    assert.equal((await svc.getLeadDetail(id))!.lead.status, "evaluated");
   });
 
   test("nessun importo reale: l'interruttore è spento e i calcoli di creazione non scrivono nulla", async () => {

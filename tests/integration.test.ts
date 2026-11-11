@@ -348,7 +348,6 @@ describe("17–18. Dataset soft launch", () => {
       contact: { ...submission().contact, firstName: "Ottavio", lastName: "Quaglia", email: "ottavio.q@example.org", city: "=HYPERLINK(\"x\")" },
     });
     const lead = await svc.createLead(s);
-    await svc.changeStatus(lead.id, "interesting", "a");
     await svc.changeStatus(lead.id, "appointment", "a");
     await svc.addOffer(lead.id, 1700, "a");
     const [o] = (await svc.getLeadDetail(lead.id))!.offers;

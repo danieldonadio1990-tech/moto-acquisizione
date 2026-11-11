@@ -1,10 +1,12 @@
 -- VERIFICA POST-MIGRAZIONE 0005 — SOLA LETTURA (cataloghi e conteggi: nessuna scrittura, nessun dato personale).
 -- Stesso modo d'uso di pre-check.sql. Due esiti separati: MIGRAZIONE (righe 1–8) e BACKUP (riga 10). Come leggerli: docs/MIGRAZIONE-0005.md.
-with m as (
-  select count(*)::int as n, max(created_at) as last from drizzle.__drizzle_migrations
-), checks(ord, controllo, ok, dettaglio) as (
-  select 1, 'migrazioni registrate = 6 (0000–0005)', (select n = 6 from m), (select n::text from m)
-  union all select 2, 'ultima migrazione registrata = 0005_valuation_engine', (select last = 1793054993829 from m), (select last::text from m)
+-- Controlli 1-2: puntuali sulla riga del journal di 0005/0004 (per data di applicazione), non sul conteggio totale delle
+-- migrazioni registrate: restano validi anche se in futuro vengono applicate altre migrazioni dopo la 0005.
+with checks(ord, controllo, ok, dettaglio) as (
+  select 1, 'migrazione 0005_valuation_engine registrata',
+    exists (select 1 from drizzle.__drizzle_migrations where created_at = 1793054993829),
+    (select count(*)::text from drizzle.__drizzle_migrations where created_at = 1793054993829)
+  union all select 2, 'migrazione 0004_rate_limit_and_throttled registrata', exists (select 1 from drizzle.__drizzle_migrations where created_at = 1792676806531), ''
   union all select 3, 'le tre tabelle esistono', to_regclass('public.valuations') is not null and to_regclass('public.market_references') is not null and to_regclass('public.valuation_settings') is not null, ''
   union all select 4, 'colonne attese (valuations 25, market_references 14, valuation_settings 9)',
     (select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'valuations') = 25

@@ -320,7 +320,7 @@ describe("back office: offerta manuale, conferma, revisioni", () => {
     const offs = await db.select().from(schema.offers).where(orm.eq(schema.offers.leadId, id));
     assert.deepEqual(offs.map((o) => [o.amount, o.status]), [[3000, "proposed"]]);
     const [lead] = await db.select().from(schema.leads).where(orm.eq(schema.leads.id, id));
-    assert.equal(lead.status, "offer_made");
+    assert.equal(lead.status, "offer_prepared");
     await assert.rejects(vs.confirmOffer(id, "admin@example.invalid"), /già confermata/);
     assert.equal((await db.select().from(schema.offers).where(orm.eq(schema.offers.leadId, id))).length, 1);
     const revs = await vs.listValuationRevisions(id);

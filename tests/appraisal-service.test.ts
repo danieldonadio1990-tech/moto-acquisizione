@@ -281,6 +281,24 @@ describe("privacy e accesso", () => {
     assert.deepEqual(await erasure.remainingReferences([lead.id]), { leads: 0, events: 0, photos: 0, appraisal: 0 });
   });
 
+  test("cancellare una richiesta non tocca comparabili e revisioni di un'altra richiesta", async () => {
+    const leadA = await svc.createLead(submission());
+    const leadB = await svc.createLead(submission());
+    await ap.addComparable(leadA.id, comparable(), ADMIN);
+    await ap.saveAppraisal(leadA.id, val.appraisalInputSchema.parse(form({ defects: "nessuno" })), ADMIN);
+    await ap.addComparable(leadB.id, comparable(), ADMIN);
+    await ap.saveAppraisal(leadB.id, val.appraisalInputSchema.parse(form({ defects: "nessuno" })), ADMIN);
+
+    await erasure.eraseLead(leadA.id);
+
+    assert.deepEqual(await erasure.remainingReferences([leadA.id]), { leads: 0, events: 0, photos: 0, appraisal: 0 });
+    const remainingB = await erasure.remainingReferences([leadB.id]);
+    assert.equal(remainingB.leads, 1);
+    assert.equal(remainingB.appraisal, 2); // 1 comparabile + 1 revisione, intatti
+    assert.equal((await ap.listComparables(leadB.id)).length, 1);
+    assert.equal((await ap.listAppraisalRevisions(leadB.id)).length, 1);
+  });
+
   test("azioni della scheda solo per admin: requireAdmin() è la prima istruzione", () => {
     const src = readFileSync("src/app/admin/actions.ts", "utf8");
     for (const name of ["addComparableAction", "setComparableIncludedAction", "saveAppraisalAction"]) {
