@@ -126,6 +126,24 @@ describe("caricamento foto: richieste da rifiutare", () => {
   test("Content-Length non numerico → 400", async () => {
     assert.equal((await call(req(lead.id, lead.uploadToken, [{ data: JPG }], { length: "abc" }), lead.id)).status, 400);
   });
+
+  test("massimo 6 foto per richiesta: la settima è rifiutata, nessuna settima riga nel database", async () => {
+    const other = await svc.createLead(submission());
+    for (let i = 0; i < 6; i++) {
+      const res = await call(req(other.id, other.uploadToken, [{ data: JPG }]), other.id);
+      assert.equal((await res.json()).results[0].status, "saved", `foto ${i + 1}`);
+    }
+    const res7 = await call(req(other.id, other.uploadToken, [{ data: JPG }]), other.id);
+    const j7 = await res7.json();
+    assert.equal(res7.status, 200);
+    assert.equal(j7.results[0].status, "limit");
+    assert.match(j7.results[0].message, /massimo/i);
+
+    const { getDb } = await import("@/db/client");
+    const { leadPhotos } = await import("@/db/schema");
+    const { eq } = await import("drizzle-orm");
+    assert.equal((await (await getDb()).select().from(leadPhotos).where(eq(leadPhotos.leadId, other.id))).length, 6);
+  });
 });
 
 describe("caricamento foto: storage non disponibile", () => {

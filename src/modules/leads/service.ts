@@ -16,6 +16,7 @@ import { canonicalBrand, getModel, OTHER_MODEL_ID } from "@/modules/catalog";
 import { matchBuyBox } from "@/modules/buybox/match";
 import { recordEvent } from "@/modules/analytics/server";
 import { getPhotoStorage } from "@/modules/photos/storage";
+import { isPhotoExpired } from "@/modules/photos/retention";
 import { PRIVACY_POLICY_VERSION } from "@/config/business";
 import { serverConfig } from "@/config/env";
 import type { LeadSubmission } from "./validation";
@@ -266,7 +267,7 @@ export async function getLeadDetail(id: string) {
     .where(eq(leads.id, id));
   if (!row) return null;
 
-  const [photos, history, leadOffers, rules] = await Promise.all([
+  const [photosAll, history, leadOffers, rules] = await Promise.all([
     db.select().from(leadPhotos).where(eq(leadPhotos.leadId, id)).orderBy(asc(leadPhotos.createdAt)),
     db
       .select()
@@ -299,13 +300,16 @@ export async function getLeadDetail(id: string) {
   for (const k of ["photoUploadTokenHash", "photoUploadTokenExpiresAt", "submissionId"] as const) {
     delete (lead as Partial<typeof row.lead>)[k];
   }
+  // foto scadute (oltre PHOTO_RETENTION_DAYS dal caricamento): nascoste subito, anche prima che il job di
+  // pulizia pianificato le cancelli fisicamente dallo storage
+  const photos = photosAll.filter((p) => !isPhotoExpired(p.createdAt));
   return { lead, customer: row.customer, motorcycle: row.motorcycle, photos, history, offers: leadOffers, buyBox };
 }
 
 export async function getPhotoForAdmin(photoId: string) {
   const db = await getDb();
   const [p] = await db.select().from(leadPhotos).where(eq(leadPhotos.id, photoId));
-  if (!p) return null;
+  if (!p || isPhotoExpired(p.createdAt)) return null;
   const data = await getPhotoStorage().get(p.storageKey);
   return data ? { data, mimeType: p.mimeType } : null;
 }

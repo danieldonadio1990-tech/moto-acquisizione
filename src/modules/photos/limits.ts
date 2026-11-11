@@ -6,7 +6,9 @@
  * gruppi che restano sotto UPLOAD_BATCH_BYTES; 3,4 MB di richiesta diventano ~4,5 MB in Base64,
  * con margine sotto il tetto. Una foto da telefono compressa pesa tipicamente 0,3–1 MB.
  */
-export const MAX_PHOTOS_PER_LEAD = 12;
+export const MAX_PHOTOS_PER_LEAD = 6;
+/** Conservazione: le foto si cancellano (file nello storage + riga) questo numero di giorni dopo il caricamento. */
+export const PHOTO_RETENTION_DAYS = 30;
 /** Foto per singola richiesta */
 export const MAX_FILES_PER_REQUEST = 3;
 /** Peso massimo di una singola foto (dopo la compressione nel browser): deve stare in un gruppo da solo */

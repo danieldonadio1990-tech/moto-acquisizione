@@ -186,7 +186,7 @@ export const leads = pgTable(
   (t) => [
     index("leads_status_idx").on(t.status),
     index("leads_created_idx").on(t.createdAt),
-    check("leads_photo_count_range", sql`${t.photoCount} between 0 and 12`),
+    check("leads_photo_count_range", sql`${t.photoCount} between 0 and 6`),
     check("leads_mileage_range", sql`${t.mileage} between 0 and 400000`),
     check("leads_customer_email_status_valid", sql`${t.customerEmailStatus} in ('pending','sending','sent','failed','skipped')`),
     check(

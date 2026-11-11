@@ -22,10 +22,11 @@ class LimitReached extends Error {}
  *
  * - Idempotente per foto: lo stesso clientPhotoId non viene mai salvato due volte
  *   (retry dopo risposta persa → "duplicate", nessuna copia).
- * - Limite di 12 foto atomico: il posto viene "prenotato" con un UPDATE condizionale
- *   (photo_count < 12) nella stessa transazione dell'inserimento, più un CHECK sul database.
+ * - Limite di MAX_PHOTOS_PER_LEAD (6) atomico: il posto viene "prenotato" con un UPDATE condizionale
+ *   (photo_count < 6) nella stessa transazione dell'inserimento, più un CHECK sul database.
  *   Richieste parallele non possono superarlo.
  * - Se lo storage o il database falliscono, il file eventualmente scritto viene rimosso.
+ * - Le foto si cancellano automaticamente PHOTO_RETENTION_DAYS (30) giorni dopo il caricamento: vedi photos/retention.ts.
  */
 export async function savePhotos(leadId: string, items: PhotoItem[]): Promise<PhotoResult[]> {
   const db = await getDb();

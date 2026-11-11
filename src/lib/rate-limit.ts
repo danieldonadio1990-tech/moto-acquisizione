@@ -80,6 +80,8 @@ export const RULES = {
   loginPerIp: { name: "login-ip", limit: 30, windowMs: 15 * 60 * 1000, shared: true },
   /** rotta del recupero automatico delle notifiche: protegge dai tentativi a vuoto sul token */
   notifyRetryPerIp: { name: "notify-retry-ip", limit: 30, windowMs: 15 * 60 * 1000, shared: true },
+  /** rotta della pulizia automatica delle foto scadute: protegge dai tentativi a vuoto sul token */
+  photoCleanupPerIp: { name: "photo-cleanup-ip", limit: 30, windowMs: 15 * 60 * 1000, shared: true },
   loginPerIpEmail: { name: "login-ip-email", limit: 8, windowMs: 15 * 60 * 1000, shared: true },
 } satisfies Record<string, Rule>;
 

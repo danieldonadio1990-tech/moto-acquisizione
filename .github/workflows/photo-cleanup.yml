@@ -1,0 +1,37 @@
+name: Pulizia foto scadute
+
+# Cancella automaticamente le foto delle richieste più vecchie di 30 giorni (file nello storage + riga DB).
+# Chiama la rotta protetta del sito: vedi src/app/api/internal/photos/cleanup/route.ts.
+#
+# Disattivato finché non si configura (nessun segreto è nel repository):
+#   Variabili di repository: PHOTO_CLEANUP_ENABLED=true (accende la pianificazione) e PHOTO_CLEANUP_URL=https://<sito>
+#   Secret di repository:    PHOTO_CLEANUP_TOKEN (lo stesso valore della variabile PHOTO_CLEANUP_TOKEN su Netlify)
+on:
+  schedule:
+    - cron: "41 3 * * *" # una volta al giorno, 03:41 UTC (fuori dagli orari di punta)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# Due esecuzioni non si sovrappongono (la pulizia è comunque idempotente: una foto già cancellata non viene ritrovata)
+concurrency:
+  group: photo-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    # Le esecuzioni pianificate partono solo con PHOTO_CLEANUP_ENABLED=true; il lancio manuale funziona sempre.
+    # Solo dal ramo principale: l'elenco delle origini autorizzate (scripts/photo-cleanup/allowed-origins.txt) è quello
+    # rivisto e approvato con la PR, non quello di un ramo qualsiasi.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.PHOTO_CLEANUP_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Chiama la rotta di pulizia
+        env:
+          PHOTO_CLEANUP_URL: ${{ vars.PHOTO_CLEANUP_URL }}
+          PHOTO_CLEANUP_TOKEN: ${{ secrets.PHOTO_CLEANUP_TOKEN }}
+        run: bash scripts/photo-cleanup/call.sh
