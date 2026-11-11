@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/client";
-import { customers, events, leadPhotos, leads, motorcycles } from "@/db/schema";
+import { customers, events, leadAppraisals, leadComparables, leadPhotos, leads, motorcycles } from "@/db/schema";
 import { getPhotoStorage } from "@/modules/photos/storage";
 import { normalizeItalianPhone } from "@/modules/leads/validation";
 
@@ -122,5 +122,7 @@ export async function remainingReferences(leadIds: string[]) {
   const [l] = await db.select({ n: sql<number>`count(*)::int` }).from(leads).where(inArray(leads.id, leadIds));
   const [e] = await db.select({ n: sql<number>`count(*)::int` }).from(events).where(inArray(events.leadId, leadIds));
   const [p] = await db.select({ n: sql<number>`count(*)::int` }).from(leadPhotos).where(inArray(leadPhotos.leadId, leadIds));
-  return { leads: l.n, events: e.n, photos: p.n };
+  const [c] = await db.select({ n: sql<number>`count(*)::int` }).from(leadComparables).where(inArray(leadComparables.leadId, leadIds));
+  const [a] = await db.select({ n: sql<number>`count(*)::int` }).from(leadAppraisals).where(inArray(leadAppraisals.leadId, leadIds));
+  return { leads: l.n, events: e.n, photos: p.n, appraisal: c.n + a.n };
 }

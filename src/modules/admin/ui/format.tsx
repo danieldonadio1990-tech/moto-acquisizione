@@ -2,6 +2,10 @@ import { STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
   new: "bg-plate text-asphalt",
+  to_evaluate: "bg-[#ffe9a8] text-asphalt",
+  evaluated: "bg-[#f6e6a8] text-asphalt",
+  offer_prepared: "bg-[#ece6cf] text-gold",
+  awaiting_response: "bg-asphalt-soft text-paper",
   to_contact: "bg-[#ffe9a8] text-asphalt",
   contacted: "bg-[#ece6cf] text-gold",
   interesting: "bg-[#f6e6a8] text-asphalt",

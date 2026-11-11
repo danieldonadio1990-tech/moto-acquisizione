@@ -82,7 +82,7 @@ export function ConfirmOfferButton({ leadId, label }: { leadId: string; label: s
       <button className={btn} disabled={pending}>
         {pending ? "Confermo…" : "Conferma offerta"}
       </button>
-      <Feedback state={state} okText="Offerta confermata e registrata" />
+      <Feedback state={state} okText="Offerta registrata: stato «Offerta preparata» (non comunicata al cliente)" />
     </form>
   );
 }
@@ -145,9 +145,12 @@ export function SettingsDraftForm({ values }: { values: Record<string, string> }
                 ) : (
                   <>
                     <label htmlFor={f.path} className="mb-1 block text-sm font-bold">
-                      {f.label} <span className="font-normal text-concrete">{f.kind === "eur" ? "(€)" : f.kind === "pct" ? "(%)" : ""}</span>
+                      {f.label}{" "}
+                      <span className="font-normal text-concrete">
+                        {f.kind === "eur" ? "(€)" : f.kind === "eur_opt" ? "(€, vuoto = non configurato)" : f.kind === "pct" ? "(%)" : ""}
+                      </span>
                     </label>
-                    <input id={f.path} name={f.path} defaultValue={values[f.path]} inputMode="decimal" required className={input} />
+                    <input id={f.path} name={f.path} defaultValue={values[f.path]} inputMode="decimal" required={f.kind !== "eur_opt"} className={input} />
                   </>
                 )}
                 {f.hint && <p className="mt-1 text-xs text-concrete">{f.hint}</p>}

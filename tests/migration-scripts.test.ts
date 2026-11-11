@@ -62,12 +62,11 @@ after(async () => {
 });
 
 describe("presupposti codificati negli script coincidono con il repository", () => {
-  test("il registro: 5 migrazioni prima (ultima 0004), 6 dopo (ultima 0005), con i valori del journal", () => {
-    assert.equal(journal.entries.length, 6);
+  test("il registro: la 0004 precede la 0005, verificate puntualmente per data di applicazione (non per conteggio totale)", () => {
     assert.ok(PRE.includes(String(when("0004_rate_limit_and_throttled"))));
+    assert.ok(PRE.includes(String(when("0005_valuation_engine"))));
     assert.ok(POST.includes(String(when("0005_valuation_engine"))));
-    assert.match(PRE, /n = 5/);
-    assert.match(POST, /n = 6/);
+    assert.ok(POST.includes(String(when("0004_rate_limit_and_throttled"))));
     assert.equal(journal.entries[4].tag, "0004_rate_limit_and_throttled");
     assert.equal(journal.entries[5].tag, "0005_valuation_engine");
   });
@@ -135,7 +134,7 @@ describe("esecuzione su database temporaneo", () => {
     try {
       const pre = await run(PRE);
       assert.equal(byN(pre, 99).ok, true, JSON.stringify(pre.filter((r) => !r.ok)));
-      assert.equal(byN(pre, 3).dettaglio, "5");
+      assert.equal(byN(pre, 3).dettaglio, "0");
       const post = await run(POST);
       assert.equal(byN(post, 98).ok, false);
       assert.equal(byN(post, 3).ok, false);

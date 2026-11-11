@@ -11,7 +11,7 @@ import {
   notificationDailyLimit,
   retryPendingNotifications,
 } from "@/modules/notifications/new-lead";
-import { CLOSED_STATUSES, isLeadStatus, LEAD_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
+import { CLOSED_STATUSES, isLeadStatus, LEGACY_STATUSES, SELECTABLE_STATUSES, STATUS_LABELS, type LeadStatus } from "@/modules/leads/statuses";
 import { PRIORITY_LABELS } from "@/modules/buybox/match";
 import { formatDateTime, formatEur, formatKm, StatusBadge } from "@/modules/admin/ui/format";
 
@@ -48,7 +48,9 @@ async function LeadsView({ searchParams }: { searchParams: PageProps<"/admin">["
 
   const tabs: { key: string; label: string; count: number }[] = [
     { key: "open", label: "Aperte", count: open },
-    ...LEAD_STATUSES.map((s) => ({ key: s, label: STATUS_LABELS[s], count: countOf(s) })),
+    ...SELECTABLE_STATUSES.map((s) => ({ key: s, label: STATUS_LABELS[s], count: countOf(s) })),
+    // stati storici: solo se qualche richiesta li ha ancora
+    ...LEGACY_STATUSES.filter((s) => countOf(s) > 0).map((s) => ({ key: s, label: STATUS_LABELS[s], count: countOf(s) })),
     { key: "all", label: "Tutte", count: total },
   ];
 

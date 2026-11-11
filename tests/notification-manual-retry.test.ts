@@ -430,7 +430,7 @@ describe("7. Registro eventi e cancellazione dei dati", () => {
     const erasure = await import("@/modules/privacy/erasure");
     const rep = await erasure.eraseLead(l.id);
     assert.equal(rep.eventsAnonymized, 1, "resta anonimizzato solo l'evento aggregato lead_created");
-    assert.deepEqual(await erasure.remainingReferences([l.id]), { leads: 0, events: 0, photos: 0 });
+    assert.deepEqual(await erasure.remainingReferences([l.id]), { leads: 0, events: 0, photos: 0, appraisal: 0 });
     const db = await dbmod.getDb();
     const all = await db.select().from(schema.events);
     assert.ok(all.every((e) => !JSON.stringify(e.props ?? {}).includes(ADMIN) || e.leadId !== null || e.name !== "notification_manual_retry"));

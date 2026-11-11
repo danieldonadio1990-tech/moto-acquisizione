@@ -330,7 +330,7 @@ describe("4. Cancellazione dati", () => {
     // eventi anonimizzati, non cancellati: i conteggi aggregati restano
     const eventsAfter = await db.select().from(schema.events);
     assert.equal(eventsAfter.length, eventsBefore.length);
-    assert.deepEqual(await erasure.remainingReferences([lead.id]), { leads: 0, events: 0, photos: 0 });
+    assert.deepEqual(await erasure.remainingReferences([lead.id]), { leads: 0, events: 0, photos: 0, appraisal: 0 });
   });
 
   test("ripetere la cancellazione non fa danni", async () => {
@@ -348,7 +348,6 @@ describe("17–18. Dataset soft launch", () => {
       contact: { ...submission().contact, firstName: "Ottavio", lastName: "Quaglia", email: "ottavio.q@example.org", city: "=HYPERLINK(\"x\")" },
     });
     const lead = await svc.createLead(s);
-    await svc.changeStatus(lead.id, "interesting", "a");
     await svc.changeStatus(lead.id, "appointment", "a");
     await svc.addOffer(lead.id, 1700, "a");
     const [o] = (await svc.getLeadDetail(lead.id))!.offers;

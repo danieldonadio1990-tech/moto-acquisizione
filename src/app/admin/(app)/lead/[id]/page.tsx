@@ -19,6 +19,7 @@ import {
   TRI_LABELS,
 } from "@/modules/admin/ui/format";
 import { ValuationPanel } from "@/modules/admin/ui/ValuationPanel";
+import { AppraisalPanel } from "@/modules/admin/ui/AppraisalPanel";
 import {
   NotesForm,
   OfferForm,
@@ -45,7 +46,7 @@ export default function LeadPage({ params }: PageProps<"/admin/lead/[id]">) {
 }
 
 const OFFER_STATUS = {
-  proposed: { label: "Proposta", className: "text-concrete" },
+  proposed: { label: "Esito da registrare", className: "text-concrete" },
   accepted: { label: "Accettata", className: "text-ok" },
   rejected: { label: "Rifiutata", className: "text-danger" },
   superseded: { label: "Superata", className: "text-concrete line-through" },
@@ -170,10 +171,22 @@ async function LeadView({ params }: { params: PageProps<"/admin/lead/[id]">["par
             )}
           </Section>
 
-          <Section title="Valutazione e offerta">
-            <Suspense fallback={<p className="text-concrete">Carico la valutazione…</p>}>
-              <ValuationPanel leadId={lead.id} />
+          <Section title="Scheda di valutazione (interna)">
+            <Suspense fallback={<p className="text-concrete">Carico la scheda…</p>}>
+              <AppraisalPanel leadId={lead.id} vehicle={{ brand: moto.brand, model: moto.model, year: moto.year, mileage: lead.mileage }} />
             </Suspense>
+          </Section>
+
+          <Section title="Motore automatico (secondario)">
+            {/* il motore automatico resta com'era (importi pubblici spenti): lo strumento operativo è la scheda qui sopra */}
+            <details>
+              <summary className="cursor-pointer text-sm font-bold">Mostra la valutazione automatica</summary>
+              <div className="mt-3">
+                <Suspense fallback={<p className="text-concrete">Carico la valutazione…</p>}>
+                  <ValuationPanel leadId={lead.id} />
+                </Suspense>
+              </div>
+            </details>
           </Section>
           <Section title={`Foto (${photos.length})`}>
             {photos.length === 0 ? (

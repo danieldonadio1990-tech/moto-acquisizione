@@ -310,7 +310,7 @@ export async function setManualOffer(leadId: string, amountCents: number, reason
 
 /**
  * Conferma l'offerta in vigore (manuale, o calcolata se è «preliminare generata» ed esiste un importo): crea l'offerta
- * nel flusso già esistente (tabella offers, stato richiesta «Offerta fatta»). NON invia nulla al cliente.
+ * nel flusso già esistente (tabella offers, stato richiesta «Offerta preparata»). NON invia nulla al cliente e NON imposta «Offerta inviata».
  */
 export async function confirmOffer(leadId: string, by: string) {
   const settings = await getApprovedSettings();

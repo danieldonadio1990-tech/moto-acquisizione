@@ -19,7 +19,7 @@ import { getPhotoStorage } from "@/modules/photos/storage";
 import { PRIVACY_POLICY_VERSION } from "@/config/business";
 import { serverConfig } from "@/config/env";
 import type { LeadSubmission } from "./validation";
-import { CLOSED_STATUSES, type LeadStatus } from "./statuses";
+import { CLOSED_STATUSES, isSelectableStatus, type LeadStatus } from "./statuses";
 
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 export const PHOTO_TOKEN_TTL_MS = 48 * 60 * 60 * 1000;
@@ -333,6 +333,7 @@ export async function changeStatus(leadId: string, to: LeadStatus, by: string) {
   if (to === "purchased") {
     throw new BusinessRuleError("Per segnare l'acquisto usa 'Registra acquisto' con il prezzo pagato");
   }
+  if (!isSelectableStatus(to)) throw new BusinessRuleError("Questo stato appartiene al flusso precedente e non si può più impostare");
   const db = await getDb();
   await db.transaction(async (tx) => {
     const lead = await lockLead(tx, leadId);
@@ -353,13 +354,18 @@ export async function updateNotes(leadId: string, notes: string) {
   if (res.length === 0) throw new BusinessRuleError("Lead non trovato");
 }
 
-/** Nuova offerta: lo stato passa a "Offerta fatta" (se non c'è già un'offerta accettata). */
-/** Come addOffer, dentro una transazione già aperta (la richiesta deve essere già bloccata da chi chiama). */
+/**
+ * Nuova offerta registrata (a mano o confermata dal motore automatico): lo stato passa a «Offerta preparata», cioè importo
+ * definito internamente ma NON ancora comunicato al cliente (se non c'è già un'offerta accettata). «Offerta inviata» e
+ * «In attesa di risposta» li imposta solo l'amministratore, dal modulo Stato, quando la proposta è stata davvero comunicata.
+ * Unico punto in cui un'offerta cambia lo stato della richiesta: lo usano addOffer e confirmOffer del motore.
+ * Come addOffer, dentro una transazione già aperta (la richiesta deve essere già bloccata da chi chiama).
+ */
 export async function addOfferInTx(tx: Tx, leadId: string, amount: number, by: string) {
   const lead = await lockLead(tx, leadId);
   if (lead.status === "purchased") throw new BusinessRuleError("La moto risulta già acquistata");
   await tx.insert(offers).values({ leadId, amount, createdBy: by });
-  if (lead.status !== "accepted") await setStatusTx(tx, leadId, lead.status, "offer_made", by);
+  if (lead.status !== "accepted") await setStatusTx(tx, leadId, lead.status, "offer_prepared", by);
 }
 
 export async function addOffer(leadId: string, amount: number, by: string) {
