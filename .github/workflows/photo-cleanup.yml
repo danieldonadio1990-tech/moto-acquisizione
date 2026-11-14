@@ -1,6 +1,6 @@
 name: Pulizia foto scadute
 
-# Cancella automaticamente le foto delle richieste più vecchie di 30 giorni (file nello storage + riga DB).
+# Cancella automaticamente le foto delle richieste più vecchie di 15 giorni (file nello storage + riga DB).
 # Chiama la rotta protetta del sito: vedi src/app/api/internal/photos/cleanup/route.ts.
 #
 # Disattivato finché non si configura (nessun segreto è nel repository):

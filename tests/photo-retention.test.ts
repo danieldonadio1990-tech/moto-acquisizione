@@ -1,5 +1,5 @@
 /**
- * Conservazione delle foto: scadenza a 30 giorni dal caricamento, occultamento immediato (prima ancora della
+ * Conservazione delle foto: scadenza a 15 giorni dal caricamento, occultamento immediato (prima ancora della
  * cancellazione fisica), cancellazione reale dallo storage con la riga rimossa solo dopo, gestione degli errori
  * transitori con riprova, isolamento tra richieste, compatibilità con la cancellazione privacy.
  * Database PGlite e disco temporanei. Nessuna rete, nessun dato di produzione.
@@ -77,11 +77,11 @@ after(async () => {
   rmSync(TMP, { recursive: true, force: true });
 });
 
-describe("scadenza a 30 giorni", () => {
-  test("una foto di 29 giorni non è scaduta, una di 31 giorni sì", () => {
+describe("scadenza a 15 giorni", () => {
+  test("una foto di 14 giorni non è scaduta, una di 16 giorni sì", () => {
     const now = new Date();
-    assert.equal(retention.isPhotoExpired(new Date(now.getTime() - 29 * DAY_MS), 30, now), false);
-    assert.equal(retention.isPhotoExpired(new Date(now.getTime() - 31 * DAY_MS), 30, now), true);
+    assert.equal(retention.isPhotoExpired(new Date(now.getTime() - 14 * DAY_MS), 15, now), false);
+    assert.equal(retention.isPhotoExpired(new Date(now.getTime() - 16 * DAY_MS), 15, now), true);
   });
 
   test("foto scaduta: nascosta immediatamente da getLeadDetail e getPhotoForAdmin, ma il file esiste ANCORA sullo storage (non è stata ancora cancellata fisicamente)", async () => {
