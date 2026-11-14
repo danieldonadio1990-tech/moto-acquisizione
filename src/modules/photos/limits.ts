@@ -8,7 +8,7 @@
  */
 export const MAX_PHOTOS_PER_LEAD = 6;
 /** Conservazione: le foto si cancellano (file nello storage + riga) questo numero di giorni dopo il caricamento. */
-export const PHOTO_RETENTION_DAYS = 30;
+export const PHOTO_RETENTION_DAYS = 15;
 /** Foto per singola richiesta */
 export const MAX_FILES_PER_REQUEST = 3;
 /** Peso massimo di una singola foto (dopo la compressione nel browser): deve stare in un gruppo da solo */

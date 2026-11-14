@@ -17,7 +17,7 @@ export function loadPhotoCleanupToken(e: NodeJS.ProcessEnv = process.env): strin
 }
 
 /**
- * Cancellazione automatica delle foto più vecchie di PHOTO_RETENTION_DAYS (30 giorni dal caricamento).
+ * Cancellazione automatica delle foto più vecchie di PHOTO_RETENTION_DAYS (15 giorni dal caricamento).
  *
  * Ordine OBBLIGATO: prima il file nello storage, poi la riga nel database. Se la cancellazione dallo storage
  * fallisce (errore transitorio di rete/S3), la riga NON viene toccata: resta candidata e si riprova al giro

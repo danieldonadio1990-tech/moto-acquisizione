@@ -1,10 +1,12 @@
 name: Pulizia foto scadute
 
-# Cancella automaticamente le foto delle richieste più vecchie di 30 giorni (file nello storage + riga DB).
+# Cancella automaticamente le foto delle richieste più vecchie di 15 giorni (file nello storage + riga DB).
 # Chiama la rotta protetta del sito: vedi src/app/api/internal/photos/cleanup/route.ts.
 #
 # Disattivato finché non si configura (nessun segreto è nel repository):
-#   Variabili di repository: PHOTO_CLEANUP_ENABLED=true (accende la pianificazione) e PHOTO_CLEANUP_URL=https://<sito>
+#   Variabili di repository: PHOTO_CLEANUP_ENABLED=true (accende SIA la pianificazione SIA il lancio manuale:
+#                             senza, nessuna esecuzione chiama la rotta, nemmeno da "Run workflow") e
+#                             PHOTO_CLEANUP_URL=https://<sito>
 #   Secret di repository:    PHOTO_CLEANUP_TOKEN (lo stesso valore della variabile PHOTO_CLEANUP_TOKEN su Netlify)
 on:
   schedule:
@@ -21,10 +23,12 @@ concurrency:
 
 jobs:
   cleanup:
-    # Le esecuzioni pianificate partono solo con PHOTO_CLEANUP_ENABLED=true; il lancio manuale funziona sempre.
+    # Nessuna esecuzione, pianificata O manuale, chiama la rotta se PHOTO_CLEANUP_ENABLED non è ESATTAMENTE "true":
+    # il lancio manuale (workflow_dispatch) resta disponibile nell'interfaccia di Actions, ma è soggetto alla stessa
+    # condizione, non un modo per aggirarla. Variabile assente, vuota o diversa da "true" → nessuna chiamata.
     # Solo dal ramo principale: l'elenco delle origini autorizzate (scripts/photo-cleanup/allowed-origins.txt) è quello
     # rivisto e approvato con la PR, non quello di un ramo qualsiasi.
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.PHOTO_CLEANUP_ENABLED == 'true')
+    if: github.ref == 'refs/heads/main' && vars.PHOTO_CLEANUP_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

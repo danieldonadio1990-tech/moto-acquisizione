@@ -15,7 +15,7 @@ function sameToken(provided: string, expected: string) {
 }
 
 /**
- * Cancellazione automatica delle foto più vecchie di 30 giorni. Chiamata da un workflow pianificato di GitHub
+ * Cancellazione automatica delle foto più vecchie di 15 giorni. Chiamata da un workflow pianificato di GitHub
  * Actions (.github/workflows/photo-cleanup.yml), mai dal browser. Idempotente: una foto già cancellata non
  * compare più tra le candidate al giro successivo; le foto non ancora cancellate (errore transitorio) vengono
  * semplicemente riprovate.
