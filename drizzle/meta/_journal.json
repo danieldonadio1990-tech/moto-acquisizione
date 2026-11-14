@@ -64,6 +64,13 @@
       "when": 1794343468454,
       "tag": "0008_scheda_valutazione",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794433241442,
+      "tag": "0009_limite_foto_sei",
+      "breakpoints": true
     }
   ]
 }

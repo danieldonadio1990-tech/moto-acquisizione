@@ -185,7 +185,7 @@ describe("6–7. Foto: niente duplicati, limite atomico", () => {
     assert.equal((await uploadsOf(lead.id)).length, 1);
   });
 
-  test("10 richieste simultanee da 2 foto → al massimo 12, contatore e file coerenti", async () => {
+  test("10 richieste simultanee da 2 foto → al massimo 6, contatore e file coerenti", async () => {
     const lead = await svc.createLead(submission());
     await Promise.all(
       Array.from({ length: 10 }, () =>
@@ -198,9 +198,9 @@ describe("6–7. Foto: niente duplicati, limite atomico", () => {
     const db = await dbmod.getDb();
     const rows = await db.select().from(schema.leadPhotos).where(drizzle.eq(schema.leadPhotos.leadId, lead.id));
     const [l] = await db.select().from(schema.leads).where(drizzle.eq(schema.leads.id, lead.id));
-    assert.equal(rows.length, 12);
-    assert.equal(l.photoCount, 12);
-    assert.equal((await uploadsOf(lead.id)).length, 12, "nessun file orfano oltre il limite");
+    assert.equal(rows.length, 6);
+    assert.equal(l.photoCount, 6);
+    assert.equal((await uploadsOf(lead.id)).length, 6, "nessun file orfano oltre il limite");
   });
 
   test("file non immagine → rifiutato, nessun file salvato", async () => {
@@ -210,11 +210,11 @@ describe("6–7. Foto: niente duplicati, limite atomico", () => {
     assert.equal((await uploadsOf(lead.id)).length, 0);
   });
 
-  test("il database impedisce di superare 12 anche aggirando il codice", async () => {
+  test("il database impedisce di superare 6 anche aggirando il codice", async () => {
     const lead = await svc.createLead(submission());
     const db = await dbmod.getDb();
     await assert.rejects(
-      db.update(schema.leads).set({ photoCount: 13 }).where(drizzle.eq(schema.leads.id, lead.id)),
+      db.update(schema.leads).set({ photoCount: 7 }).where(drizzle.eq(schema.leads.id, lead.id)),
     );
   });
 });
