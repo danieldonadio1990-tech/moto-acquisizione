@@ -16,10 +16,11 @@ concurrency:
 
 jobs:
   backup:
-    # Le esecuzioni programmate partono solo con la variabile di repository BACKUP_ENABLED=true
-    # (Settings → Secrets and variables → Actions → Variables), da impostare quando secret e permessi sono pronti.
-    # Il lancio manuale (workflow_dispatch) funziona sempre.
-    if: github.event_name == 'workflow_dispatch' || vars.BACKUP_ENABLED == 'true'
+    # Nessuna esecuzione, pianificata O manuale, parte se BACKUP_ENABLED non è ESATTAMENTE "true" (variabile di
+    # repository: Settings → Secrets and variables → Actions → Variables, da impostare quando secret e permessi sono
+    # pronti): il lancio manuale (workflow_dispatch) resta disponibile nell'interfaccia di Actions, ma è soggetto alla
+    # stessa condizione, non un modo per aggirarla. Solo dal ramo principale.
+    if: github.ref == 'refs/heads/main' && vars.BACKUP_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
