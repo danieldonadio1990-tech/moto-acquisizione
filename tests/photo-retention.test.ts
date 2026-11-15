@@ -213,3 +213,31 @@ describe("accesso riservato agli amministratori", () => {
     assert.ok(authLine < return404, "il controllo di sessione deve avvenire prima di qualunque lettura della foto");
   });
 });
+
+describe("workflow di pulizia: nessuna esecuzione senza PHOTO_CLEANUP_ENABLED=true, nemmeno manuale", () => {
+  const wf = readFileSync(".github/workflows/photo-cleanup.yml", "utf8");
+  const ifLine = (wf.match(/^\s*if:\s*.+$/m) ?? [""])[0];
+
+  test("PHOTO_CLEANUP_ENABLED assente o diverso da «true» blocca il job (confronto di stringa esatto, non truthy generico)", () => {
+    assert.match(ifLine, /vars\.PHOTO_CLEANUP_ENABLED\s*==\s*'true'/, "la condizione deve richiedere ESATTAMENTE 'true', non un valore qualunque");
+  });
+
+  test("il job gira solo sul ramo main", () => {
+    assert.match(ifLine, /github\.ref\s*==\s*'refs\/heads\/main'/);
+  });
+
+  test("il lancio manuale (workflow_dispatch) non aggira il controllo: nessun OR che lo esenti da PHOTO_CLEANUP_ENABLED", () => {
+    assert.doesNotMatch(ifLine, /workflow_dispatch/, "l'evento manuale non deve comparire nella condizione del job come scorciatoia");
+    // le due clausole (ramo + variabile) devono essere in AND, non in un OR che le renda alternative
+    assert.match(ifLine, /github\.ref\s*==\s*'refs\/heads\/main'\s*&&\s*vars\.PHOTO_CLEANUP_ENABLED\s*==\s*'true'/);
+  });
+
+  test("il trigger manuale resta comunque disponibile nell'interfaccia di Actions (solo il job è subordinato)", () => {
+    assert.match(wf, /workflow_dispatch:\s*\{\}/);
+  });
+
+  test("nessun segreto compare in chiaro nel file del workflow", () => {
+    assert.match(wf, /secrets\.PHOTO_CLEANUP_TOKEN/);
+    assert.doesNotMatch(wf, /PHOTO_CLEANUP_TOKEN:\s*[A-Za-z0-9]{20,}/);
+  });
+});
